@@ -100,3 +100,4 @@ tests/test_error_handling.py
 tests/test_parser.py
 tests/test_pretrained.py
 tests/test_shape_propagation.py
+
