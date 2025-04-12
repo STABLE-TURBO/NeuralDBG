@@ -7,6 +7,7 @@ import time
 import sys
 import threading
 import random
+import os
 from typing import List, Optional, Callable
 
 # Neural ASCII Logo
@@ -64,6 +65,16 @@ COMMAND_HEADERS = {
 ╔═══════════════════════════════════════════╗
 ║            Neural No-Code UI              ║
 ╚═══════════════════════════════════════════╝
+""",
+    "clean": """
+╔═══════════════════════════════════════════╗
+║              Neural Cleaner               ║
+╚═══════════════════════════════════════════╝
+""",
+    "version": """
+╔═══════════════════════════════════════════╗
+║             Neural Version Info           ║
+╚═══════════════════════════════════════════╝
 """
 }
 
@@ -110,6 +121,8 @@ class Spinner:
             self.spinner_thread.join()
 
     def __enter__(self):
+        if os.environ.get('NEURAL_NO_ANIMATIONS') or not sys.stdout.isatty():
+            return self
         self.start()
         return self
 
@@ -121,6 +134,8 @@ def progress_bar(iteration, total, prefix='', suffix='', length=50, fill='█', 
     """
     Call in a loop to create terminal progress bar
     """
+    if os.environ.get('NEURAL_NO_ANIMATIONS') or not sys.stdout.isatty():
+        return
     percent = ("{0:.1f}").format(100 * (iteration / float(total)))
     filled_length = int(length * iteration // total)
     bar = fill * filled_length + '-' * (length - filled_length)
@@ -135,6 +150,8 @@ def animate_neural_network(duration=3):
     """
     Animate a neural network with data flowing through it
     """
+    if os.environ.get('NEURAL_NO_ANIMATIONS') or not sys.stdout.isatty():
+        return
     layers = [
         ["○", "○", "○", "○"],  # Input layer
         ["○", "○", "○"],       # Hidden layer 1
@@ -154,11 +171,7 @@ def animate_neural_network(duration=3):
     try:
         while time.time() - start_time < duration:
             sys.stdout.write("\r" + " " * 50 + "\r")  # Clear line
-
-            # Determine which layer transition to highlight
             layer_idx = data_positions[frame % len(data_positions)]
-
-            # Print the network with highlighted connections
             for i, layer in enumerate(layers):
                 layer_str = " ".join(layer)
                 if i == layer_idx:
@@ -169,11 +182,9 @@ def animate_neural_network(duration=3):
                     sys.stdout.write(f"{layer_str} ")
                     if i < len(layers) - 1:
                         sys.stdout.write("→ ")
-
             sys.stdout.flush()
             time.sleep(0.2)
             frame += 1
-
     except KeyboardInterrupt:
         pass
     finally:
@@ -206,12 +217,7 @@ def print_neural_logo(version="1.0.0"):
 
 # Print help command with better formatting
 def print_help_command(ctx, commands):
-    """Print help command with better formatting.
-
-    Args:
-        ctx: Click context
-        commands: List of commands
-    """
+    """Print help command with better formatting."""
     print(f"{Colors.CYAN}{NEURAL_LOGO_SMALL}{Colors.ENDC}")
     print(f"{Colors.BOLD}Neural CLI Help{Colors.ENDC}")
     print(f"{Colors.BLUE}A Neural Network Programming Language{Colors.ENDC}\n")
@@ -220,9 +226,11 @@ def print_help_command(ctx, commands):
     print(f"  neural [OPTIONS] COMMAND [ARGS]...\n")
 
     print(f"{Colors.CYAN}Options:{Colors.ENDC}")
-    print(f"  -v, --verbose  Enable verbose logging")
-    print(f"  --help         Show this message and exit.")
-    print(f"  --version      Show the version and exit.\n")
+    print(f"  -v, --verbose        Enable verbose logging")
+    print(f"  --cpu               Force CPU mode")
+    print(f"  --no-animations     Disable animations and spinners")
+    print(f"  --version           Show the version and exit")
+    print(f"  -h, --help          Show this message and exit\n")
 
     print(f"{Colors.CYAN}Commands:{Colors.ENDC}")
     for cmd_name in sorted(commands.keys()):
@@ -234,6 +242,8 @@ def print_help_command(ctx, commands):
 
 # Execute a function with a spinner
 def with_spinner(func, message="Processing", *args, **kwargs):
+    if os.environ.get('NEURAL_NO_ANIMATIONS') or not sys.stdout.isatty():
+        return func(*args, **kwargs)
     with Spinner(message) as spinner:
         result = func(*args, **kwargs)
     return result
@@ -242,16 +252,12 @@ def with_spinner(func, message="Processing", *args, **kwargs):
 if __name__ == "__main__":
     print_neural_logo("1.0.0")
     print_command_header("visualize")
-
     print("Starting shape propagation...")
     for i in range(101):
         progress_bar(i, 100, prefix='Progress:', suffix='Complete', length=50)
         time.sleep(0.02)
-
     print_success("Shape propagation completed successfully!")
-
     with Spinner("Generating visualization"):
         time.sleep(3)
-
     print_success("Visualization generated successfully!")
     animate_neural_network(3)

@@ -245,7 +245,7 @@ class TestNetworkParsing:
                         Flatten() @ "cuda:1"
                         Dense(128, "relu") @ "cuda:1"
                         Dense(10, "softmax") @ "cpu"
-                    execution {
+                    execute {
                         device: "cuda"
                     }
                 }
@@ -395,7 +395,7 @@ class TestNetworkParsing:
                         Flatten() @ "cpu"
                         Dense(128, "relu") @ "cuda:0"
                         Dense(10, "softmax") @ "cpu"
-                    execution {
+                    execute {
                         device: "auto"
                     }
                 }
@@ -430,7 +430,7 @@ class TestNetworkParsing:
                         Flatten()
                         Dense(128, "relu") @ "tpu:0"
                         Dense(10, "softmax")
-                    execution {
+                    execute {
                         device: "tpu"
                     }
                 }

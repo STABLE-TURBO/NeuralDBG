@@ -8,6 +8,7 @@ setup.py
 ./neural/cli/__init__.py
 ./neural/cli/cli.py
 ./neural/cli/cli_aesthetics.py
+./neural/cli/cpu_mode.py
 ./neural/cli/lazy_imports.py
 ./neural/cli/version.py
 ./neural/cli/welcome_message.py
@@ -52,6 +53,7 @@ neural/test.py
 neural/cli/__init__.py
 neural/cli/cli.py
 neural/cli/cli_aesthetics.py
+neural/cli/cpu_mode.py
 neural/cli/lazy_imports.py
 neural/cli/version.py
 neural/cli/welcome_message.py

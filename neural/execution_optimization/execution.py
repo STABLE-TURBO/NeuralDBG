@@ -1,5 +1,14 @@
+import os
 import torch
-import tensorrt as trt
+
+# Only import TensorRT if not in CPU mode
+TENSORRT_AVAILABLE = False
+if not (os.environ.get('NEURAL_FORCE_CPU', '').lower() in ['1', 'true', 'yes'] or os.environ.get('CUDA_VISIBLE_DEVICES', '') == ''):
+    try:
+        import tensorrt as trt
+        TENSORRT_AVAILABLE = True
+    except ImportError:
+        pass
 
 def get_device(preferred_device="auto"):
     """ Selects the best available device: GPU, CPU, or future accelerators """
@@ -25,6 +34,11 @@ def run_inference(model, data, execution_config):
 
 def optimize_model_with_tensorrt(model):
     """ Converts model to TensorRT for optimized inference """
+    # Check if TensorRT is available
+    if not TENSORRT_AVAILABLE:
+        print("TensorRT not available, skipping optimization")
+        return model
+
     model.eval()
     device = get_device("gpu")
 
@@ -36,11 +50,11 @@ def optimize_model_with_tensorrt(model):
 
     return trt_model
 
-def run_inference(model, data, execution_config):
+def run_optimized_inference(model, data, execution_config):
     """ Runs optimized inference using TensorRT or PyTorch """
     device = get_device(execution_config.get("device", "auto"))
 
-    if device.type == "cuda":
+    if device.type == "cuda" and TENSORRT_AVAILABLE:
         model = optimize_model_with_tensorrt(model)
 
     model.to(device)

@@ -6,7 +6,7 @@ Displays a welcome message the first time the CLI is run.
 import os
 import sys
 from pathlib import Path
-from .cli_aesthetics import Colors, print_neural_logo, animate_neural_network
+from .cli_aesthetics import Colors, print_neural_logo, animate_neural_network, print_error
 
 WELCOME_MESSAGE = f"""
 {Colors.CYAN}Welcome to Neural CLI!{Colors.ENDC}
@@ -33,34 +33,28 @@ def show_welcome_message():
     Returns:
         bool: True if the welcome message was shown, False otherwise.
     """
-    # Get the user's home directory
-    home_dir = Path.home()
+    try:
+        # Get the user's home directory
+        home_dir = Path.home()
+        neural_dir = home_dir / ".neural"
+        neural_dir.mkdir(exist_ok=True)
+        welcome_file = neural_dir / "welcome_shown"
 
-    # Create the .neural directory if it doesn't exist
-    neural_dir = home_dir / ".neural"
-    neural_dir.mkdir(exist_ok=True)
+        if not welcome_file.exists():
+            print_neural_logo()
+            print(WELCOME_MESSAGE)
+            print("Here's a preview of what Neural can visualize:")
+            if not os.environ.get('NEURAL_NO_ANIMATIONS'):
+                animate_neural_network(3)
+            welcome_file.touch()
 
-    # Check if the welcome message has been shown before
-    welcome_file = neural_dir / "welcome_shown"
-    if not welcome_file.exists():
-        # Show the welcome message
-        print_neural_logo()
-        print(WELCOME_MESSAGE)
+            if os.environ.get('NEURAL_SKIP_WELCOME') or not sys.stdout.isatty():
+                return True
 
-        # Show a brief animation
-        print("Here's a preview of what Neural can visualize:")
-        animate_neural_network(3)
-
-        # Create the welcome file to indicate that the welcome message has been shown
-        welcome_file.touch()
-
-        # Ask the user if they want to continue
-        print(f"\n{Colors.CYAN}Press Enter to continue...{Colors.ENDC}")
-        input()
-
-        return True  # Welcome message was shown
-
-    return False  # Welcome message was not shown
-
-if __name__ == "__main__":
-    show_welcome_message()
+            print(f"\n{Colors.CYAN}Press Enter to continue...{Colors.ENDC}")
+            input()
+            return True
+        return False
+    except (PermissionError, OSError) as e:
+        print_error(f"Failed to manage welcome message: {str(e)}")
+        return False

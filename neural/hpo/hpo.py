@@ -312,16 +312,30 @@ def objective(trial, config, dataset_name='MNIST', backend='pytorch'):
         optimizer = getattr(optim, optimizer_config['type'])(model.parameters(), lr=lr)
 
     # Pass optimizer correctly
-    loss, acc, precision, recall = train_model(model, optimizer, train_loader, val_loader, backend=backend)
+    execution_config = {'device': device}
+    loss, acc, precision, recall = train_model(model, optimizer, train_loader, val_loader, backend=backend, execution_config=execution_config)
     return loss, acc, precision, recall
 
 
 
 # Optimize and Return
-def optimize_and_return(config, n_trials=10, dataset_name='MNIST', backend='pytorch'):
+def optimize_and_return(config, n_trials=10, dataset_name='MNIST', backend='pytorch', device='auto'):
+    # Set device mode
+    import os
+    if device.lower() == 'cpu':
+        # Force CPU mode
+        os.environ['CUDA_VISIBLE_DEVICES'] = ''
+        os.environ['NEURAL_FORCE_CPU'] = '1'
+        # Disable TensorRT
+        os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+        os.environ['TF_ENABLE_TENSOR_FLOAT_32_EXECUTION'] = '0'
+        # Disable CUDA in PyTorch
+        os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:32'
     study = optuna.create_study(directions=["minimize", "minimize", "maximize", "maximize"])
 
     def objective_wrapper(trial):
+        # Get device from outer scope
+        nonlocal device
         # Parse the config once per trial
         model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)
 
@@ -362,7 +376,8 @@ def optimize_and_return(config, n_trials=10, dataset_name='MNIST', backend='pyto
             optimizer = getattr(optim, optimizer_config['type'])(model.parameters(), lr=lr)
 
         # Train and evaluate
-        loss, acc, precision, recall = train_model(model, optimizer, train_loader, val_loader, backend=backend)
+        execution_config = {'device': device}
+        loss, acc, precision, recall = train_model(model, optimizer, train_loader, val_loader, backend=backend, execution_config=execution_config)
         return loss, acc, precision, recall
 
     study.optimize(objective_wrapper, n_trials=n_trials)
