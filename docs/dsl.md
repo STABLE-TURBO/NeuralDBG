@@ -599,4 +599,3 @@ network NewStyle {
 
 
 [Report Issues](https://github.com/Lemniscate-world/Neural/issues)
-

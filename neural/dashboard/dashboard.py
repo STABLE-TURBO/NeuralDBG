@@ -20,7 +20,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 
 from neural.shape_propagation.shape_propagator import ShapePropagator
 from neural.dashboard.tensor_flow import (
-    create_animated_network, 
+    create_animated_network,
     create_progress_component,
     create_layer_computation_timeline
 )
@@ -98,7 +98,7 @@ threading.Thread(target=socketio.run, args=("localhost", 5001), daemon=True).sta
 def update_trace_graph(n, viz_type, selected_layers=None):
     """Update execution trace graph with various visualization types."""
     global trace_data
-    
+
 
     ### ***Errors Handling*** ###
     if not trace_data or any(not isinstance(entry["execution_time"], (int, float)) for entry in trace_data):
@@ -190,17 +190,17 @@ def update_trace_graph(n, viz_type, selected_layers=None):
         heatmap_data = np.random.rand(len(layers), iterations)
         fig = go.Figure(data=go.Heatmap(z=heatmap_data, x=[f"Iteration {i+1}" for i in range(iterations)], y=layers))
         fig.update_layout(title="Execution Time Heatmap", xaxis_title="Iterations", yaxis_title="Layers")
-            
-        
+
+
 
     elif viz_type == "thresholds":
         # Bar Chart with Annotations and Thresholds
-        fig = go.Figure([go.Bar(x=layers, y=execution_times, name="Execution Time", 
+        fig = go.Figure([go.Bar(x=layers, y=execution_times, name="Execution Time",
                                marker_color=["red" if t > 0.003 else "blue" for t in execution_times])])
         for i, t in enumerate(execution_times):
             if t > 0.003:
                 fig.add_annotation(
-                    x=layers[i], y=t, text=f"High: {t}s", showarrow=True, arrowhead=2, 
+                    x=layers[i], y=t, text=f"High: {t}s", showarrow=True, arrowhead=2,
                     font=dict(size=10), align="center"
                 )
         fig.update_layout(
@@ -244,7 +244,7 @@ def update_flops_memory_chart(n):
         go.Bar(x=layers, y=memory, name="Memory Usage (MB)")
     ])
     fig.update_layout(title="FLOPs & Memory Usage", xaxis_title="Layers", yaxis_title="Values", barmode="group")
-    
+
     return [fig]
 
 ##################
@@ -283,7 +283,7 @@ app.layout = html.Div([
 def update_graph(arch):
     # Initialize input shape (e.g., for a 28x28 RGB image)
     input_shape = (1, 28, 28, 3)  # Batch, height, width, channels
-    
+
     if arch == "A":
         layers = ["Conv2D", "Dense"]  # Example
         params = [{"kernel_size": (3, 3), "units": 128} for _ in layers]
@@ -291,7 +291,7 @@ def update_graph(arch):
     propagator = ShapePropagator()
     for layer in layers:
         input_shape = propagator.propagate(input_shape, layer, framework='tensorflow')  # Update input shape
-    
+
     return create_animated_network(propagator.shape_history)  # Pass shape history
 
 
@@ -306,13 +306,13 @@ def update_gradient_chart(n):
     """Visualizes gradient flow per layer."""
     response = requests.get("http://localhost:5001/trace")
     trace_data = response.json()
-    
+
     layers = [entry["layer"] for entry in trace_data]
     grad_norms = [entry.get("grad_norm", 0) for entry in trace_data]
 
     fig = go.Figure([go.Bar(x=layers, y=grad_norms, name="Gradient Magnitude")])
     fig.update_layout(title="Gradient Flow", xaxis_title="Layers", yaxis_title="Gradient Magnitude")
-    
+
     return [fig]
 
 #########################
@@ -332,7 +332,7 @@ def update_dead_neurons(n):
 
     fig = go.Figure([go.Bar(x=layers, y=dead_ratios, name="Dead Neurons (%)")])
     fig.update_layout(title="Dead Neuron Detection", xaxis_title="Layers", yaxis_title="Dead Ratio", yaxis_range=[0, 1])
-    
+
     return [fig]
 
 ##############################
@@ -356,7 +356,7 @@ def update_anomaly_chart(n):
         go.Bar(x=layers, y=anomalies, name="Anomaly Detected", marker_color="red")
     ])
     fig.update_layout(title="Activation Anomalies", xaxis_title="Layers", yaxis_title="Activation Magnitude")
-    
+
     return [fig]
 
 ###########################
@@ -460,22 +460,22 @@ app.layout = html.Div([
         multi=True,
         value=["Conv2D", "Dense"]
     ),
-    
+
     # Execution Trace Visualization
     dcc.Graph(id="trace_graph"),
-    
+
     # FLOPs & Memory Usage
     dcc.Graph(id="flops_memory_chart"),
-    
+
     # Shape Propagation
     html.H1("Neural Shape Propagation Dashboard"),
     dcc.Graph(id="shape_graph"),
-    
+
     # Training Metrics
     html.H1("Training Metrics"),
     dcc.Graph(id="loss_graph"),
     dcc.Graph(id="accuracy_graph"),
-    
+
     # Model Comparison
     html.H1("Compare Architectures"),
     dcc.Dropdown(
@@ -487,11 +487,11 @@ app.layout = html.Div([
         value="A"
     ),
     dcc.Graph(id="architecture_graph"),
-    
+
     # Resource Monitoring
     html.H1("Resource Monitoring"),
     dcc.Graph(id="resource_graph"),
-    
+
     # Interval for updates (initial value, updated dynamically)
     dcc.Interval(id="interval_component", interval=UPDATE_INTERVAL, n_intervals=0),
 
@@ -509,7 +509,7 @@ app.layout = html.Div([
                 ])
             ]
         ),
-        
+
         html.Div([
             html.H3("Computation Timeline"),
             dcc.Graph(id="computation-timeline")
@@ -532,7 +532,7 @@ def update_network_visualization(n_clicks, arch_type, progress_data):
     if n_clicks == 0:
         # Initial load - return empty figure
         return go.Figure(), json.dumps({"progress": 0, "details": "Click to generate"})
-    
+
     # Get layer data based on selected architecture
     if arch_type == "A":
         layer_data = [
@@ -553,10 +553,10 @@ def update_network_visualization(n_clicks, arch_type, progress_data):
             {"layer": "Concat", "output_shape": (1, 56, 56, 256)},
             {"layer": "Dense", "output_shape": (1, 1000)},
         ]
-    
+
     # Generate the visualization with progress tracking
     fig = create_animated_network(layer_data, show_progress=True)
-    
+
     # Return the figure and final progress state
     return fig, json.dumps({"progress": 100, "details": "Visualization complete"})
 
@@ -570,18 +570,18 @@ def update_network_visualization(n_clicks, arch_type, progress_data):
 def update_progress_display(progress_json):
     if not progress_json:
         raise PreventUpdate
-    
+
     progress_data = json.loads(progress_json)
     progress = progress_data.get("progress", 0)
     details = progress_data.get("details", "")
-    
+
     # Update progress bar style
     bar_style = {
-        "width": f"{progress}%", 
-        "backgroundColor": "#4CAF50", 
+        "width": f"{progress}%",
+        "backgroundColor": "#4CAF50",
         "height": "30px"
     }
-    
+
     return bar_style, f"{progress:.1f}%", details
 
 # Add computation timeline
@@ -592,7 +592,7 @@ def update_progress_display(progress_json):
 def update_computation_timeline(network_fig):
     if not network_fig:
         raise PreventUpdate
-    
+
     # Get the same layer data used for the network visualization
     # In a real implementation, you would use actual execution times
     if "A" in network_fig.get("layout", {}).get("title", {}).get("text", ""):
@@ -613,7 +613,7 @@ def update_computation_timeline(network_fig):
             {"layer": "Concat", "execution_time": 0.2},
             {"layer": "Dense", "execution_time": 0.7}
         ]
-    
+
     return create_layer_computation_timeline(layer_data)
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ network SentimentAnalyzer {
     LSTM(units=64)
     Dense(units=32, activation="relu")
     Output(units=2, activation="softmax")
-  
+
   loss: "binary_crossentropy"
   optimizer: Adam(learning_rate=0.001)
   train {

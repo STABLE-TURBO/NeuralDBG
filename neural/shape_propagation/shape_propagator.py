@@ -42,7 +42,7 @@ class PerformanceMonitor:
 
 
 class ShapePropagator:
-    
+
     def __init__(self, debug=False):
         self.debug = debug
         self.shape_history = []
@@ -51,7 +51,7 @@ class ShapePropagator:
         self.execution_trace = []  # Stores nntrace logs
         self.performance_monitor = PerformanceMonitor()
         self.hub = PretrainedModelHub()
-        
+
         # Framework compatibility mappings
         self.param_aliases = {
             'Conv2D': {'filters': 'out_channels', 'kernel_size': 'kernel_size'},
@@ -60,13 +60,13 @@ class ShapePropagator:
             'LSTM': {'units': 'hidden_size'},
             'BatchNormalization': {'momentum': 'decay'}
         }
-        
+
         # Initialize visualization
         self.dot = Digraph(comment='Neural Network Architecture')
         self.dot.attr('node', shape='record', style='filled', fillcolor='lightgrey')
 
-    def propagate(self, input_shape: Tuple[Optional[int], ...], 
-              layer: Dict[str, Any], 
+    def propagate(self, input_shape: Tuple[Optional[int], ...],
+              layer: Dict[str, Any],
               framework: str = 'tensorflow') -> Tuple[Optional[int], ...]:
         """Processes a layer and logs shape changes for nntrace."""
         layer_type = layer["type"]
@@ -170,7 +170,7 @@ class ShapePropagator:
                 "flops": flops, "memory": memory, "grad_norm": grad_norm, "dead_ratio": dead_ratio,
                 "mean_activation": mean_act, "anomaly": anomaly
             })
-            
+
         return trace
 
     def _process_layer(self, input_shape, layer, framework):
@@ -234,7 +234,7 @@ class ShapePropagator:
             return (input_shape[0], params['filters'], *output_spatial)
         else:
             return (input_shape[0], *output_spatial, params['filters'])
-        
+
     def _handle_maxpooling2d(self, input_shape, params):
         data_format = params.get('data_format', 'channels_last')
         pool_size = params['pool_size']
@@ -257,7 +257,7 @@ class ShapePropagator:
             new_height = input_shape[2] // stride_h
             new_width = input_shape[3] // stride_w
             return (input_shape[0], input_shape[1], new_height, new_width)
-    
+
     def _handle_flatten(self, input_shape, params):
         # If there is a batch dimension, keep it.
         if len(input_shape) >= 1:
@@ -288,7 +288,7 @@ class ShapePropagator:
     def _handle_default(self, input_shape, params):
         # Default handler for unsupported layers
         return input_shape
-    
+
     ### Padding detection, extraction and calculation ###
     def _calculate_padding(self, params, input_dim):
         """Calculates padding based on provided parameters and input dimension.
@@ -304,7 +304,7 @@ class ShapePropagator:
             int or tuple or list: Calculated padding value.
         """
         padding = params.get('padding', 0)
-    
+
         if isinstance(padding, int):
             return padding
         elif isinstance(padding, (list, tuple)):
@@ -320,7 +320,7 @@ class ShapePropagator:
             return 0
         else:
             return [padding] * (input_dim - 2)
-    
+
     ### Layers Shape Propagation Visualization ###
     def _visualize_layer(self, layer_name, shape):
         label = f"{layer_name}\n{shape}"
@@ -336,7 +336,7 @@ class ShapePropagator:
         """Generate interactive visualization and shape report"""
         # Plotly visualization
         fig = go.Figure()
-        
+
         # Add shape dimensions as bar chart
         shapes = [str(s[1]) for s in self.shape_history]
         fig.add_trace(go.Bar(
@@ -345,14 +345,14 @@ class ShapePropagator:
             text=shapes,
             name='Parameter Count'
         ))
-        
+
         fig.update_layout(
             title='Network Shape Propagation',
             xaxis_title='Layer',
             yaxis_title='Parameters',
             template='plotly_white'
         )
-        
+
         return {
             'dot_graph': self.dot,
             'plotly_chart': fig,
@@ -370,7 +370,7 @@ class ShapePropagator:
             'spatial_dims': shape[2:-1] if len(shape) > 2 else None,
             'channel_dim': shape[1] if len(shape) > 1 else None
         }
-    
+
     ### Loading Pretrained Models ####
 
     def load_pretrained(self, model_name, pretrained=True):
@@ -389,10 +389,10 @@ class ShapeValidator:
             'Conv2D': lambda: ShapeValidator._validate_conv(input_shape, params),
             'Dense': lambda: ShapeValidator._validate_dense(input_shape, params)
         }
-        
+
         if validator := validators.get(layer_type):
             validator()
-            
+
     @staticmethod
     def _validate_conv(input_shape, params):
         if len(input_shape) != 4:
@@ -400,7 +400,7 @@ class ShapeValidator:
         if params['kernel_size'] > input_shape[2]:
             raise ValueError(f"Kernel size {params['kernel_size']} "
                            f"exceeds input dimension {input_shape[2]}")
-        
+
     @staticmethod
     def _validate_dense(input_shape, params):
         if len(input_shape) > 2:
@@ -427,7 +427,7 @@ def get_framework_params(framework):
 def get_shape_data(self):
         """Returns shape history as JSON."""
         return json.dumps([
-        {"layer": layer[0], "output_shape": layer[1]} 
+        {"layer": layer[0], "output_shape": layer[1]}
         for layer in self.shape_history
     ])
 
@@ -447,7 +447,7 @@ def compute_flops_params(layer, input_shape):
         units = layer["params"]["units"]
         params = input_shape[1] * units + units  # Weights + biases
         flops = 2 * params  # Two operations per weight (multiply + add)
-    
+
     elif layer["type"] == "Conv2D":
         filters = layer["params"]["filters"]
         kernel_size = layer["params"]["kernel_size"]
@@ -456,7 +456,7 @@ def compute_flops_params(layer, input_shape):
         output_height = (input_shape[1] - kernel_size[0]) // stride + 1
         output_width = (input_shape[2] - kernel_size[1]) // stride + 1
         flops = params * output_height * output_width
-    
+
     return params, flops
 
 #######################################

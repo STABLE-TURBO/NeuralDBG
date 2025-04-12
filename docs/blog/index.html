@@ -66,34 +66,34 @@
                     if (!response.ok) {
                         throw new Error('Failed to load blog list');
                     }
-                    
+
                     const blogList = await response.json();
                     const blogPostsContainer = document.getElementById('blog-posts');
                     blogPostsContainer.innerHTML = ''; // Clear loading spinner
-                    
+
                     // Sort blog posts by date (newest first)
                     blogList.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    
+
                     // Create a card for each blog post
                     for (const post of blogList) {
                         const postCard = document.createElement('div');
                         postCard.className = 'blog-card';
-                        
+
                         // Extract date from filename or use default
                         const dateMatch = post.filename.match(/v(\d+\.\d+\.\d+)/);
                         const version = dateMatch ? dateMatch[1] : '';
                         const dateStr = post.date || 'Unknown date';
-                        
+
                         postCard.innerHTML = `
                             <h2 class="blog-title">${post.title}</h2>
                             <div class="blog-meta">Posted on ${dateStr} ${version ? `• Version ${version}` : ''}</div>
                             <div class="blog-excerpt">${post.excerpt}</div>
                             <a href="${post.url}" class="blog-link">Read more →</a>
                         `;
-                        
+
                         blogPostsContainer.appendChild(postCard);
                     }
-                    
+
                     // If no posts found
                     if (blogList.length === 0) {
                         blogPostsContainer.innerHTML = '<div class="alert alert-info">No blog posts found.</div>';
@@ -107,7 +107,7 @@
                     `;
                 }
             }
-            
+
             // Load blog posts when the page loads
             loadBlogPosts();
         });

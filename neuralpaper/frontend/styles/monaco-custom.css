@@ -30,7 +30,7 @@
 }
 
 /* Font settings */
-.monaco-editor, 
+.monaco-editor,
 .monaco-editor .line-numbers {
   font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
 }

@@ -30,28 +30,28 @@ def parse_pytest_results(xml_path):
                         f"**Explanation:** This test failure needs investigation.\n\n"
                         f"**Comments:** Any additional context? Assigning to @Lemniscate-world for review.",
             })
-    
+
     return issues
 
 def create_github_issues(issues):
     token = os.environ.get('GITHUB_TOKEN')
     if not token:
         raise ValueError("Missing GITHUB_TOKEN environment variable")
-    
+
     g = Github(token)
-    
+
     # Get repository from environment variables instead of hardcoding
     repo_name = os.environ.get('GITHUB_REPOSITORY', 'Lemniscate-world/Neural')
     repo = g.get_repo(repo_name)
-    
+
     for issue in issues:
         # Check for existing issues with similar titles
         existing_issues = list(repo.get_issues(state='open'))
         exists = any(
-            issue["title"] in existing.title 
+            issue["title"] in existing.title
             for existing in existing_issues
         )
-        
+
         if not exists:
             try:
                 repo.create_issue(

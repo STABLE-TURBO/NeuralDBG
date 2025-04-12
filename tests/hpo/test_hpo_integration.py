@@ -29,11 +29,11 @@ def mock_data_loader(dataset_name, input_shape, batch_size=32, train=True):
     else:
         x = torch.randn(20, *input_shape)
         y = torch.randint(0, 10, (20,))
-    
+
     # Convert to NCHW format for PyTorch
     if len(input_shape) == 3:  # For image data
         x = x.permute(0, 3, 1, 2)  # NHWC to NCHW
-    
+
     # Create DataLoader
     from torch.utils.data import TensorDataset, DataLoader
     dataset = TensorDataset(x, y)
@@ -48,7 +48,7 @@ def test_model_forward_flat_input():
     x = x.permute(0, 3, 1, 2)  # [32, 1, 28, 28]
     output = model(x)
     assert output.shape == (32, 10), f"Expected (32, 10), got {output.shape}"
-    
+
 def test_model_forward_conv2d():
     config = "network Test { input: (28,28,1) layers: Conv2D(filters=16, kernel_size=3) Flatten() Dense(128) Output(10) }"
     model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)

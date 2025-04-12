@@ -9,6 +9,3 @@ network ThreeInputNeuron {
     layers:
         Dense(units=1, activation="linear", use_bias=true)
 }
-
-
-

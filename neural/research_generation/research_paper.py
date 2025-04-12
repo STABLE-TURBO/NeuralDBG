@@ -104,10 +104,10 @@ def generate_research_paper(model_data, results, shape_history, shape_prop_img="
     title = f"Training and Evaluation of {model_name}"
     author = "Neural Research Team"
     date = datetime.date.today().strftime("%B %d, %Y")
-    
+
     layer_details = "\n".join([f"\\item {layer['type']} ({layer.get('params', {})})" for layer in model_data["layers"]])
     shape_history_items = format_shape_history_for_latex(shape_history)
-    
+
     latex_content = RESEARCH_TEMPLATE.format(
         title=title,
         author=author,
@@ -125,9 +125,9 @@ def generate_research_paper(model_data, results, shape_history, shape_prop_img="
         shape_history_items=shape_history_items,
         shape_prop_img=shape_prop_img
     )
-    
+
     filename = f"{model_name}_paper.tex"
     with open(filename, "w") as file:
         file.write(latex_content)
-    
+
     print(f"Research paper saved as {filename}. Compile with LaTeX.")

@@ -36,42 +36,42 @@ export default function Home() {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          <FeatureCard 
+          <FeatureCard
             title="Annotated Models"
             description="Explore neural network architectures with detailed annotations explaining each component."
             icon="/icons/annotation.svg"
             delay={0.1}
             isLoaded={isLoaded}
           />
-          <FeatureCard 
+          <FeatureCard
             title="Interactive Visualization"
             description="Visualize model architecture, shape propagation, and computation flow in real-time."
             icon="/icons/visualization.svg"
             delay={0.2}
             isLoaded={isLoaded}
           />
-          <FeatureCard 
+          <FeatureCard
             title="Live Debugging"
             description="Debug models with NeuralDbg to analyze gradients, activations, and performance."
             icon="/icons/debug.svg"
             delay={0.3}
             isLoaded={isLoaded}
           />
-          <FeatureCard 
+          <FeatureCard
             title="DSL Playground"
             description="Experiment with Neural DSL to create and modify models with instant feedback."
             icon="/icons/code.svg"
             delay={0.4}
             isLoaded={isLoaded}
           />
-          <FeatureCard 
+          <FeatureCard
             title="Educational Resources"
             description="Learn about neural network concepts with interactive examples and tutorials."
             icon="/icons/education.svg"
             delay={0.5}
             isLoaded={isLoaded}
           />
-          <FeatureCard 
+          <FeatureCard
             title="Research Integration"
             description="Connect models to research papers with citations and explanations."
             icon="/icons/research.svg"
@@ -90,19 +90,19 @@ export default function Home() {
             Explore Popular Models
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <ModelCard 
+            <ModelCard
               title="ResNet"
               description="Deep residual networks with skip connections"
               image="/models/resnet.png"
               href="/models/resnet"
             />
-            <ModelCard 
+            <ModelCard
               title="Transformer"
               description="Attention-based sequence model for NLP tasks"
               image="/models/transformer.png"
               href="/models/transformer"
             />
-            <ModelCard 
+            <ModelCard
               title="MLP-Mixer"
               description="All-MLP architecture for image classification"
               image="/models/mlp-mixer.png"

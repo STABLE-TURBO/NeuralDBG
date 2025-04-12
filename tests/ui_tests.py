@@ -20,7 +20,7 @@ def test_dashboard_ui():
         step_debug_button = driver.find_element(By.ID, "step_debug_button")
         step_debug_button.click()
         time.sleep(1)
-        
+
         message = driver.find_element(By.ID, "step_debug_output").text
         assert "Paused. Check terminal for tensor inspection." in message
     except Exception:

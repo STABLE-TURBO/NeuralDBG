@@ -1,4 +1,4 @@
-# pack-refs with: peeled fully-peeled sorted 
+# pack-refs with: peeled fully-peeled sorted
 3b7f442dd0273cd6ae751a57480d0d2fa7f29fc1 refs/heads/Lemniscate-SHA-256/issue52
 ef29ba431eae11d19a987e67b7ec25183196a24f refs/heads/main
 3daa1c3f187e03dd1a04d81a4fa3fc667f76f674 refs/remotes/origin/HEAD

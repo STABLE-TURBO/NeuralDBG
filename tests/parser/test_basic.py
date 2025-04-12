@@ -33,7 +33,7 @@ class TestGrammarStructure:
     def test_rule_dependencies(self, parser):
         """Test that grammar rules have correct dependencies."""
         rules = {rule.origin.name: rule for rule in parser.grammar.rules}
-        
+
         # Check essential rule dependencies
         dependencies = {
             'network': ['input_layer', 'layers', 'loss', 'optimizer'],
@@ -41,7 +41,7 @@ class TestGrammarStructure:
             'conv': ['conv1d', 'conv2d', 'conv3d'],
             'pooling': ['max_pooling', 'average_pooling', 'global_pooling']
         }
-        
+
         for rule_name, required_deps in dependencies.items():
             assert rule_name in rules, f"Missing rule: {rule_name}"
             rule = rules[rule_name]
@@ -56,7 +56,7 @@ class TestGrammarStructure:
             ('mixed_params', 'Conv2D(32, kernel_size=(3,3))'),
             ('nested_params', 'Transformer(num_heads=8) { Dense(10) }')
         ]
-        
+
         for test_id, test_input in test_cases:
             try:
                 parser.parse(f"network TestNet {{ input: (1,1) layers: {test_input} }}")
@@ -74,7 +74,7 @@ class TestGrammarStructure:
             ('conv_params', 'Conv2D(filters=32, kernel_size=(3,3))'),
             ('nested_block', 'Transformer() { Dense(10) }')
         ]
-            
+
         for test_id, test_input in test_cases:
             try:
                 result = parser.parse(f"network TestNet {{ input: (1,1) layers: {test_input} }}")
@@ -91,7 +91,7 @@ class TestGrammarStructure:
             "network TestNet { input: (1,1) layers: Dense(10) train { epochs: 10 } }",
             "network TestNet { input: (1,1) layers: Dense(10) execute { device: \"cpu\" } }"
         ]
-        
+
         for feature in features:
             try:
                 result = parser.parse(feature)
@@ -125,7 +125,7 @@ class TestTokenPatterns:
                 elif rule_name == 'NAME':
                     # Test NAME token in a valid context (as network name)
                     result = parser.parse(f'network {input_str} {{ input: (1,1) layers: Dense(10) }}')
-                
+
                 assert result is not None, f"Failed to parse {rule_name} with input: {input_str}"
             except Exception as e:
                 pytest.fail(f"Failed to parse {rule_name} with input: {input_str}, error: {str(e)}")

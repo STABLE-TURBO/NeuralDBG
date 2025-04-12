@@ -33,7 +33,7 @@ class NetworkRenderer {
     }
 
     showError(message) {
-        const errorDiv = document.getElementById('error-message') || 
+        const errorDiv = document.getElementById('error-message') ||
             document.createElement('div');
         errorDiv.id = 'error-message';
         errorDiv.style.color = 'red';

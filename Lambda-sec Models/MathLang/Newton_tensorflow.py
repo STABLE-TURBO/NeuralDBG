@@ -8,7 +8,7 @@ class TransformerEncoder(layers.Layer):
         self.ff_dim = ff_dim
         self.dropout = dropout
         self.attn = layers.MultiHeadAttention(
-            num_heads=num_heads, 
+            num_heads=num_heads,
             key_dim=ff_dim//num_heads  # Proper dimension calculation
         )
         self.ffn = tf.keras.Sequential([
@@ -19,7 +19,7 @@ class TransformerEncoder(layers.Layer):
         self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
         self.dropout1 = layers.Dropout(dropout)
         self.dropout2 = layers.Dropout(dropout)
-    
+
     def call(self, inputs):
         attn_output = self.attn(inputs, inputs)
         attn_output = self.dropout1(attn_output)

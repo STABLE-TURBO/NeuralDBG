@@ -28,7 +28,7 @@ def test_trace_endpoint(client):
     assert response.status_code == 200, "Expected 200 OK with valid credentials"
     data = response.get_json()
     assert isinstance(data, list), "Expected JSON response to be a list"
-    
+
     # If trace data is present, verify that required keys are available.
     if data:
         required_keys = {
@@ -55,7 +55,7 @@ def test_update_graph_callback():
     figure = update_graph(0)
     # update_graph should return a plotly.graph_objects.Figure instance.
     assert isinstance(figure, go.Figure), "update_graph did not return a valid Figure object"
-    
+
     # Check that the figure layout has the expected title.
     layout_title = figure.layout.title.text if figure.layout.title else ""
     assert "Shape Propagation" in layout_title, "Figure title does not mention 'Shape Propagation'"

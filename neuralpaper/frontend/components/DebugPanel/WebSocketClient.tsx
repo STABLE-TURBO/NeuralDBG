@@ -28,16 +28,16 @@ const WebSocketClient: React.FC<WebSocketClientProps> = ({
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
-    
+
     try {
       const ws = new WebSocket(url);
-      
+
       ws.onopen = () => {
         setIsConnected(true);
         setError(null);
         if (onConnect) onConnect();
       };
-      
+
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -46,23 +46,23 @@ const WebSocketClient: React.FC<WebSocketClientProps> = ({
           console.error('Failed to parse WebSocket message:', err);
         }
       };
-      
+
       ws.onclose = () => {
         setIsConnected(false);
         if (onDisconnect) onDisconnect();
-        
+
         if (autoReconnect) {
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, reconnectInterval);
         }
       };
-      
+
       ws.onerror = (event) => {
         setError('WebSocket error');
         if (onError) onError(event);
       };
-      
+
       wsRef.current = ws;
     } catch (err: any) {
       setError(err.message || 'Failed to connect to WebSocket');
@@ -74,7 +74,7 @@ const WebSocketClient: React.FC<WebSocketClientProps> = ({
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
+
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -83,7 +83,7 @@ const WebSocketClient: React.FC<WebSocketClientProps> = ({
 
   useEffect(() => {
     connect();
-    
+
     return () => {
       disconnect();
     };
@@ -100,7 +100,7 @@ const WebSocketClient: React.FC<WebSocketClientProps> = ({
   return (
     <div className="websocket-client">
       {children}
-      
+
       {error && (
         <div className="text-red-500 text-sm mt-2">
           {error}

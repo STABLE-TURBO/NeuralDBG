@@ -13,7 +13,7 @@ jobs:
     permissions:
       issues: write
       contents: read
-      packages: read 
+      packages: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -27,7 +27,7 @@ jobs:
           pip install -e .[dev]  # For development dependencies
           pip install tensorrt  # Specific dependency from NVIDIA
           pip install pysnooper
-      
+
       - name: Install project in editable mode
         run: |
           pip install -e .
@@ -36,14 +36,14 @@ jobs:
         continue-on-error: true
         run: |
           pytest tests/ --junit-xml=test-results.xml || echo "Pytest failed but continuing"
-        
+
       - name: Create XML if missing
         if: always()
         run: |
           if [ ! -f test-results.xml ]; then
             echo '<?xml version="1.0"?><testsuite name="pytest" errors="1"><testcase name="dummy"><error message="No tests executed"/></testcase></testsuite>' > test-results.xml
           fi
-        
+
       - name: Create GitHub Issues for Failures
         if: always()
         env:
@@ -69,7 +69,7 @@ jobs:
           else
             echo "gpu=unavailable" >> $GITHUB_OUTPUT
           fi
-          
+
       - name: Setup TensorRT (GPU only)
         if: steps.check-gpu.outputs.gpu == 'available'
         run: |

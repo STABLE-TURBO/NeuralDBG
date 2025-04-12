@@ -37,27 +37,27 @@ SAMPLE_MODELS = [
 def main():
     """Initialize the database with sample models."""
     print("Initializing database with sample models...")
-    
+
     # Create models directory if it doesn't exist
     models_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../models"))
     os.makedirs(models_dir, exist_ok=True)
-    
+
     # Copy sample models
     for model in SAMPLE_MODELS:
         model_id = model["id"]
         print(f"Processing model: {model_id}")
-        
+
         # Check if model files exist
         neural_file = os.path.join(models_dir, f"{model_id}.neural")
         annotations_file = os.path.join(models_dir, f"{model_id}.annotations.json")
-        
+
         if not os.path.exists(neural_file):
             print(f"Warning: Model file not found: {neural_file}")
             continue
-        
+
         if not os.path.exists(annotations_file):
             print(f"Warning: Annotations file not found: {annotations_file}")
-            
+
             # Create empty annotations file
             with open(annotations_file, "w") as f:
                 json.dump({
@@ -67,25 +67,25 @@ def main():
                     "complexity": model.get("complexity", "Medium"),
                     "sections": []
                 }, f, indent=2)
-            
+
             print(f"Created empty annotations file: {annotations_file}")
         else:
             # Update annotations file with metadata
             with open(annotations_file, "r") as f:
                 annotations = json.load(f)
-            
+
             # Update metadata
             annotations["name"] = model["name"]
             annotations["description"] = model["description"]
             annotations["category"] = model.get("category", "Uncategorized")
             annotations["complexity"] = model.get("complexity", "Medium")
-            
+
             # Write updated annotations
             with open(annotations_file, "w") as f:
                 json.dump(annotations, f, indent=2)
-            
+
             print(f"Updated annotations file: {annotations_file}")
-    
+
     print("Database initialization complete.")
 
 if __name__ == "__main__":
