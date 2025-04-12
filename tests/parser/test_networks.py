@@ -234,7 +234,7 @@ class TestNetworkParsing:
                 "layer-repetition"
             ),
 
-            # Device placement
+            # Device placement network
             (
                 """
                 network DevicePlacementModel {
