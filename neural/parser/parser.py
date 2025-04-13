@@ -317,7 +317,8 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         named_optimizer: NAME "(" [param_style1] ("," [param_style1])* ")"
         EXPONENTIALDECAY: "ExponentialDecay"
         exponential_decay: EXPONENTIALDECAY "(" [exponential_decay_param ("," exponential_decay_param)*] ")"
-        exponential_decay_param: hpo_expr | number | STRING
+        exponential_decay_param: hpo_expr | number | STRING | ( hpo_expr ("," decay_steps)* ("," hpo_expr)* )
+        decay_steps: number
         learning_rate_param: "learning_rate=" (exponential_decay | FLOAT | hpo_expr | NAME "(" [lr_schedule_args] ")")
         lr_schedule_args: param_style1 ("," param_style1)*
         momentum_param: "momentum=" param_style1
@@ -1346,6 +1347,9 @@ class ModelTransformer(lark.Transformer):
             'type': 'ExponentialDecay',
             'params': params
         }
+    
+    def decay_steps(self, items):
+        return {'decay_steps': self._extract_value(items[0])}
 
     ###############
 
@@ -3278,6 +3282,7 @@ class ModelTransformer(lark.Transformer):
     def hpo_choice(self, items):
         return {"type": "categorical", "values": [self._extract_value(x) for x in items]}
 
+    @pysnooper.snoop()
     def hpo_range(self, items):
         start = self._extract_value(items[0])
         end = self._extract_value(items[1])
