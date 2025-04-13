@@ -1347,7 +1347,7 @@ class ModelTransformer(lark.Transformer):
             'type': 'ExponentialDecay',
             'params': params
         }
-    
+
     def decay_steps(self, items):
         return {'decay_steps': self._extract_value(items[0])}
 
