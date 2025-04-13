@@ -13,6 +13,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 from lark import exceptions
+import pysnooper
 
 # Import CLI aesthetics
 from .cli_aesthetics import (
@@ -220,6 +221,8 @@ def compile(ctx, file: str, backend: str, dataset: str, output: Optional[str], d
             print_error(f"Failed to write to {output_file}: {str(e)}")
             sys.exit(1)
 
+#### RUN COMMAND #####
+
 @cli.command()
 @click.argument('file', type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.option('--backend', '-b', default='tensorflow', help='Backend to run', type=click.Choice(['tensorflow', 'pytorch'], case_sensitive=False))
@@ -227,6 +230,7 @@ def compile(ctx, file: str, backend: str, dataset: str, output: Optional[str], d
 @click.option('--hpo', is_flag=True, help='Enable HPO for .neural files')
 @click.option('--device', '-d', default='auto', help='Device to use (auto, cpu, gpu)', type=click.Choice(['auto', 'cpu', 'gpu'], case_sensitive=False))
 @click.pass_context
+@pysnooper.snoop()
 def run(ctx, file: str, backend: str, dataset: str, hpo: bool, device: str):
     """Run a compiled model or optimize and run a .neural file."""
     print_command_header("run")

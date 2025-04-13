@@ -105,13 +105,7 @@ class TestNetworkParsing:
                         Dense(128, "relu")
                         Dense(10, "softmax")
                     optimizer: SGD(
-                        learning_rate=ExponentialDecay(
-                            HPO(range(0.05, 0.2, step=0.05)),
-                            1000,
-                            HPO(range(0.9, 0.99, step=0.01))
-                        ),
-                        momentum=0.9
-                    )
+                        learning_rate=ExponentialDecay(HPO(range(0.05, 0.2, step=0.05)), 1000, HPO(range(0.9, 0.99, step=0.01))), momentum=0.9)
                 }
                 """,
                 {

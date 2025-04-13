@@ -343,6 +343,7 @@ class TestHPOParser:
         ],
         ids=["simple-network-hpo", "complex-network-hpo", "nested-network-hpo"]
     )
+    # Testing hpo in the network
     def test_hpo_in_network(self, transformer, network_string, expected_hpo_count, test_id):
         """Test HPO expressions within complete network definitions."""
         model_dict, hpo_params = transformer.parse_network_with_hpo(network_string)

@@ -2,7 +2,7 @@ import os
 import sys
 import pytest
 from click.testing import CliRunner
-from neural.cli import cli, logger
+from neural.cli import cli
 from neural.parser.parser import ModelTransformer, DSLValidationError
 import shutil
 import logging
