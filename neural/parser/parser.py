@@ -227,7 +227,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         named_size: NAME ":" explicit_tuple
         named_filters: "filters" "=" NUMBER
         named_strides: "strides" "=" value
-        named_padding: "padding" "=" STRING | "padding" ":" STRING
+        named_padding: "padding" "=" STRING | "padding" ":" STRING | "padding" "=" hpo_expr
         named_dilation_rate: "dilation_rate" "=" value
         named_groups: "groups" "=" NUMBER
         named_channels: "channels" "=" NUMBER
@@ -1046,6 +1046,8 @@ class ModelTransformer(lark.Transformer):
                     self.raise_validation_error(f"Conv1D kernel_size must be positive integers, got {ks}", items[0])
             elif not isinstance(ks, int) or ks <= 0:
                 self.raise_validation_error(f"Conv1D kernel_size must be a positive integer, got {ks}", items[0])
+
+            
         return {'type': 'Conv1D', 'params': params}
 
     def conv2d(self, items):
@@ -1085,6 +1087,13 @@ class ModelTransformer(lark.Transformer):
                     self.raise_validation_error(f"Conv2D kernel_size must be integers, got {ks}", items[0], Severity.ERROR)
                 elif not all(k > 0 for k in ks):
                     self.raise_validation_error(f"Conv2D kernel_size should be positive integers, got {ks}", items[0], Severity.ERROR)
+            elif not isinstance(ks, int) or ks <= 0:
+                self.raise_validation_error(f"Conv2D kernel_size must be a positive integer, got {ks}", items[0], Severity.ERROR)
+
+            if isinstance(ks, (list, tuple)) and 'hpo' in ks:
+                self._track_hpo('Conv2D', 'kernel_size', ks, items[0])
+            elif isinstance(ks, (list, tuple)) and 'hpo' not in ks:
+                params['kernel_size'] = self._extract_value(ks)
             elif not isinstance(ks, int) or ks <= 0:
                 self.raise_validation_error(f"Conv2D kernel_size must be a positive integer, got {ks}", items[0], Severity.ERROR)
 
@@ -3286,13 +3295,13 @@ class ModelTransformer(lark.Transformer):
     def hpo_range(self, items):
         start = self._extract_value(items[0])
         end = self._extract_value(items[1])
-        step = self._extract_value(items[2]) if len(items) > 2 else 1
+        step = self._extract_value(items[2]) if len(items) > 2 else False
         return {"type": "range", "start": start, "end": end, "step": step}
 
     def hpo_log_range(self, items):
-        low = self._extract_value(items[0])
-        high = self._extract_value(items[1])
-        return {"type": "log_range", "low": low, "high": high}
+        start = self._extract_value(items[0])
+        end = self._extract_value(items[1])
+        return {"type": "log_range", "start": start, "end": end}
 
     def layer_choice(self, items):
         return {"hpo_type": "layer_choice", "options": [self._extract_value(item) for item in items]}

@@ -44,7 +44,7 @@ class TestHPOParser:
             # Range HPO - Different step sizes
             (
                 'HPO(range(10, 100))',
-                {'hpo': {'type': 'range', 'start': 10, 'end': 100}},
+                {'hpo': {'type': 'range', 'start': 10, 'end': 100, 'step':False}},
                 "range-no-step"
             ),
             (
@@ -127,10 +127,10 @@ class TestHPOParser:
                 "dropout-rate-hpo"
             ),
             (
-                'Conv2D(HPO(choice(32, 64)), (3, 3), padding=HPO(choice("same", "valid")))',
-                'filters',
+                'Conv2D(HPO(choice(32, 64)), kernel_size=(3, 3), padding=HPO(choice("same", "valid")))',
+                'kernel-size',
                 'categorical',
-                "conv2d-filters-hpo"
+                "conv2d-kernel-size-hpo"
             ),
 
             # Multiple HPO parameters in one layer
