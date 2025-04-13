@@ -2242,7 +2242,7 @@ class ModelTransformer(lark.Transformer):
                 except ValueError:
                     result[key.strip()] = v.strip()
         return {'metrics': result}
-    
+
     def exponential_decay(self, items):
         """Process ExponentialDecay learning rate schedule with parameters."""
         # Expected structure:
@@ -2274,7 +2274,7 @@ class ModelTransformer(lark.Transformer):
             'type': 'ExponentialDecay',
             'params': params
         }
-        
+
 
     def accuracy_param(self, items):
         """
