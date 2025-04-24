@@ -463,7 +463,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
 
         // HPO for Hyperparameters
         hpo_expr: "HPO" "(" (hpo_choice | hpo_range | hpo_log_range) ")"
-        hpo_choice: "choice" "(" value ("," value)* ")"
+        hpo_choice: "choice" "(" (value | hpo_expr) ("," (value | hpo_expr))* ")"
         hpo_range: "range" "(" number "," number ("," "step=" number)? ")"
         hpo_log_range: "log_range" "(" number "," number ")"
 
@@ -1054,6 +1054,13 @@ class ModelTransformer(lark.Transformer):
     def conv2d(self, items):
         param_style = items[0]
         raw_params = self._extract_value(param_style)
+
+        # Check for padding HPO parameter
+        if isinstance(raw_params, list) and len(raw_params) > 0 and isinstance(raw_params[0], list):
+            for param in raw_params[0]:
+                if isinstance(param, dict) and 'padding' in param and isinstance(param['padding'], dict) and 'hpo' in param['padding']:
+                    self._track_hpo('Conv2D', 'padding', param['padding'], items[0])
+
         ordered_params = []
         named_params = {}
         if isinstance(raw_params, list):
@@ -1079,7 +1086,24 @@ class ModelTransformer(lark.Transformer):
         params.update(named_params)
         if 'filters' in params:
             filters = params['filters']
-            if not isinstance(filters, int) or filters <= 0:
+            if isinstance(filters, dict) and 'hpo' in filters:
+                self._track_hpo('Conv2D', 'filters', filters, items[0])
+            elif isinstance(filters, dict) and 'hpo' not in filters:
+                params['filters'] = self._extract_value(filters)
+            elif isinstance(filters, list):
+                # Check if this is an HPO parameter list
+                if len(filters) > 0 and isinstance(filters[0], dict) and 'hpo' in filters[0]:
+                    self._track_hpo('Conv2D', 'filters', filters[0], items[0])
+                    params['filters'] = filters[0]
+                # Check if this is a list of parameters where the first one is the filters
+                elif len(filters) > 0 and isinstance(filters[0], (int, float)):
+                    params['filters'] = filters[0]
+                    if filters[0] <= 0:
+                        self.raise_validation_error(f"Conv2D filters must be a positive integer, got {filters[0]}", items[0], Severity.ERROR)
+                else:
+                    # This is a list but not in a format we can handle as filters
+                    self.raise_validation_error(f"Conv2D filters must be a positive integer, got {filters}", items[0], Severity.ERROR)
+            elif not isinstance(filters, int) or filters <= 0:
                 self.raise_validation_error(f"Conv2D filters must be a positive integer, got {filters}", items[0], Severity.ERROR)
         if 'kernel_size' in params:
             ks = params['kernel_size']
@@ -1091,16 +1115,23 @@ class ModelTransformer(lark.Transformer):
             elif not isinstance(ks, int) or ks <= 0:
                 self.raise_validation_error(f"Conv2D kernel_size must be a positive integer, got {ks}", items[0], Severity.ERROR)
 
-            if isinstance(ks, (list, tuple)) and 'hpo' in ks:
+            if isinstance(ks, dict) and 'hpo' in ks:
                 self._track_hpo('Conv2D', 'kernel_size', ks, items[0])
-            elif isinstance(ks, (list, tuple)) and 'hpo' not in ks:
-                params['kernel_size'] = self._extract_value(ks)
-            elif not isinstance(ks, int) or ks <= 0:
-                self.raise_validation_error(f"Conv2D kernel_size must be a positive integer, got {ks}", items[0], Severity.ERROR)
+            elif isinstance(ks, (list, tuple)) and isinstance(ks[0], dict) and 'hpo' in ks[0]:
+                self._track_hpo('Conv2D', 'kernel_size', ks[0], items[0])
+                params['kernel_size'] = ks[0]
+            elif isinstance(ks, (list, tuple)):
+                params['kernel_size'] = tuple(self._extract_value(ks))
 
+        # Track HPO parameters in all parameters
         for param_name, param_value in params.items():
             if isinstance(param_value, dict) and 'hpo' in param_value:
                 self._track_hpo('Conv2D', param_name, param_value, items[0])
+            # Check for nested HPO parameters in dictionaries
+            elif isinstance(param_value, dict):
+                for nested_param_name, nested_param_value in param_value.items():
+                    if isinstance(nested_param_value, dict) and 'hpo' in nested_param_value:
+                        self._track_hpo('Conv2D', f"{param_name}.{nested_param_name}", nested_param_value, items[0])
 
         return {'type': 'Conv2D', 'params': params}  # 'sublayers' added by basic_layer
 
@@ -1329,17 +1360,33 @@ class ModelTransformer(lark.Transformer):
         """Process ExponentialDecay learning rate schedule."""
         params = {}
 
-        # First argument is initial_learning_rate
-        if len(items) > 0:
-            params['initial_learning_rate'] = items[0]
+        if items and items[0]:
+            param_values = self._extract_value(items[0])
 
-        # Second argument is decay_steps
-        if len(items) > 1:
-            params['decay_steps'] = items[1]
+            # Handle different parameter formats
+            if isinstance(param_values, list):
+                # Extract parameters from the list
+                if len(param_values) >= 1:
+                    params['initial_learning_rate'] = param_values[0]
+                if len(param_values) >= 2:
+                    params['decay_steps'] = param_values[1]
+                if len(param_values) >= 3:
+                    params['decay_rate'] = param_values[2]
+            elif isinstance(param_values, dict):
+                params = param_values
 
-        # Third argument is decay_rate
-        if len(items) > 2:
-            params['decay_rate'] = items[2]
+        # Ensure required parameters are present
+        if 'initial_learning_rate' not in params:
+            self.raise_validation_error("ExponentialDecay requires 'initial_learning_rate' parameter", items[0])
+        if 'decay_steps' not in params:
+            self.raise_validation_error("ExponentialDecay requires 'decay_steps' parameter", items[0])
+        if 'decay_rate' not in params:
+            self.raise_validation_error("ExponentialDecay requires 'decay_rate' parameter", items[0])
+
+        # Track HPO parameters if present
+        for param_name, param_value in params.items():
+            if isinstance(param_value, dict) and 'hpo' in param_value:
+                self._track_hpo('ExponentialDecay', param_name, param_value, items[0])
 
         return {
             'type': 'ExponentialDecay',
@@ -1378,34 +1425,24 @@ class ModelTransformer(lark.Transformer):
                 # Create a learning rate schedule for ExponentialDecay
                 args = []
                 if len(items) > 1:
-                    # Try to extract the arguments directly
-                    try:
-                        # If the next item is a token with parentheses, extract the arguments
-                        if hasattr(items[1], 'value') and '(' in items[1].value and ')' in items[1].value:
-                            args_str = items[1].value.strip('()')
-                            # Split by comma and convert to appropriate types
-                            for arg in args_str.split(','):
-                                arg = arg.strip()
-                                # Try to convert to float if possible
-                                try:
-                                    args.append(float(arg))
-                                except ValueError:
-                                    # If not a float, keep as string
-                                    args.append(arg)
+                    # Process the arguments for ExponentialDecay
+                    for arg in items[1:]:
+                        arg_value = self._extract_value(arg)
+                        if isinstance(arg_value, dict) and 'hpo' in arg_value:
+                            args.append(arg_value)
                         else:
-                            # Otherwise use the standard extraction
-                            args = self._extract_value(items[1])
-                            if not isinstance(args, list):
-                                args = [args]
-                    except Exception as e:
-                        # Fallback to standard extraction
-                        args = self._extract_value(items[1])
-                        if not isinstance(args, list):
-                            args = [args]
-                value = {
-                    'type': 'ExponentialDecay',
-                    'args': args
-                }
+                            args.append(arg_value)
+
+                    # Properly structure the ExponentialDecay parameters
+                    lr_schedule = {
+                        'type': 'ExponentialDecay',
+                        'params': {
+                            'initial_learning_rate': args[0] if args else 0.01,
+                            'decay_steps': args[1]['decay_steps'] if len(args) > 1 and isinstance(args[1], dict) and 'decay_steps' in args[1] else 1000,
+                            'decay_rate': args[2] if len(args) > 2 else 0.9
+                        }
+                    }
+                    return {'learning_rate': lr_schedule}  # Return the structured learning rate schedule
             # Handle other string-based learning rate schedules
             elif '(' in value and ')' in value:
                 schedule_str = value.strip('"\'')
@@ -3058,13 +3095,29 @@ class ModelTransformer(lark.Transformer):
             node: The parse tree node where the HPO parameter was found.
         """
         path = f"{layer_type}.{param_name}" if param_name else layer_type
-        self.hpo_params.append({
+
+        # Create the new HPO parameter entry
+        hpo_value = hpo_data['hpo'] if 'hpo' in hpo_data else hpo_data
+        new_param = {
             'layer_type': layer_type,
             'param_name': param_name,
             'path': path,
-            'hpo': hpo_data['hpo'],
+            'hpo': hpo_value,
             'node': node  # Optional: for debugging
-        })
+        }
+
+        # Check if this parameter is already tracked to avoid duplicates
+        for existing_param in self.hpo_params:
+            if (existing_param['layer_type'] == new_param['layer_type'] and
+                existing_param['param_name'] == new_param['param_name'] and
+                str(existing_param['hpo']) == str(new_param['hpo'])):
+                # This is a duplicate, don't add it
+                return
+
+        # Add the new parameter
+        self.hpo_params.append(new_param)
+
+
 
     def parse_network_with_hpo(self, config):
         """
@@ -3090,101 +3143,144 @@ class ModelTransformer(lark.Transformer):
             model = self.transform(tree)
 
             # Track HPO parameters in the optimizer
-            if 'optimizer' in model and 'params' in model['optimizer']:
-                params = model['optimizer']['params']
+            if 'optimizer' in model:
+                optimizer_info = model['optimizer']
 
-                # Track HPO parameters in the optimizer
-                for param_name, param_value in params.items():
-                    if isinstance(param_value, dict) and 'hpo' in param_value:
-                        self._track_hpo('optimizer', f'params.{param_name}', param_value, None)
-                    # Track HPO parameters in learning rate schedules
-                    elif param_name == 'learning_rate' and isinstance(param_value, dict) and 'type' in param_value and 'args' in param_value:
-                        # This is a learning rate schedule
-                        for i, arg in enumerate(param_value['args']):
-                            if isinstance(arg, dict) and 'hpo' in arg:
-                                # Track HPO in learning rate schedule
-                                self._track_hpo('optimizer', f'params.learning_rate.args[{i}]', arg, None)
+                # Handle string-based optimizer with HPO expressions
+                if isinstance(optimizer_info, str):
+                    # Check for HPO expressions in the optimizer string
+                    if 'HPO(' in optimizer_info:
+                        # Extract the HPO expression
+                        import re
+                        # Add debug logging
+                        log_by_severity(Severity.INFO, f"Processing optimizer string: {optimizer_info}")
 
-                # Process learning rate schedule string
-                if 'learning_rate' in params and isinstance(params['learning_rate'], str):
-                    lr_value = params['learning_rate']
-                    if '(' in lr_value and ')' in lr_value:
-                        # Process learning rate schedule string
-                        schedule_str = lr_value.strip('"\'')
-                        schedule_type = schedule_str[:schedule_str.index('(')]
-                        args_str = schedule_str[schedule_str.index('(')+1:schedule_str.rindex(')')]
-
-                        # Parse arguments
-                        args = []
-                        if args_str:
-                            import re
-                            # Handle nested parentheses for HPO expressions
-                            def parse_args(args_str):
-                                result = []
-                                current = ''
+                        # Extract all HPO expressions - use a more robust regex that handles nested parentheses
+                        def extract_hpo_expressions(text):
+                            """Extract HPO expressions from text, handling nested parentheses."""
+                            results = []
+                            start_idx = text.find('HPO(')
+                            while start_idx != -1:
+                                # Find the matching closing parenthesis
                                 paren_level = 0
+                                for i in range(start_idx + 4, len(text)):  # Skip 'HPO('
+                                    if text[i] == '(':
+                                        paren_level += 1
+                                    elif text[i] == ')':
+                                        if paren_level == 0:
+                                            # Found the matching closing parenthesis
+                                            results.append(text[start_idx + 4:i])
+                                            break
+                                        paren_level -= 1
+                                # Find the next HPO expression
+                                start_idx = text.find('HPO(', start_idx + 1)
+                            return results
 
-                                for char in args_str:
-                                    if char == ',' and paren_level == 0:
-                                        result.append(current.strip())
-                                        current = ''
-                                    else:
-                                        if char == '(':
-                                            paren_level += 1
-                                        elif char == ')':
-                                            paren_level -= 1
-                                        current += char
+                        hpo_matches = extract_hpo_expressions(optimizer_info)
+                        log_by_severity(Severity.INFO, f"Found HPO matches: {hpo_matches}")
 
-                                if current:
-                                    result.append(current.strip())
-                                return result
+                        for hpo_expr in hpo_matches:
+                            # Parse the HPO expression
+                            log_by_severity(Severity.INFO, f"Processing HPO expression: {hpo_expr}")
 
-                            arg_list = parse_args(args_str)
+                            if 'log_range' in hpo_expr:
+                                match = re.search(r'log_range\(([^,]+),\s*([^)]+)\)', hpo_expr)
+                                if match:
+                                    low, high = float(match.group(1)), float(match.group(2))
+                                    log_by_severity(Severity.INFO, f"Found log_range with low={low}, high={high}")
 
-                            for arg in arg_list:
-                                if arg.startswith('HPO('):
-                                    # Extract HPO parameters
-                                    hpo_type = re.search(r'HPO\(([^(]+)\(', arg)
-                                    if hpo_type:
-                                        hpo_type = hpo_type.group(1).strip()
-                                        if hpo_type == 'range':
-                                            match = re.search(r'range\(([^,]+),\s*([^,]+)(?:,\s*step=([^)]+))?\)', arg)
-                                            if match:
-                                                low, high = float(match.group(1)), float(match.group(2))
-                                                step = float(match.group(3)) if match.group(3) else None
-                                                hpo_dict = {'type': 'range', 'low': low, 'high': high}
-                                                if step:
-                                                    hpo_dict['step'] = step
-                                                args.append({'hpo': hpo_dict})
-                                                # Track HPO in learning rate schedule
-                                                self._track_hpo('optimizer', f'params.learning_rate.args[{len(args)-1}]', {'hpo': hpo_dict}, None)
-                                        elif hpo_type == 'log_range':
-                                            match = re.search(r'log_range\(([^,]+),\s*([^)]+)\)', arg)
-                                            if match:
-                                                low, high = float(match.group(1)), float(match.group(2))
-                                                hpo_dict = {'type': 'log_range', 'low': low, 'high': high}
-                                                args.append({'hpo': hpo_dict})
-                                                # Track HPO in learning rate schedule
-                                                self._track_hpo('optimizer', f'params.learning_rate.args[{len(args)-1}]', {'hpo': hpo_dict}, None)
-                                        elif hpo_type == 'choice':
-                                            match = re.search(r'choice\(([^)]+)\)', arg)
-                                            if match:
-                                                choices = [float(x.strip()) for x in match.group(1).split(',')]
-                                                hpo_dict = {'type': 'choice', 'values': choices}
-                                                args.append({'hpo': hpo_dict})
-                                                # Track HPO in learning rate schedule
-                                                self._track_hpo('optimizer', f'params.learning_rate.args[{len(args)-1}]', {'hpo': hpo_dict}, None)
-                                else:
+                                    hpo_dict = {'type': 'log_range', 'min': low, 'max': high}
+                                    # Create a proper HPO parameter structure
+                                    hpo_param = {'hpo': hpo_dict}
+                                    self._track_hpo('optimizer', 'learning_rate', hpo_param, None)
+
+                                    # Log the tracked HPO parameters
+                                    log_by_severity(Severity.INFO, f"HPO parameters after tracking: {len(self.hpo_params)}")
+                            elif 'range' in hpo_expr:
+                                match = re.search(r'range\(([^,]+),\s*([^,]+)(?:,\s*step=([^)]+))?\)', hpo_expr)
+                                if match:
+                                    low, high = float(match.group(1)), float(match.group(2))
+                                    step = float(match.group(3)) if match.group(3) else None
+                                    hpo_dict = {'type': 'range', 'start': low, 'end': high}
+                                    if step:
+                                        hpo_dict['step'] = step
+                                    # Create a proper HPO parameter structure
+                                    hpo_param = {'hpo': hpo_dict}
+                                    self._track_hpo('optimizer', 'learning_rate', hpo_param, None)
+                            elif 'choice' in hpo_expr:
+                                match = re.search(r'choice\(([^)]+)\)', hpo_expr)
+                                if match:
+                                    choices_str = match.group(1)
+                                    # Handle different types of choices (numbers, strings)
                                     try:
-                                        args.append(float(arg))
+                                        choices = [float(x.strip()) for x in choices_str.split(',')]
                                     except ValueError:
-                                        args.append(arg)
+                                        # Handle string choices
+                                        choices = [x.strip().strip('"\'') for x in choices_str.split(',')]
+                                    hpo_dict = {'type': 'categorical', 'values': choices}
+                                    # Create a proper HPO parameter structure
+                                    hpo_param = {'hpo': hpo_dict}
+                                    self._track_hpo('optimizer', 'learning_rate', hpo_param, None)
 
-                        # Replace string with structured representation
-                        params['learning_rate'] = {
-                            'type': schedule_type,
-                            'args': args
-                        }
+                # Handle dictionary-based optimizer with params
+                elif isinstance(optimizer_info, dict) and 'params' in optimizer_info:
+                    params = optimizer_info['params']
+
+                    # Track HPO parameters in the optimizer params
+                    for param_name, param_value in params.items():
+                        if isinstance(param_value, dict) and 'hpo' in param_value:
+                            self._track_hpo('optimizer', param_name, param_value, None)
+                        # Track HPO parameters in learning rate schedules
+                        elif param_name == 'learning_rate' and isinstance(param_value, dict) and 'type' in param_value and 'args' in param_value:
+                            # This is a learning rate schedule
+                            for i, arg in enumerate(param_value['args']):
+                                if isinstance(arg, dict) and 'hpo' in arg:
+                                    # Track HPO in learning rate schedule
+                                    self._track_hpo('optimizer', f'learning_rate.args[{i}]', arg, None)
+
+                    # Process learning rate schedule string
+                    if 'learning_rate' in params and isinstance(params['learning_rate'], str):
+                        lr_value = params['learning_rate']
+                        if '(' in lr_value and ')' in lr_value and 'HPO(' in lr_value:
+                            # Process learning rate schedule string with HPO
+                            import re
+                            hpo_matches = re.findall(r'HPO\((.*?)\)', lr_value)
+                            for hpo_expr in hpo_matches:
+                                # Parse the HPO expression
+                                if hpo_expr.startswith('log_range'):
+                                    match = re.search(r'log_range\(([^,]+),\s*([^)]+)\)', hpo_expr)
+                                    if match:
+                                        low, high = float(match.group(1)), float(match.group(2))
+                                        hpo_dict = {'type': 'log_range', 'min': low, 'max': high}
+                                        self._track_hpo('optimizer', 'learning_rate', {'hpo': hpo_dict}, None)
+                                elif hpo_expr.startswith('range'):
+                                    match = re.search(r'range\(([^,]+),\s*([^,]+)(?:,\s*step=([^)]+))?\)', hpo_expr)
+                                    if match:
+                                        low, high = float(match.group(1)), float(match.group(2))
+                                        step = float(match.group(3)) if match.group(3) else None
+                                        hpo_dict = {'type': 'range', 'start': low, 'end': high}
+                                        if step:
+                                            hpo_dict['step'] = step
+                                        self._track_hpo('optimizer', 'learning_rate', {'hpo': hpo_dict}, None)
+                                elif hpo_expr.startswith('choice'):
+                                    match = re.search(r'choice\(([^)]+)\)', hpo_expr)
+                                    if match:
+                                        choices_str = match.group(1)
+                                        # Handle different types of choices (numbers, strings)
+                                        try:
+                                            choices = [float(x.strip()) for x in choices_str.split(',')]
+                                        except ValueError:
+                                            # Handle string choices
+                                            choices = [x.strip().strip('"\'') for x in choices_str.split(',')]
+                                        hpo_dict = {'type': 'categorical', 'values': choices}
+                                        self._track_hpo('optimizer', 'learning_rate', {'hpo': hpo_dict}, None)
+
+            # Track HPO parameters in training config
+            if 'train' in model and isinstance(model['train'], dict) and 'params' in model['train']:
+                train_params = model['train']['params']
+                for param_name, param_value in train_params.items():
+                    if isinstance(param_value, dict) and 'hpo' in param_value:
+                        self._track_hpo('train', param_name, param_value, None)
 
             return model, self.hpo_params
         except VisitError as e:
@@ -3230,7 +3326,64 @@ class ModelTransformer(lark.Transformer):
         Raises:
             DSLValidationError: If the HPO expression is invalid or contains errors.
         """
-        original_str = hpo_str  # Store the original string
+        # Check for nested HPO expressions
+        if 'HPO(' in hpo_str:
+            # This is a nested HPO expression
+            import re
+
+            # Handle choice with nested HPO
+            if hpo_str.startswith('choice('):
+                # Extract the values inside choice()
+                choice_content = hpo_str[7:-1]
+
+                # Split by commas, but respect nested parentheses
+                def split_with_nesting(s):
+                    result = []
+                    current = ""
+                    paren_level = 0
+
+                    for char in s:
+                        if char == ',' and paren_level == 0:
+                            result.append(current.strip())
+                            current = ""
+                        else:
+                            if char == '(':
+                                paren_level += 1
+                            elif char == ')':
+                                paren_level -= 1
+                            current += char
+
+                    if current:
+                        result.append(current.strip())
+                    return result
+
+                values = split_with_nesting(choice_content)
+                parsed_values = []
+
+                # Process each value, which might be a nested HPO expression
+                for value in values:
+                    if value.startswith('HPO('):
+                        # This is a nested HPO expression
+                        nested_expr = value[4:-1]  # Remove the outer HPO()
+                        parsed_values.append(self._parse_hpo(nested_expr, item))
+                    else:
+                        # This is a regular value
+                        parsed_values.append(self._parse_hpo_value(value))
+
+                return {
+                    'hpo': {
+                        'type': 'categorical',
+                        'values': parsed_values,
+                        'original_values': values  # Store original strings
+                    }
+                }
+
+            # Handle other nested HPO expressions
+            # For now, we don't support other types of nesting
+            self.raise_validation_error(f"Unsupported nested HPO expression: {hpo_str}", item, Severity.ERROR)
+            return {}
+
+        # Handle regular (non-nested) HPO expressions
         if hpo_str.startswith('choice('):
             values = [v.strip() for v in hpo_str[7:-1].split(',')]  # Keep as strings
             return {
@@ -3278,7 +3431,17 @@ class ModelTransformer(lark.Transformer):
         return [self._extract_value(item) for item in items]
 
     def hpo_choice(self, items):
-        return {"type": "categorical", "values": [self._extract_value(x) for x in items]}
+        values = []
+        for item in items:
+            value = self._extract_value(item)
+            # Check if this is a nested HPO expression
+            if isinstance(value, dict) and 'hpo' in value:
+                # Track this nested HPO parameter
+                self._track_hpo('nested', 'choice', value, item)
+                values.append(value)
+            else:
+                values.append(value)
+        return {"type": "categorical", "values": values}
 
     @pysnooper.snoop()
     def hpo_range(self, items):
