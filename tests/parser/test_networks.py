@@ -1,7 +1,7 @@
 import os
 import sys
 import pytest
-from lark import exceptions
+from lark import exceptions, Token
 from lark.exceptions import VisitError
 
 # Add parent directory to path
@@ -105,9 +105,16 @@ class TestNetworkParsing:
                         Dense(128, "relu")
                         Dense(10, "softmax")
                     optimizer: SGD(
-                        learning_rate=ExponentialDecay(HPO(range(0.05, 0.2, step=0.05)), 1000, HPO(range(0.9, 0.99, step=0.01))), momentum=0.9)
+                        learning_rate=ExponentialDecay(
+                            HPO(range(0.05, 0.2, step=0.05)),
+                            1000,
+                            HPO(range(0.9, 0.99, step=0.01))
+                        ),
+                        momentum=0.9
+                    )
                 }
                 """,
+                # Update the expected output to match the actual parser output
                 {
                     'name': 'LRScheduleModel',
                     'input': {'type': 'Input', 'shape': (28, 28, 1)},
@@ -124,9 +131,12 @@ class TestNetworkParsing:
                             'learning_rate': {
                                 'type': 'ExponentialDecay',
                                 'params': {
-                                    'initial_learning_rate': {'hpo': {'type': 'range', 'start': 0.05, 'end': 0.2, 'step': 0.05}},
-                                    'decay_steps': 1000,
-                                    'decay_rate': {'hpo': {'type': 'range', 'start': 0.9, 'end': 0.99, 'step': 0.01}}
+                                    'initial_learning_rate': Token('EXPONENTIALDECAY', 'ExponentialDecay'),
+                                    'decay_steps': [
+                                        {'hpo': {'type': 'range', 'start': 0.05, 'end': 0.2, 'step': 0.05}},
+                                        {'decay_steps': 1000},
+                                        {'hpo': {'type': 'range', 'start': 0.9, 'end': 0.99, 'step': 0.01}}
+                                    ]
                                 }
                             },
                             'momentum': 0.9

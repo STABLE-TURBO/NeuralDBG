@@ -307,7 +307,7 @@ class TestHPOParser:
                 network ComplexHPO {
                     input: (28, 28, 1)
                     layers:
-                        Conv2D(HPO(choice(32, 64)), (3, 3), padding=HPO(choice("same", "valid")))
+                        Conv2D(HPO(choice(32, 64)), kernel_size=(3, 3), padding=HPO(choice("same", "valid")))
                         MaxPooling2D((2, 2))
                         Flatten()
                         Dense(HPO(range(100, 500, step=100)))
