@@ -1,18 +1,27 @@
-name: Close Fixed Issues
+name: Auto-Close Fixed Issues
 
 on:
+  # Run after tests have completed
+  workflow_run:
+    workflows: ["Automate Pytest Bugs to GitHub Issues"]
+    types:
+      - completed
+
+  # Also run on direct pushes to main
   push:
     branches:
       - main
+
+  # And when PRs are merged
   pull_request:
     types: [closed]
     branches:
       - main
 
 jobs:
-  close-issues:
+  close-fixed-issues:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    if: github.event_name == 'push' || github.event_name == 'workflow_run' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     permissions:
       issues: write
       contents: read
@@ -21,7 +30,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # To get the commit message
+          fetch-depth: 10  # Get more history to analyze changes
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,6 +40,24 @@ jobs:
       - name: Install dependencies
         run: |
           pip install PyGithub
+          pip install -r requirements.txt
+          pip install -e .[dev]
+
+      # Download test results if this was triggered by a workflow_run
+      - name: Download test results
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v3
+        with:
+          name: test-results
+          path: .
+        continue-on-error: true
+
+      # Run tests if they haven't been run yet
+      - name: Run tests if needed
+        if: github.event_name != 'workflow_run'
+        run: |
+          pytest tests/ --junit-xml=test-results.xml || echo "Tests failed but continuing"
+        continue-on-error: true
 
       - name: Close fixed issues
         env:
