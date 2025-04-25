@@ -11,15 +11,32 @@ if not (os.environ.get('NEURAL_FORCE_CPU', '').lower() in ['1', 'true', 'yes'] o
         pass
 
 def get_device(preferred_device="auto"):
-    """ Selects the best available device: GPU, CPU, or future accelerators """
-    if preferred_device.lower() == "gpu" and torch.cuda.is_available():
-        return torch.device("cuda")
-    elif preferred_device.lower() == "cpu":
-        return torch.device("cpu")
-    elif torch.cuda.is_available():
-        return torch.device("cuda")
-    else:
-        return torch.device("cpu")
+    """
+    Selects the best available device: GPU, CPU, or future accelerators
+
+    Args:
+        preferred_device: String ("auto", "cpu", "gpu") or torch.device object
+
+    Returns:
+        torch.device: The selected device
+    """
+    # If preferred_device is already a torch.device, return it
+    if isinstance(preferred_device, torch.device):
+        return preferred_device
+
+    # Otherwise, handle string inputs
+    if isinstance(preferred_device, str):
+        if preferred_device.lower() == "gpu" and torch.cuda.is_available():
+            return torch.device("cuda")
+        elif preferred_device.lower() == "cpu":
+            return torch.device("cpu")
+        elif preferred_device.lower() == "auto" and torch.cuda.is_available():
+            return torch.device("cuda")
+        else:
+            return torch.device("cpu")
+
+    # Default fallback
+    return torch.device("cpu")
 
 def run_inference(model, data, execution_config):
     """ Runs inference on the specified device """

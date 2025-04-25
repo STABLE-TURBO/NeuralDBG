@@ -66,6 +66,9 @@ neural debug my_model.neural
 
 # Launch the no-code interface
 neural no-code
+
+# Launch the no-code interface with a specific port
+neural no-code --port 8080
 ```
 
 ## CLI Architecture
@@ -129,6 +132,17 @@ Options:
 - `--anomalies`: Enable anomaly detection
 - `--step`: Enable step debugging mode
 - `--port`: Dashboard server port
+
+### `no-code`
+
+Launches the no-code interface for building models.
+
+```bash
+neural no-code --port 8080
+```
+
+Options:
+- `--port`: Web interface port (default: 8051)
 
 ## Performance Optimization
 

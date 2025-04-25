@@ -65,6 +65,13 @@ def configure_logging(verbose=False):
     handler.setFormatter(formatter)
     neural_logger.handlers = [handler]
 
+    # Ensure all neural submodules use the same log level
+    for logger_name in ['neural.parser', 'neural.code_generation', 'neural.hpo']:
+        module_logger = logging.getLogger(logger_name)
+        module_logger.setLevel(logging.WARNING if not verbose else logging.DEBUG)
+        module_logger.handlers = [handler]
+        module_logger.propagate = False
+
     # Silence noisy libraries
     for logger_name in [
         'graphviz', 'matplotlib', 'tensorflow', 'jax', 'tf', 'absl',

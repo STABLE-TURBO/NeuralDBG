@@ -1,18 +1,18 @@
 import logging
 from neural.shape_propagation.shape_propagator import ShapePropagator
 from neural.parser.parser import ModelTransformer, create_parser
-from typing import Any, Dict, Union
-import torch
+from typing import Any, Dict, Union, Optional
 import onnx
 from onnx import helper, TensorProto
 import numpy as np
 import warnings
-import pysnooper
 import logging
+import re
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+# Set the logger level to WARNING to reduce debug output
+logger.setLevel(logging.WARNING)
 
 def to_number(x: str) -> Union[int, float]:
     try:
@@ -20,7 +20,7 @@ def to_number(x: str) -> Union[int, float]:
     except ValueError:
         return float(x)
 
-def generate_code(model_data: Dict[str, Any], backend: str, best_params: Dict[str, Any] = None) -> str:
+def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optional[Dict[str, Any]] = None) -> str:
     if not isinstance(model_data, dict) or 'layers' not in model_data or 'input' not in model_data:
         raise ValueError("Invalid model_data format: must be a dict with 'layers' and 'input' keys")
 
@@ -136,7 +136,11 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Dict[st
 
         for i, layer in enumerate(expanded_layers):
             layer_type = layer['type']
-            params = layer.get('params', {}).copy()
+            params = layer.get('params', {})
+            if params is not None:
+                params = params.copy()
+            else:
+                params = {}
 
             if layer_type not in layer_counts:
                 layer_counts[layer_type] = 0
@@ -401,12 +405,14 @@ def generate_tensorflow_layer(layer_type, params):
 
 
 # Pytorch Layers Code Generator
-def generate_pytorch_layer(layer_type, params, input_shape=None):
+def generate_pytorch_layer(layer_type, params, input_shape: Optional[tuple] = None):
     """Generate PyTorch layer code"""
     if layer_type == "Conv2D":
         data_format = params.get("data_format", "channels_last")
-        in_channels = input_shape[1] if data_format == "channels_first" else input_shape[3]
-        in_channels = in_channels if input_shape and len(input_shape) > 3 else 3
+        in_channels = 3  # Default value
+        if input_shape is not None:
+            in_channels = input_shape[1] if data_format == "channels_first" else input_shape[3]
+            in_channels = in_channels if len(input_shape) > 3 else 3
         out_channels = params.get("filters", 32)
         kernel_size = params.get("kernel_size", 3)
         # Handle both tuple/list and integer kernel sizes
@@ -491,7 +497,7 @@ def generate_pytorch_layer(layer_type, params, input_shape=None):
 
 def generate_optimized_dsl(config, best_params):
     transformer = ModelTransformer()
-    model_dict, hpo_params = transformer.parse_network_with_hpo(config)
+    _, hpo_params = transformer.parse_network_with_hpo(config)
     lines = config.strip().split('\n')
 
     logger.info(f"Initial lines: {lines}")
@@ -542,8 +548,9 @@ def generate_optimized_dsl(config, best_params):
             else:
                 hpo_str = f"range({', '.join(original_parts)})"
         elif hpo_type == 'log_range':
-            low = hpo['hpo'].get('original_low', str(hpo['hpo'].get('low', '')))
-            high = hpo['hpo'].get('original_high', str(hpo['hpo'].get('high', '')))
+            # Try both naming conventions (start/end and min/max) for backward compatibility
+            low = hpo['hpo'].get('original_low', str(hpo['hpo'].get('start', hpo['hpo'].get('min', ''))))
+            high = hpo['hpo'].get('original_high', str(hpo['hpo'].get('end', hpo['hpo'].get('max', ''))))
             if not low or not high:
                 logger.warning(f"Missing log_range bounds for parameter {param_key}, skipping")
                 continue
@@ -562,6 +569,20 @@ def generate_optimized_dsl(config, best_params):
                 lines[i] = new_line
                 logger.info(f"Replaced line {i}: '{old_line}' -> '{new_line}'")
                 break
+
+    # Special case for optimizer learning rate
+    if 'learning_rate' in best_params:
+        for i, line in enumerate(lines):
+            if 'optimizer:' in line and 'learning_rate=HPO(' in line:
+                old_line = lines[i]
+                # Create a completely new optimizer line with the correct syntax
+                optimizer_type = re.search(r'optimizer:\s*(\w+)\(', old_line)
+                if optimizer_type:
+                    opt_type = optimizer_type.group(1)
+                    new_line = f"        optimizer: {opt_type}(learning_rate={best_params['learning_rate']})"
+                    lines[i] = new_line
+                    logger.info(f"Replaced optimizer line {i}: '{old_line}' -> '{new_line}'")
+                    break
 
     logger.info(f"Final lines: {lines}")
     return '\n'.join(lines)

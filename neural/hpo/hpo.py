@@ -35,7 +35,7 @@ def prod(iterable):
 # Factory Function
 def create_dynamic_model(model_dict, trial, hpo_params, backend='pytorch'):
     resolved_model_dict = copy.deepcopy(model_dict)
-    print(f"Pre-resolve model_dict: {resolved_model_dict}")
+    # Removed print statement for cleaner output
 
     # Resolve HPO parameters in layers
     for layer in resolved_model_dict['layers']:
@@ -53,10 +53,13 @@ def create_dynamic_model(model_dict, trial, hpo_params, backend='pytorch'):
                             step=hpo.get('step', None)
                         )
                     elif hpo['type'] == 'log_range':
+                        # Handle all naming conventions (start/end, low/high, min/max)
+                        low = hpo.get('start', hpo.get('low', hpo.get('min')))
+                        high = hpo.get('end', hpo.get('high', hpo.get('max')))
                         layer['params'][param_name] = trial.suggest_float(
                             f"{layer['type']}_{param_name}",
-                            hpo['low'],
-                            hpo['high'],
+                            low,
+                            high,
                             log=True
                         )
 
@@ -66,14 +69,17 @@ def create_dynamic_model(model_dict, trial, hpo_params, backend='pytorch'):
             if isinstance(param_value, dict) and 'hpo' in param_value:
                 hpo = param_value['hpo']
                 if hpo['type'] == 'log_range':
+                    # Handle all naming conventions (start/end, low/high, min/max)
+                    low = hpo.get('start', hpo.get('low', hpo.get('min')))
+                    high = hpo.get('end', hpo.get('high', hpo.get('max')))
                     resolved_model_dict['optimizer']['params'][param_name] = trial.suggest_float(
                         f"opt_{param_name}",
-                        hpo['low'],
-                        hpo['high'],
+                        low,
+                        high,
                         log=True
                     )
 
-    print(f"Post-resolve model_dict: {resolved_model_dict}")
+    # Removed print statement for cleaner output
     if backend == 'pytorch':
         return DynamicPTModel(resolved_model_dict, trial, hpo_params)
     else:
@@ -83,8 +89,9 @@ def create_dynamic_model(model_dict, trial, hpo_params, backend='pytorch'):
 def resolve_hpo_params(model_dict, trial, hpo_params):
     import copy
     import logging
-    logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
+    # Set the logger level to WARNING to reduce debug output
+    logger.setLevel(logging.WARNING)
     resolved_dict = copy.deepcopy(model_dict)
 
     # logger.debug(f"Original layers: {resolved_dict['layers']}")
@@ -95,7 +102,10 @@ def resolve_hpo_params(model_dict, trial, hpo_params):
             if hpo['type'] == 'categorical':
                 layer['params']['units'] = trial.suggest_categorical(key, hpo['values'])
             elif hpo['type'] == 'log_range':
-                layer['params']['units'] = trial.suggest_float(key, hpo['low'], hpo['high'], log=True)
+                # Handle all naming conventions (start/end, low/high, min/max)
+                low = hpo.get('start', hpo.get('low', hpo.get('min')))
+                high = hpo.get('end', hpo.get('high', hpo.get('max')))
+                layer['params']['units'] = trial.suggest_float(key, low, high, log=True)
             # logger.debug(f"Layer {i} resolved units: {layer['params']['units']}")
 
     if resolved_dict['optimizer'] and 'params' in resolved_dict['optimizer']:
@@ -109,8 +119,11 @@ def resolve_hpo_params(model_dict, trial, hpo_params):
             if isinstance(val, dict) and 'hpo' in val:
                 hpo = val['hpo']
                 if hpo['type'] == 'log_range':
+                    # Handle all naming conventions (start/end, low/high, min/max)
+                    low = hpo.get('start', hpo.get('low', hpo.get('min')))
+                    high = hpo.get('end', hpo.get('high', hpo.get('max')))
                     resolved_dict['optimizer']['params'][param] = trial.suggest_float(
-                        f"opt_{param}", hpo['low'], hpo['high'], log=True
+                        f"opt_{param}", low, high, log=True
                     )
                 # logger.debug(f"Optimizer resolved {param}: {resolved_dict['optimizer']['params'][param]}")
 
@@ -124,28 +137,27 @@ class DynamicPTModel(nn.Module):
         super().__init__()
         self.model_dict = model_dict
         self.layers = nn.ModuleList()
-        self.shape_propagator = ShapePropagator(debug=True)
+        self.shape_propagator = ShapePropagator(debug=False)
         input_shape_raw = model_dict['input']['shape']  # (28, 28, 1)
         input_shape = (None, input_shape_raw[-1], *input_shape_raw[:-1])  # (None, 1, 28, 28)
         current_shape = input_shape
         in_channels = input_shape[1]  # 1
         in_features = None
 
-        print(f"Initial shape: {current_shape}")
+        # Removed print statements for cleaner output
         for layer in model_dict['layers']:
             params = layer['params'] if layer['params'] is not None else {}
             params = params.copy()
-            print(f"Before propagate: {layer['type']}, current_shape={current_shape}")
 
             # Compute in_features from current (input) shape before propagation
             if layer['type'] in ['Dense', 'Output'] and in_features is None:
                 in_features = prod(current_shape[1:])  # Use input shape
                 self.layers.append(nn.Flatten())
-                print(f"{layer['type']} (implicit Flatten): in_features={in_features}")
+                # Removed print statement for cleaner output
 
             # Propagate shape after setting in_features
             current_shape = self.shape_propagator.propagate(current_shape, layer, framework='pytorch')
-            print(f"After propagate: {layer['type']}, current_shape={current_shape}")
+            # Removed print statement for cleaner output
 
             if layer['type'] == 'Conv2D':
                 filters = params.get('filters', trial.suggest_int('conv_filters', 16, 64))
@@ -155,28 +167,28 @@ class DynamicPTModel(nn.Module):
             elif layer['type'] == 'MaxPooling2D':
                 pool_size = params.get('pool_size', trial.suggest_int('maxpool2d_pool_size', 2, 3))
                 stride = params.get('stride', pool_size)
-                print(f"MaxPooling2D: pool_size={pool_size}, stride={stride}")
+                # Removed print statement for cleaner output
                 self.layers.append(nn.MaxPool2d(kernel_size=pool_size, stride=stride))
             elif layer['type'] == 'Flatten':
                 self.layers.append(nn.Flatten())
                 in_features = prod(current_shape[1:])
-                print(f"Flatten: in_features={in_features}")
+                # Removed print statement for cleaner output
             elif layer['type'] == 'Dense':
                 units = params['units'] if 'units' in params else trial.suggest_int('dense_units', 64, 256)
                 if in_features <= 0:
                     raise ValueError(f"Invalid in_features for Dense: {in_features}")
-                print(f"Dense: in_features={in_features}, units={units}")
+                # Removed print statement for cleaner output
                 self.layers.append(nn.Linear(in_features, units))
                 in_features = units
             elif layer['type'] == 'Dropout':
                 rate = params['rate'] if 'rate' in params else trial.suggest_float('dropout_rate', 0.3, 0.7, step=0.1)
-                print(f"Dropout: rate={rate}")
+                # Removed print statement for cleaner output
                 self.layers.append(nn.Dropout(p=rate))
             elif layer['type'] == 'Output':
                 units = params['units'] if 'units' in params else 10
                 if in_features <= 0:
                     raise ValueError(f"Invalid in_features for Output: {in_features}")
-                print(f"Output: in_features={in_features}, units={units}")
+                # Removed print statement for cleaner output
                 self.layers.append(nn.Linear(in_features, units))
                 in_features = units
             elif layer['type'] == 'LSTM':
@@ -185,12 +197,12 @@ class DynamicPTModel(nn.Module):
                 num_layers = params.get('num_layers', 1)
                 if isinstance(params.get('num_layers'), dict) and 'hpo' in params.get('num_layers'):
                     num_layers = trial.suggest_int('lstm_num_layers', 1, 3)
-                print(f"LSTM: input_size={input_size}, units={units}, num_layers={num_layers}")
+                # Removed print statement for cleaner output
                 self.layers.append(nn.LSTM(input_size, units, num_layers=num_layers, batch_first=True))
                 in_features = units
             elif layer['type'] == 'BatchNormalization':
                 momentum = params.get('momentum', trial.suggest_float('bn_momentum', 0.8, 0.99))
-                print(f"BatchNormalization: momentum={momentum}")
+                # Removed print statement for cleaner output
                 self.layers.append(nn.BatchNorm2d(in_channels))
             elif layer['type'] == 'Transformer':
                 d_model = params.get('d_model', trial.suggest_int('transformer_d_model', 64, 512))
@@ -198,7 +210,7 @@ class DynamicPTModel(nn.Module):
                 num_encoder_layers = params.get('num_encoder_layers', trial.suggest_int('transformer_encoder_layers', 1, 4))
                 num_decoder_layers = params.get('num_decoder_layers', trial.suggest_int('transformer_decoder_layers', 1, 4))
                 dim_feedforward = params.get('dim_feedforward', trial.suggest_int('transformer_ff_dim', 128, 1024))
-                print(f"Transformer: d_model={d_model}, nhead={nhead}, encoder_layers={num_encoder_layers}, decoder_layers={num_decoder_layers}, ff_dim={dim_feedforward}")
+                # Removed print statement for cleaner output
                 self.layers.append(nn.Transformer(d_model=d_model,
                                                   nhead=nhead,
                                                   num_encoder_layers=num_encoder_layers,
@@ -207,7 +219,7 @@ class DynamicPTModel(nn.Module):
                 in_features = d_model
             else:
                 raise ValueError(f"Unsupported layer type: {layer['type']}")
-        print("Final layers:", self.layers)
+        # Removed print statement for cleaner output
 
     def forward(self, x):
         for layer in self.layers:
@@ -288,31 +300,52 @@ def train_model(model, optimizer, train_loader, val_loader, backend='pytorch', e
 
 
 # HPO Objective
-def objective(trial, config, dataset_name='MNIST', backend='pytorch'):
+def objective(trial, config, dataset_name='MNIST', backend='pytorch', device='auto'):
     import torch.optim as optim
+    from neural.execution_optimization.execution import get_device
+
+    # Parse the network configuration
     model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)
+
+    # Suggest batch size
     batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
+
+    # Get data loaders
     train_loader = get_data(dataset_name, model_dict['input']['shape'], batch_size, True)
     val_loader = get_data(dataset_name, model_dict['input']['shape'], batch_size, False)
 
+    # Create the model
     model = create_dynamic_model(model_dict, trial, hpo_params, backend)
     optimizer_config = model.model_dict['optimizer']
 
+    # Extract learning rate from optimizer config
     learning_rate_param = optimizer_config['params'].get('learning_rate', 0.001)
     if isinstance(learning_rate_param, dict) and 'hpo' in learning_rate_param:
         hpo = learning_rate_param['hpo']
         if hpo['type'] == 'log_range':
-            lr = trial.suggest_float("learning_rate", hpo['low'], hpo['high'], log=True)
+            # Handle all naming conventions (start/end, low/high, min/max)
+            low = hpo.get('start', hpo.get('low', hpo.get('min')))
+            high = hpo.get('end', hpo.get('high', hpo.get('max')))
+            lr = trial.suggest_float("learning_rate", low, high, log=True)
         else:
-            lr = float(learning_rate_param)
+            # If it's a dict but not a log_range HPO, use a default value
+            lr = 0.001
     else:
-        lr = float(learning_rate_param)
+        # If it's not a dict, try to convert to float, or use default
+        try:
+            lr = float(learning_rate_param)
+        except (ValueError, TypeError):
+            lr = 0.001
 
+    # Create optimizer
     if backend == 'pytorch':
         optimizer = getattr(optim, optimizer_config['type'])(model.parameters(), lr=lr)
 
-    # Pass optimizer correctly
-    execution_config = {'device': device}
+    # Get device and create execution config
+    device_to_use = get_device(device)
+    execution_config = {'device': device_to_use}
+
+    # Train the model and get metrics
     loss, acc, precision, recall = train_model(model, optimizer, train_loader, val_loader, backend=backend, execution_config=execution_config)
     return loss, acc, precision, recall
 
@@ -350,7 +383,10 @@ def optimize_and_return(config, n_trials=10, dataset_name='MNIST', backend='pyto
             elif hpo['type'] == 'range':
                 batch_size = trial.suggest_int("batch_size", hpo['start'], hpo['end'], step=hpo.get('step', 1))
             elif hpo['type'] == 'log_range':
-                batch_size = trial.suggest_int("batch_size", hpo['low'], hpo['high'], log=True)
+                # Handle all naming conventions (start/end, low/high, min/max)
+                low = hpo.get('start', hpo.get('low', hpo.get('min')))
+                high = hpo.get('end', hpo.get('high', hpo.get('max')))
+                batch_size = trial.suggest_int("batch_size", low, high, log=True)
         elif isinstance(batch_size, list):
             batch_size = trial.suggest_categorical("batch_size", batch_size)
 
