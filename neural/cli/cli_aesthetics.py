@@ -92,24 +92,29 @@ class Colors:
 
 # Spinner animation for loading
 class Spinner:
-    def __init__(self, message="Processing", delay=0.1):
+    def __init__(self, message="Processing", delay=0.1, quiet=False):
         self.spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         self.message = message
         self.delay = delay
         self.running = False
         self.spinner_thread = None
+        self.quiet = quiet
 
     def spin(self):
         i = 0
         while self.running:
-            sys.stdout.write(f"\r{Colors.CYAN}{self.spinner_chars[i]}{Colors.ENDC} {self.message}")
-            sys.stdout.flush()
+            if not self.quiet:
+                sys.stdout.write(f"\r{Colors.CYAN}{self.spinner_chars[i]}{Colors.ENDC} {self.message}")
+                sys.stdout.flush()
             time.sleep(self.delay)
             i = (i + 1) % len(self.spinner_chars)
-        sys.stdout.write("\r" + " " * (len(self.message) + 2) + "\r")
-        sys.stdout.flush()
+        if not self.quiet:
+            sys.stdout.write("\r" + " " * (len(self.message) + 2) + "\r")
+            sys.stdout.flush()
 
     def start(self):
+        if self.quiet:
+            return
         self.running = True
         self.spinner_thread = threading.Thread(target=self.spin)
         self.spinner_thread.daemon = True
@@ -121,7 +126,7 @@ class Spinner:
             self.spinner_thread.join()
 
     def __enter__(self):
-        if os.environ.get('NEURAL_NO_ANIMATIONS') or not sys.stdout.isatty():
+        if os.environ.get('NEURAL_NO_ANIMATIONS') or not sys.stdout.isatty() or self.quiet:
             return self
         self.start()
         return self
@@ -130,11 +135,11 @@ class Spinner:
         self.stop()
 
 # Progress bar
-def progress_bar(iteration, total, prefix='', suffix='', length=50, fill='█', print_end="\r"):
+def progress_bar(iteration, total, prefix='', suffix='', length=50, fill='█', print_end="\r", quiet=False):
     """
     Call in a loop to create terminal progress bar
     """
-    if os.environ.get('NEURAL_NO_ANIMATIONS') or not sys.stdout.isatty():
+    if os.environ.get('NEURAL_NO_ANIMATIONS') or not sys.stdout.isatty() or quiet:
         return
     percent = ("{0:.1f}").format(100 * (iteration / float(total)))
     filled_length = int(length * iteration // total)
@@ -146,11 +151,11 @@ def progress_bar(iteration, total, prefix='', suffix='', length=50, fill='█', 
         sys.stdout.flush()
 
 # Neural network animation
-def animate_neural_network(duration=3):
+def animate_neural_network(duration=3, quiet=False):
     """
     Animate a neural network with data flowing through it
     """
-    if os.environ.get('NEURAL_NO_ANIMATIONS') or not sys.stdout.isatty():
+    if os.environ.get('NEURAL_NO_ANIMATIONS') or not sys.stdout.isatty() or quiet:
         return
     layers = [
         ["○", "○", "○", "○"],  # Input layer

@@ -80,6 +80,7 @@ Requires-Dist: onnxruntime>=1.10; extra == "full"
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Debugging with NeuralDbg](#-debugging-with-neuraldbg)
+- [Cloud Integration](#cloud-integration)
 - [Why Neural?](#why-neural)
 - [Documentation](#documentation)
 - [Examples](#examples)
@@ -287,6 +288,85 @@ neural debug --step mnist.neural
 
 ---
 
+## **☁️ Cloud Integration**
+
+Neural now supports running in cloud environments like Kaggle, Google Colab, and AWS SageMaker, with both direct execution in the cloud and remote control from your local terminal.
+
+### **🔹 1️⃣ Run in Kaggle or Colab**
+
+In your Kaggle notebook or Google Colab:
+
+```python
+# Install Neural DSL
+!pip install git+https://github.com/Lemniscate-world/Neural.git
+
+# Import the cloud module
+from neural.cloud.cloud_execution import CloudExecutor
+
+# Initialize the cloud executor
+executor = CloudExecutor()
+print(f"Detected environment: {executor.environment}")
+print(f"GPU available: {executor.is_gpu_available}")
+
+# Define a model
+dsl_code = """
+network MnistCNN {
+    input: (28, 28, 1)
+    layers:
+        Conv2D(32, (3, 3), "relu")
+        MaxPooling2D((2, 2))
+        Flatten()
+        Dense(128, "relu")
+        Dense(10, "softmax")
+    loss: "categorical_crossentropy"
+    optimizer: Adam(learning_rate=0.001)
+}
+"""
+
+# Compile and run the model
+model_path = executor.compile_model(dsl_code, backend='tensorflow')
+results = executor.run_model(model_path, dataset='MNIST')
+
+# Start the NeuralDbg dashboard with ngrok tunnel
+dashboard_info = executor.start_debug_dashboard(dsl_code, setup_tunnel=True)
+print(f"Dashboard URL: {dashboard_info['tunnel_url']}")
+```
+
+### **🔹 2️⃣ Run in AWS SageMaker**
+
+```python
+# In your SageMaker notebook
+from neural.cloud.cloud_execution import CloudExecutor
+
+# Initialize the cloud executor
+executor = CloudExecutor()  # Automatically detects SageMaker environment
+
+# Define and run your model as above
+```
+
+### **🔹 3️⃣ Connect from Local Terminal**
+
+Control cloud environments directly from your local terminal:
+
+```bash
+# Connect to a cloud platform
+neural cloud connect kaggle
+
+# Execute a Neural DSL file on Kaggle
+neural cloud execute kaggle my_model.neural
+
+# Run Neural in cloud mode with remote access
+neural cloud run --setup-tunnel
+```
+
+### **🔹 4️⃣ Example Notebooks**
+
+Ready-to-use notebooks are available for:
+- [Kaggle](neural/cloud/examples/neural_kaggle_example.ipynb)
+- [Google Colab](neural/cloud/examples/neural_colab_example.ipynb)
+
+---
+
 ##  Why Neural?
 
 | Feature               | Neural      | Raw TensorFlow/PyTorch |
@@ -370,6 +450,7 @@ The Neural repository is organized into the following main directories:
   - **`neural/visualization/`**: Visualization tools
   - **`neural/dashboard/`**: NeuralDbg dashboard
   - **`neural/hpo/`**: Hyperparameter optimization
+  - **`neural/cloud/`**: Cloud integration (Kaggle, Colab, SageMaker)
 - **`neuralpaper/`**: NeuralPaper.ai implementation
 - **`profiler/`**: Performance profiling tools
 - **`tests/`**: Test suite
@@ -385,6 +466,7 @@ Each directory contains its own README with detailed documentation:
 - [neural/visualization](neural/visualization/README.md): Visualization tools
 - [neural/dashboard](neural/dashboard/README.md): NeuralDbg dashboard
 - [neural/hpo](neural/hpo/README.md): Hyperparameter optimization
+- [neural/cloud](neural/cloud/README.md): Cloud integration
 - [neuralpaper](neuralpaper/README.md): NeuralPaper.ai implementation
 - [profiler](profiler/README.md): Performance profiling tools
 - [docs](docs/README.md): Documentation

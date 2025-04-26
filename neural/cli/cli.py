@@ -10,6 +10,7 @@ import click
 import logging
 import hashlib
 import shutil
+import time
 from pathlib import Path
 from typing import Optional
 from lark import exceptions
@@ -466,6 +467,14 @@ def version(ctx):
     print(f"  {Colors.BOLD}Python:{Colors.ENDC}      {sys.version.split()[0]}")
     print(f"  {Colors.BOLD}Platform:{Colors.ENDC}    {sys.platform}")
 
+    # Detect cloud environment
+    env_type = "local"
+    if 'KAGGLE_KERNEL_RUN_TYPE' in os.environ:
+        env_type = "Kaggle"
+    elif 'COLAB_GPU' in os.environ:
+        env_type = "Google Colab"
+    print(f"  {Colors.BOLD}Environment:{Colors.ENDC} {env_type}")
+
     print(f"\n{Colors.CYAN}Core Dependencies:{Colors.ENDC}")
     print(f"  {Colors.BOLD}Click:{Colors.ENDC}       {click.__version__}")
     print(f"  {Colors.BOLD}Lark:{Colors.ENDC}        {lark.__version__}")
@@ -481,6 +490,380 @@ def version(ctx):
     if not ctx.obj.get('NO_ANIMATIONS'):
         print("\nNeural is ready to build amazing neural networks!")
         animate_neural_network(2)
+
+@cli.group()
+@click.pass_context
+def cloud(ctx):
+    """Commands for cloud integration."""
+    pass
+
+@cloud.command('run')
+@click.option('--setup-tunnel', is_flag=True, help='Set up an ngrok tunnel for remote access')
+@click.option('--port', default=8051, help='Port for the No-Code interface')
+@click.pass_context
+def cloud_run(ctx, setup_tunnel: bool, port: int):
+    """Run Neural in cloud environments (Kaggle, Colab, etc.)."""
+    print_command_header("cloud run")
+
+    # Detect environment
+    env_type = "unknown"
+    if 'KAGGLE_KERNEL_RUN_TYPE' in os.environ:
+        env_type = "Kaggle"
+    elif 'COLAB_GPU' in os.environ:
+        env_type = "Google Colab"
+    elif 'SM_MODEL_DIR' in os.environ:
+        env_type = "AWS SageMaker"
+
+    print_info(f"Detected cloud environment: {env_type}")
+
+    # Check for GPU
+    try:
+        result = subprocess.run(
+            ["nvidia-smi"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False
+        )
+        has_gpu = result.returncode == 0
+    except FileNotFoundError:
+        has_gpu = False
+
+    print_info(f"GPU available: {has_gpu}")
+
+    # Import cloud module
+    try:
+        with Spinner("Initializing cloud environment") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+
+            # Try to import the cloud module
+            try:
+                from neural.cloud.cloud_execution import CloudExecutor
+            except ImportError:
+                print_warning("Cloud module not found. Installing required dependencies...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "pyngrok"])
+                from neural.cloud.cloud_execution import CloudExecutor
+
+            # Initialize the cloud executor
+            executor = CloudExecutor(environment=env_type)
+
+            # Set up ngrok tunnel if requested
+            if setup_tunnel:
+                tunnel_url = executor.setup_ngrok_tunnel(port)
+                if tunnel_url:
+                    print_success(f"Tunnel established at: {tunnel_url}")
+                else:
+                    print_error("Failed to set up tunnel")
+
+            # Start the No-Code interface
+            nocode_info = executor.start_nocode_interface(port=port, setup_tunnel=setup_tunnel)
+
+            print_success("Neural is now running in cloud mode!")
+            print(f"\n{Colors.CYAN}Cloud Information:{Colors.ENDC}")
+            print(f"  {Colors.BOLD}Environment:{Colors.ENDC} {env_type}")
+            print(f"  {Colors.BOLD}GPU:{Colors.ENDC}         {'Available' if has_gpu else 'Not available'}")
+            print(f"  {Colors.BOLD}Interface:{Colors.ENDC}   {nocode_info['interface_url']}")
+
+            if setup_tunnel and nocode_info.get('tunnel_url'):
+                print(f"  {Colors.BOLD}Tunnel URL:{Colors.ENDC}  {nocode_info['tunnel_url']}")
+
+            print(f"\n{Colors.YELLOW}Press Ctrl+C to stop the server{Colors.ENDC}")
+
+            # Keep the process running
+            try:
+                while True:
+                    import time
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                print_info("\nShutting down...")
+                executor.cleanup()
+                print_success("Neural cloud environment stopped")
+
+    except Exception as e:
+        print_error(f"Failed to initialize cloud environment: {str(e)}")
+        sys.exit(1)
+
+@cloud.command('connect')
+@click.argument('platform', type=click.Choice(['kaggle', 'colab', 'sagemaker'], case_sensitive=False))
+@click.option('--interactive', '-i', is_flag=True, help='Start an interactive shell')
+@click.option('--notebook', '-n', is_flag=True, help='Start a Jupyter-like notebook interface')
+@click.option('--port', default=8888, help='Port for the notebook server (only with --notebook)')
+@click.option('--quiet', '-q', is_flag=True, help='Reduce output verbosity')
+@click.pass_context
+def cloud_connect(ctx, platform: str, interactive: bool, notebook: bool, port: int, quiet: bool):
+    """Connect to a cloud platform."""
+    # Configure logging to be less verbose
+    if quiet:
+        import logging
+        logging.basicConfig(level=logging.ERROR)
+
+    # Create a more aesthetic header
+    if not quiet:
+        platform_emoji = {
+            'kaggle': '🏆',
+            'colab': '🧪',
+            'sagemaker': '☁️'
+        }.get(platform.lower(), '🌐')
+
+        print("\n" + "─" * 60)
+        print(f"  {platform_emoji}  Neural Cloud Connect: {platform.upper()}")
+        print("─" * 60 + "\n")
+
+    try:
+        # Import the remote connection module
+        with Spinner("Connecting to cloud platform", quiet=quiet) as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+
+            # Try to import the remote connection module
+            try:
+                from neural.cloud.remote_connection import RemoteConnection
+            except ImportError:
+                if not quiet:
+                    print_warning("Installing required dependencies...")
+                subprocess.check_call(
+                    [sys.executable, "-m", "pip", "install", "boto3", "kaggle"],
+                    stdout=subprocess.DEVNULL if quiet else None,
+                    stderr=subprocess.DEVNULL if quiet else None
+                )
+                from neural.cloud.remote_connection import RemoteConnection
+
+            # Initialize the remote connection
+            remote = RemoteConnection()
+
+            # Connect to the platform
+            if platform.lower() == 'kaggle':
+                result = remote.connect_to_kaggle()
+            elif platform.lower() == 'colab':
+                result = remote.connect_to_colab()
+            elif platform.lower() == 'sagemaker':
+                result = remote.connect_to_sagemaker()
+            else:
+                print_error(f"Unsupported platform: {platform}")
+                sys.exit(1)
+
+            if result['success']:
+                if not quiet:
+                    print_success(result['message'])
+
+                # Start interactive shell if requested
+                if interactive and notebook:
+                    if not quiet:
+                        print_warning("Both --interactive and --notebook specified. Using --interactive.")
+
+                if interactive:
+                    try:
+                        # Use the more aesthetic script if not in quiet mode
+                        if not quiet:
+                            import subprocess
+                            import os
+
+                            # Get the path to the script
+                            script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                                      "cloud", "run_interactive_shell.py")
+
+                            # Run the script
+                            subprocess.run([sys.executable, script_path, platform])
+                            return  # Exit after the script finishes
+                        else:
+                            # Use the regular function in quiet mode
+                            from neural.cloud.interactive_shell import start_interactive_shell
+                            start_interactive_shell(platform, remote, quiet=quiet)
+                    except ImportError:
+                        print_error("Interactive shell module not found")
+                        sys.exit(1)
+                    except Exception as e:
+                        print_error(f"Failed to start interactive shell: {e}")
+                        sys.exit(1)
+                elif notebook:
+                    try:
+                        from neural.cloud.notebook_interface import start_notebook_interface
+                        if not quiet:
+                            print_info(f"Starting notebook interface for {platform} on port {port}...")
+                        # Pass the port and quiet parameters
+                        start_notebook_interface(platform, remote, port, quiet=quiet)
+                    except ImportError:
+                        print_error("Notebook interface module not found")
+                        sys.exit(1)
+            else:
+                print_error(f"Failed to connect: {result.get('error', 'Unknown error')}")
+                sys.exit(1)
+
+    except Exception as e:
+        print_error(f"Failed to connect to {platform}: {str(e)}")
+        sys.exit(1)
+
+@cloud.command('execute')
+@click.argument('platform', type=click.Choice(['kaggle', 'colab', 'sagemaker'], case_sensitive=False))
+@click.argument('file', type=click.Path(exists=True, file_okay=True, dir_okay=False))
+@click.option('--name', help='Name for the kernel/notebook')
+@click.pass_context
+def cloud_execute(ctx, platform: str, file: str, name: str):
+    """Execute a Neural DSL file on a cloud platform."""
+    print_command_header(f"cloud execute: {platform}")
+
+    try:
+        # Read the file
+        with open(file, 'r') as f:
+            dsl_code = f.read()
+
+        # Import the remote connection module
+        with Spinner("Executing on cloud platform") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+
+            # Try to import the remote connection module
+            try:
+                from neural.cloud.remote_connection import RemoteConnection
+            except ImportError:
+                print_warning("Remote connection module not found. Installing required dependencies...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "boto3", "kaggle"])
+                from neural.cloud.remote_connection import RemoteConnection
+
+            # Initialize the remote connection
+            remote = RemoteConnection()
+
+            # Generate a name if not provided
+            if not name:
+                import hashlib
+                name = f"neural-{hashlib.md5(dsl_code.encode()).hexdigest()[:8]}"
+
+            # Execute on the platform
+            if platform.lower() == 'kaggle':
+                # Connect to Kaggle
+                result = remote.connect_to_kaggle()
+                if not result['success']:
+                    print_error(f"Failed to connect to Kaggle: {result.get('error', 'Unknown error')}")
+                    sys.exit(1)
+
+                # Create a kernel
+                kernel_id = remote.create_kaggle_kernel(name)
+                if not kernel_id:
+                    print_error("Failed to create Kaggle kernel")
+                    sys.exit(1)
+
+                print_info(f"Created Kaggle kernel: {kernel_id}")
+
+                # Generate code to execute
+                execution_code = f"""
+# Install Neural DSL
+!pip install git+https://github.com/Lemniscate-SHA-256/Neural.git
+
+# Import the cloud module
+from neural.cloud.cloud_execution import CloudExecutor
+
+# Initialize the cloud executor
+executor = CloudExecutor()
+print(f"Detected environment: {{executor.environment}}")
+print(f"GPU available: {{executor.is_gpu_available}}")
+
+# Define the model
+dsl_code = \"\"\"
+{dsl_code}
+\"\"\"
+
+# Compile the model
+model_path = executor.compile_model(dsl_code, backend='tensorflow')
+print(f"Model compiled to: {{model_path}}")
+
+# Run the model
+results = executor.run_model(model_path, dataset='MNIST', epochs=5)
+print(f"Model execution results: {{results}}")
+
+# Visualize the model
+viz_path = executor.visualize_model(dsl_code, output_format='png')
+print(f"Model visualization saved to: {{viz_path}}")
+"""
+
+                # Execute the code
+                print_info("Executing on Kaggle...")
+                result = remote.execute_on_kaggle(kernel_id, execution_code)
+
+                if result['success']:
+                    print_success("Execution completed successfully")
+                    print("\nOutput:")
+                    print(result['output'])
+                else:
+                    print_error(f"Execution failed: {result.get('error', 'Unknown error')}")
+                    sys.exit(1)
+
+                # Clean up
+                remote.delete_kaggle_kernel(kernel_id)
+
+            elif platform.lower() == 'sagemaker':
+                # Connect to SageMaker
+                result = remote.connect_to_sagemaker()
+                if not result['success']:
+                    print_error(f"Failed to connect to SageMaker: {result.get('error', 'Unknown error')}")
+                    sys.exit(1)
+
+                # Create a notebook instance
+                notebook_name = remote.create_sagemaker_notebook(name)
+                if not notebook_name:
+                    print_error("Failed to create SageMaker notebook instance")
+                    sys.exit(1)
+
+                print_info(f"Created SageMaker notebook instance: {notebook_name}")
+
+                # Generate code to execute
+                execution_code = f"""
+# Install Neural DSL
+!pip install git+https://github.com/Lemniscate-SHA-256/Neural.git
+
+# Import the cloud module
+from neural.cloud.cloud_execution import CloudExecutor
+
+# Initialize the cloud executor
+executor = CloudExecutor()
+print(f"Detected environment: {{executor.environment}}")
+print(f"GPU available: {{executor.is_gpu_available}}")
+
+# Define the model
+dsl_code = \"\"\"
+{dsl_code}
+\"\"\"
+
+# Compile the model
+model_path = executor.compile_model(dsl_code, backend='tensorflow')
+print(f"Model compiled to: {{model_path}}")
+
+# Run the model
+results = executor.run_model(model_path, dataset='MNIST', epochs=5)
+print(f"Model execution results: {{results}}")
+
+# Visualize the model
+viz_path = executor.visualize_model(dsl_code, output_format='png')
+print(f"Model visualization saved to: {{viz_path}}")
+"""
+
+                # Execute the code
+                print_info("Executing on SageMaker...")
+                result = remote.execute_on_sagemaker(notebook_name, execution_code)
+
+                if result['success']:
+                    print_success("Execution completed successfully")
+                    print("\nOutput:")
+                    print(result['output'])
+                else:
+                    print_error(f"Execution failed: {result.get('error', 'Unknown error')}")
+                    sys.exit(1)
+
+                # Clean up
+                remote.delete_sagemaker_notebook(notebook_name)
+
+            elif platform.lower() == 'colab':
+                print_error("Colab execution from terminal is not supported yet")
+                sys.exit(1)
+
+            else:
+                print_error(f"Unsupported platform: {platform}")
+                sys.exit(1)
+
+    except Exception as e:
+        print_error(f"Failed to execute on {platform}: {str(e)}")
+        sys.exit(1)
+
 
 @cli.command()
 @click.argument('file', type=click.Path(exists=True, file_okay=True, dir_okay=False))
