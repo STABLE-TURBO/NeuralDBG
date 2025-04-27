@@ -1,5 +1,65 @@
 # Changelog
 
+## [0.2.8] - 30-04-2025
+
+### Added
+- **Cloud Integration Improvements**: Enhanced support for running Neural in cloud environments like Kaggle, Colab, and AWS SageMaker.
+  - Added automatic cloud environment detection (Kaggle, Colab, SageMaker)
+  - Implemented GPU detection and automatic configuration
+  - Added remote dashboard access through ngrok tunnels
+  - Created ready-to-use example notebooks for cloud platforms
+- **Interactive Shell for Cloud Platforms**: Added interactive shell capabilities when connecting to cloud platforms.
+  - Implemented command-line interface for executing Neural DSL commands on cloud platforms
+  - Added support for remote execution of Neural DSL files from local terminal
+  - Created Jupyter-like notebook interface for cloud environments
+- **Automated Issue Management**: Improved GitHub workflows for automatically creating and closing issues based on test results.
+  - Enhanced GitHub Actions workflow for test failure detection
+  - Added intelligent issue closing based on code changes
+  - Implemented artifact upload/download for test results
+
+### Fixed
+- **Version References**: Updated version references across documentation to ensure consistency.
+- **CLI Debug Messages**: Further reduced debug logs when starting the Neural CLI for a cleaner user experience.
+- **Cloud Connection Workflow**: Fixed issues with the cloud connect command to properly spawn an interactive CLI interface.
+- **HPO Parameter Handling**: Fixed edge cases in HPO parameter validation and parsing for complex nested configurations.
+  - Improved handling of HPO log_range parameters with consistent min/max naming
+  - Enhanced support for HPO parameters in Conv2D layers (filters, kernel_size, padding)
+  - Fixed issues with optimizer HPO parameters without quotes
+- **GitHub Workflows**: Updated GitHub Actions to use latest versions (download-artifact@v4)
+- **Repository Structure**: Fixed trailing whitespace and end-of-file issues across multiple files
+
+### Improved
+- **Documentation**:
+  - Enhanced README with more detailed explanations of cloud integration features
+  - Added comprehensive README files in key directories (parser, hpo, cloud)
+  - Created architecture diagrams and workflow documentation
+- **Dependency Management**:
+  - Refined dependency specifications for better compatibility across environments
+  - Updated matplotlib dependency to be compatible with newer versions (<3.10)
+  - Upgraded Next.js in NeuralPaper frontend from 13.5.11 to 14.2.26
+  - Fixed tweepy dependency to version 4.15.0 for stable Twitter API integration
+- **Release Workflow**:
+  - Streamlined the release process with better automation for version updates
+  - Enhanced post-release workflow with automated social media updates
+  - Improved GitHub Actions for release management
+- **Code Quality**:
+  - Added code complexity analysis tools and reports
+  - Improved error handling and validation
+  - Enhanced docstrings across the codebase
+
+### Known Issues
+- Some complex nested HPO configurations may still require additional validation.
+- Edge cases in TensorFlow backend HPO integration need further testing.
+- Certain advanced layer configurations may not be fully supported in PyTorch backend.
+
+### Technical Debt and Future Improvements
+- **Documentation Updates**: Several documentation links in README.md need to be created or updated.
+- **PyTorch Support**: Expand layer support for PyTorch backend to match TensorFlow capabilities.
+- **NeuralPaper Integration**: Continue development of NeuralPaper.ai with better integration between frontend and backend.
+- **Cloud Integration**: Further enhance cloud platform support with more seamless authentication and deployment options.
+
+---
+
 ## [0.2.7] - 16-04-2025
 
 ### Added

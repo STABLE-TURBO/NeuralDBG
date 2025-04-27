@@ -1,21 +1,35 @@
 [
   {
+    "title": "Neural DSL v0.2.8: Cloud Integration & Automated Issue Management",
+    "date": "2025-04-27",
+    "excerpt": "We're excited to announce the release of Neural DSL v0.2.8, which brings significant improvements to cloud integration capabilities, interactive shell features for cloud platforms, and enhanced GitHub...",
+    "filename": "website_v0.2.8_release.md",
+    "url": "website_v0.2.8_release.html"
+  },
+  {
     "title": "Neural DSL v0.2.7: Enhanced HPO Support and Parser Improvements",
     "date": "2025-04-16",
-    "excerpt": "We're excited to announce the release of Neural DSL v0.2.7, which brings significant improvements to hyperparameter optimization (HPO) support, particularly for convolutional layers and learning rate schedules...",
+    "excerpt": "We're excited to announce the release of Neural DSL v0.2.7, which brings significant improvements to hyperparameter optimization (HPO) support, particularly for convolutional layers and learning rate ...",
     "filename": "website_v0.2.7_release.md",
     "url": "website_v0.2.7_release.html"
   },
   {
     "title": "Neural DSL v0.2.6: Enhanced Dashboard UI & Blog Support",
-    "date": "2025-03-25",
-    "excerpt": "We're excited to announce the release of Neural DSL v0.2.6! This update brings significant improvements to the NeuralDbg dashboard with a more aesthetic design, along with blog support and several other...",
+    "date": "2025-04-10",
+    "excerpt": "We're excited to announce the release of Neural DSL v0.2.6! This update brings significant improvements to the NeuralDbg dashboard with a more aesthetic design, along with blog support and several oth...",
     "filename": "website_v0.2.6_release.md",
     "url": "website_v0.2.6_release.html"
   },
   {
+    "title": "Neural DSL Blog",
+    "date": "2025-04-10",
+    "excerpt": "1. Create a new markdown file in this directory with a descriptive name, e.g., `website_v0.2.6_release.md`.",
+    "filename": "README.md",
+    "url": "README.html"
+  },
+  {
     "title": "Neural DSL v0.2.5: Multi-Framework HPO Support & More",
-    "date": "2025-03-24",
+    "date": "2025-04-10",
     "excerpt": "We're excited to announce the release of Neural DSL v0.2.5! This update brings significant improvements to hyperparameter optimization (HPO), making it seamlessly work across both PyTorch and TensorFl...",
     "filename": "website_v0.2.5_release.md",
     "url": "website_v0.2.5_release.html"

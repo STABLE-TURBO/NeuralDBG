@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: neural-dsl
-Version: 0.2.7
+Version: 0.2.8
 Summary: A domain-specific language and debugger for neural networks
 Home-page: https://github.com/Lemniscate-SHA-256/Neural
 Author: Lemniscate-SHA-256/SENOUVO Jacques-Charles Gad
@@ -69,7 +69,7 @@ Requires-Dist: onnxruntime>=1.10; extra == "full"
   <a href="https://www.producthunt.com/posts/neural-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-neural&#0045;2" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=945073&theme=dark&t=1742808173867" alt="Neural - DSL for defining, training, debugging neural networks | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
 </div>
 
-> ⚠️ **BETA STATUS**: Neural-dsl v0.2.7 is under active development—bugs may exist, feedback welcome! Not yet recommended for production use.
+> ⚠️ **BETA STATUS**: Neural-dsl v0.2.8 is under active development—bugs may exist, feedback welcome! Not yet recommended for production use.
 
 ![Neural Demo](https://github.com/user-attachments/assets/ecbcce19-73df-4696-ace2-69e32d02709f)
 
@@ -163,7 +163,7 @@ NeuralDbg provides **real-time execution tracing, profiling, and debugging**, al
 pip install neural-dsl
 
 # Or specify a version
-pip install neural-dsl==0.2.7  # Latest version with enhanced HPO support and parser improvements
+pip install neural-dsl==0.2.8  # Latest version with enhanced HPO support and parser improvements
 ```
 
 ### Option 2: Install from Source
@@ -524,4 +524,4 @@ Join our growing community of developers and researchers:
 </div>
 
 
-**Note**: See v0.2.7 release notes for latest fixes and improvements!
+**Note**: See v0.2.8 release notes for latest fixes and improvements!

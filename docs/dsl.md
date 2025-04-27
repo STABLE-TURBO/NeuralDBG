@@ -1,5 +1,65 @@
 # Neural DSL Documentation
 
+## What's New in v0.2.8
+
+### Key Improvements
+- **Cloud Integration**: Enhanced support for running Neural in cloud environments like Kaggle, Colab, and AWS SageMaker.
+- **Interactive Shell for Cloud Platforms**: Added interactive shell capabilities when connecting to cloud platforms.
+- **HPO Parameter Handling Fixes**: Improved handling of HPO log_range parameters with consistent min/max naming.
+- **CLI Debug Messages**: Further reduced debug logs when starting the Neural CLI for a cleaner user experience.
+
+### Example: Cloud Integration
+
+```python
+# Install Neural DSL in your Colab notebook
+!pip install neural-dsl==0.2.8
+
+# Import the cloud module
+from neural.cloud.cloud_execution import CloudExecutor
+
+# Initialize the cloud executor
+executor = CloudExecutor()
+print(f"Detected environment: {executor.environment}")
+print(f"GPU available: {executor.is_gpu_available}")
+
+# Define a model
+dsl_code = """
+network MnistCNN {
+    input: (28, 28, 1)
+    layers:
+        Conv2D(32, (3, 3), "relu")
+        MaxPooling2D((2, 2))
+        Flatten()
+        Dense(128, "relu")
+        Dense(10, "softmax")
+    loss: "categorical_crossentropy"
+    optimizer: Adam(learning_rate=0.001)
+}
+"""
+
+# Compile and run the model
+model_path = executor.compile_model(dsl_code, backend='tensorflow')
+results = executor.run_model(model_path, dataset='MNIST')
+
+# Start the NeuralDbg dashboard with ngrok tunnel
+dashboard_info = executor.start_debug_dashboard(dsl_code, setup_tunnel=True)
+print(f"Dashboard URL: {dashboard_info['tunnel_url']}")
+```
+
+### Example: Interactive Shell for Cloud Platforms
+
+```bash
+# Connect to Kaggle with an interactive shell
+neural cloud connect kaggle --interactive
+
+# In the shell, you can run commands like:
+neural-cloud> run my_model.neural --backend tensorflow
+neural-cloud> visualize my_model.neural
+neural-cloud> debug my_model.neural --setup-tunnel
+neural-cloud> shell ls -la
+neural-cloud> python print("Hello from Kaggle!")
+```
+
 ## What's New in v0.2.7
 
 ### Key Improvements
@@ -132,6 +192,7 @@ optimizer: SGD(
 ```
 
 ## Table of Contents
+- [What's New in v0.2.8](#whats-new-in-v028)
 - [What's New in v0.2.7](#whats-new-in-v027)
 - [What's New in v0.2.6](#whats-new-in-v026)
 - [What's New in v0.2.5](#whats-new-in-v025)
@@ -141,6 +202,7 @@ optimizer: SGD(
 - [CLI Reference](#cli-reference)
 - [Error Handling](#error-handling)
 - [Examples](#examples)
+- [Cloud Integration (v0.2.8+)](#cloud-integration-v028)
 - [Enhanced HPO Support (v0.2.7+)](#enhanced-hpo-support-v027)
 - [Enhanced Dashboard UI (v0.2.6+)](#enhanced-dashboard-ui-v026)
 - [Blog Support (v0.2.6+)](#blog-support-v026)
@@ -232,6 +294,11 @@ neural debug <file> [--gradients] [--dead-neurons] [--step]
 neural visualize <file> [--format png|svg|html]
 neural profile <file> [--memory] [--latency]
 
+# Cloud Integration (v0.2.8+)
+neural cloud connect <platform> [--interactive]  # Connect to cloud platform
+neural cloud execute <platform> <file>  # Execute a file on cloud platform
+neural cloud run [--setup-tunnel]  # Run Neural in cloud mode
+
 # Project Management
 neural clean  # Remove generated files
 neural version  # Show version and dependencies info
@@ -243,6 +310,8 @@ neural version  # Show version and dependencies info
 - `--step`: Interactive debugging mode
 - `--port`: Specify GUI port for no-code interface
 - `--theme`: Set dashboard theme (light/dark, v0.2.6+)
+- `--interactive`: Start an interactive shell (for cloud commands, v0.2.8+)
+- `--setup-tunnel`: Set up an ngrok tunnel for remote access (v0.2.8+)
 
 ---
 
@@ -390,6 +459,12 @@ HPO(log_range(1e-4, 1e-2))      # Log-scale range for learning rates
   - Detailed context about parameter constraints
   - Validation for complex nested configurations
 
+### HPO Parameters Updates (v0.2.8)
+- **Consistent Parameter Naming**: Improved HPO log_range parameter naming from low/high to min/max for consistency.
+- **Enhanced Conv2D Support**: Fixed issues with HPO parameters in Conv2D layers (filters, kernel_size, padding).
+- **Optimizer Parameters**: Fixed issues with optimizer HPO parameters without quotes.
+- **Missing Parameters Handling**: Added graceful handling of missing parameters in best_params during HPO optimization.
+
 ### HPO Parameters Updates (v0.2.5)
 - **Multi-Framework Support**: HPO now works seamlessly across both PyTorch and TensorFlow backends.
 - **Optimizer Parameters**: All optimizer parameters now support HPO, including:
@@ -441,6 +516,84 @@ network AdvancedHPO {
     search_method: "bayesian"
   }
 }
+
+---
+
+## Cloud Integration (v0.2.8+)
+
+Neural DSL v0.2.8 introduces enhanced support for running in cloud environments like Kaggle, Google Colab, and AWS SageMaker. This allows you to leverage cloud resources for training and debugging your models.
+
+### Cloud Platforms
+
+| Platform | Description | Command |
+|----------|-------------|---------|
+| **Kaggle** | Data science competition platform | `neural cloud connect kaggle` |
+| **Google Colab** | Free Jupyter notebook environment | `neural cloud connect colab` |
+| **AWS SageMaker** | Managed machine learning service | `neural cloud connect sagemaker` |
+
+### Cloud Commands
+
+```bash
+# Connect to a cloud platform
+neural cloud connect kaggle
+
+# Connect with interactive shell
+neural cloud connect kaggle --interactive
+
+# Execute a Neural DSL file on a cloud platform
+neural cloud execute kaggle my_model.neural
+
+# Run Neural in cloud mode with remote access
+neural cloud run --setup-tunnel
+```
+
+### Python API
+
+```python
+from neural.cloud.cloud_execution import CloudExecutor
+
+# Initialize the cloud executor
+executor = CloudExecutor()
+print(f"Detected environment: {executor.environment}")
+print(f"GPU available: {executor.is_gpu_available}")
+
+# Compile and run a model
+model_path = executor.compile_model(dsl_code, backend='tensorflow')
+results = executor.run_model(model_path, dataset='MNIST')
+
+# Start the NeuralDbg dashboard with ngrok tunnel
+dashboard_info = executor.start_debug_dashboard(dsl_code, setup_tunnel=True)
+print(f"Dashboard URL: {dashboard_info['tunnel_url']}")
+```
+
+### Interactive Shell
+
+The interactive shell provides a familiar Neural CLI experience but executes commands on the cloud platform:
+
+```bash
+# Connect to Kaggle with an interactive shell
+neural cloud connect kaggle --interactive
+
+# In the shell, you can run commands like:
+neural-cloud> run my_model.neural --backend tensorflow
+neural-cloud> visualize my_model.neural
+neural-cloud> debug my_model.neural --setup-tunnel
+neural-cloud> shell ls -la
+neural-cloud> python print("Hello from Kaggle!")
+```
+
+### Remote Dashboard Access
+
+You can access the NeuralDbg dashboard remotely through an ngrok tunnel:
+
+```bash
+# Start the dashboard with a tunnel
+neural debug my_model.neural --setup-tunnel
+
+# Or in Python
+dashboard_info = executor.start_debug_dashboard(dsl_code, setup_tunnel=True)
+print(f"Dashboard URL: {dashboard_info['tunnel_url']}")
+```
 
 ---
 

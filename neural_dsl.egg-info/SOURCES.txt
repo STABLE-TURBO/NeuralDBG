@@ -19,6 +19,7 @@ setup.py
 ./neural/cloud/notebook_interface.py
 ./neural/cloud/notebook_kernel.py
 ./neural/cloud/remote_connection.py
+./neural/cloud/run_interactive_shell.py
 ./neural/cloud/sagemaker_integration.py
 ./neural/cloud/examples/__init__.py
 ./neural/code_generation/__init__.py

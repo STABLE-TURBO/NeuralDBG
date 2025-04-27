@@ -53,3 +53,6 @@ ENV/
 # Backup and large files
 .git.bak/
 *.pack
+
+# Social media content
+social_media/
