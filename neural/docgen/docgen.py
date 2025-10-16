@@ -13,13 +13,18 @@ def generate_markdown(model_data: Dict[str, Any]) -> str:
     Generate a Markdown report (DocGen v1.1) for a Neural model with math and shapes.
 
     - Uses ShapePropagator to compute shapes (tolerant to errors)
-    - Emits compact math for common layers (Dense/Output/Flatten/Conv2D)
+    - Emits detailed math for all layers (Dense/Output/Flatten/Conv2D/Pool/BatchNorm)
+    - Calculates and displays parameter counts per layer and total
     - Adds a Summary section and records shape propagation warnings
     """
     assert isinstance(model_data, dict) and 'input' in model_data and 'layers' in model_data
 
     lines: List[str] = []
     lines.append(f"# Model Documentation\n")
+
+    # Initialize parameter tracking
+    total_params = 0
+    layer_params = {}
 
     # Intro and input
     input_shape = tuple(model_data['input']['shape'])

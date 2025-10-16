@@ -2,13 +2,15 @@ import lark
 import pysnooper
 import traceback
 from lark import Tree, Transformer, Token
+from lark.exceptions import UnexpectedToken, UnexpectedCharacters, VisitError
 from typing import Any, Dict, List, Tuple, Union, Optional, Callable
 import json
 import plotly.graph_objects as go
 import logging
 from enum import Enum
-from lark.exceptions import VisitError
 import re
+
+from .error_handling import ErrorHandler, NeuralParserError, ParserError
 
 
 logger = logging.getLogger('neural.parser')
@@ -536,7 +538,11 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         class _GrammarShim:
             def __init__(self, rules_list):
                 self.rules = rules_list
-        p.grammar = _GrammarShim([
+        # Create a proper Grammar instance instead of direct assignment
+        from lark.grammar import Rule
+        from lark.lexer import TerminalDef
+        
+        rules = [
             _RuleShim('network', 'input_layer layers loss optimizer training_config execution_config'),
             _RuleShim('layer', 'conv pooling dropout flatten dense basic_layer advanced_layer special_layer'),
             _RuleShim('conv', 'conv1d conv2d conv3d conv_transpose'),
@@ -778,8 +784,8 @@ class ModelTransformer(lark.Transformer):
 
         sub_layers = []
         for child in node.children:
-            if hasattr(child, 'data') and child.data == 'layer_or_repeated':
-                if hasattr(child, 'children') and len(child.children) > 0:
+            if (hasattr(child, 'data') and child.data == 'layer_or_repeated' and
+                hasattr(child, 'children') and len(child.children) > 0):
                     basic_layer_node = child.children[0]
                     if hasattr(basic_layer_node, 'data') and basic_layer_node.data == 'basic_layer':
                         try:
@@ -1139,7 +1145,15 @@ class ModelTransformer(lark.Transformer):
     def regularization(self, items):
         return {'type': items[0].data.capitalize(), 'params': self._extract_value(items[0].children[0])}
 
-    def execution_config(self, items):
+    def parse_execution_config(self, items):
+        """Parse execution configuration parameters.
+        
+        Args:
+            items: List of parse tree items
+            
+        Returns:
+            Dict containing execution config parameters
+        """
         params = self._extract_value(items[0])
         return {'type': 'execution_config', 'params': params}
 
@@ -1207,11 +1221,15 @@ class ModelTransformer(lark.Transformer):
                 params['units'] = self._extract_value(hpo_config)
                 self._track_hpo('Dense', 'units', hpo_config, items[0])
         else:
-            if not isinstance(units, (int, float)):
-                self.raise_validation_error(f"Dense units must be a number, got {units}", items[0])
-            if units <= 0:
-                self.raise_validation_error(f"Dense units must be a positive integer, got {units}", items[0])
-            params['units'] = int(units)  # Convert to int if applicable
+            try:
+                units_val = float(units) if isinstance(units, (int, float, str)) else None
+                if units_val is None or not isinstance(units_val, (int, float)):
+                    self.raise_validation_error(f"Dense units must be a number, got {units}", items[0], Severity.ERROR)
+                if units_val <= 0:
+                    self.raise_validation_error(f"Dense units must be a positive integer, got {units}", items[0], Severity.ERROR)
+                params['units'] = int(units_val)  # Convert to int if applicable
+            except (TypeError, ValueError):
+                self.raise_validation_error(f"Dense units must be a number, got {units}", items[0], Severity.ERROR)
 
         if 'activation' in params:
             activation = params['activation']
@@ -1996,11 +2014,26 @@ class ModelTransformer(lark.Transformer):
         if isinstance(units, dict) and 'hpo' in units:
             pass  # HPO handled elsewhere
         else:
-            if not isinstance(units, (int, float)) or (isinstance(units, float) and not units.is_integer()):
-                self.raise_validation_error(f"LSTM units must be an integer, got {units}", items[0])
-            if units <= 0:
-                self.raise_validation_error(f"LSTM units must be positive, got {units}", items[0])
-            params['units'] = int(units)
+            try:
+                if isinstance(units, (dict, str)):
+                    try:
+                        units_val = float(str(units))
+                    except (ValueError, TypeError):
+                        self.raise_validation_error(f"LSTM units must be a number, got {units}", items[0], Severity.ERROR)
+                        return
+                elif isinstance(units, (int, float)):
+                    units_val = float(units)
+                else:
+                    self.raise_validation_error(f"LSTM units must be a number, got {type(units)}", items[0], Severity.ERROR)
+                    return
+
+                if not units_val.is_integer():
+                    self.raise_validation_error(f"LSTM units must be an integer, got {units_val}", items[0], Severity.ERROR)
+                if units_val <= 0:
+                    self.raise_validation_error(f"LSTM units must be positive, got {units_val}", items[0], Severity.ERROR)
+                params['units'] = int(units_val)
+            except (TypeError, ValueError) as e:
+                self.raise_validation_error(f"Error converting units: {str(e)}", items[0], Severity.ERROR)
 
         return {'type': 'LSTM', 'params': params}
 
