@@ -29,23 +29,24 @@ def _conv_then_output_model():
 @pytest.mark.parametrize("backend", ["tensorflow", "pytorch"])
 @pytest.mark.parametrize("auto_flatten", [False, True])
 def test_output_requires_flatten_policy(backend, auto_flatten):
-    """Dense/Output on 4D input should auto-insert flatten only when flag is enabled.
+    """Dense/Output on 4D input: strict policy vs auto-flatten.
 
-    - When auto_flatten_output=True: code should include an explicit flatten step
-      (Flatten() for TF, view(…,-1) for PT) before applying Dense/Output.
-    - When False: ensure that no automatic flatten marker appears.
+    - When auto_flatten_output=True: code should include a flatten step before Dense/Output.
+    - When False: generate_code should raise a ValueError explaining the policy.
     """
-    code = generate_code(_simple_4d_input_output_model(), backend, auto_flatten_output=auto_flatten)
+    if not auto_flatten:
+        with pytest.raises(ValueError):
+            generate_code(_simple_4d_input_output_model(), backend, auto_flatten_output=False)
+        return
+
+    code = generate_code(_simple_4d_input_output_model(), backend, auto_flatten_output=True)
 
     if backend == "tensorflow":
         has_flatten = "Flatten()" in code or "layers.Flatten()" in code
     else:
         has_flatten = ".view(" in code or ".reshape(" in code
 
-    if auto_flatten:
-        assert has_flatten, f"Expected flatten step for {backend} when auto_flatten_output=True"
-    else:
-        assert not has_flatten, f"Did not expect auto flatten for {backend} when auto_flatten_output=False"
+    assert has_flatten, f"Expected flatten step for {backend} when auto_flatten_output=True"
 
 
 @pytest.mark.parametrize("backend", ["tensorflow", "pytorch"])

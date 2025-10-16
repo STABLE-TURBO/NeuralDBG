@@ -34,3 +34,5 @@
   - Added nightly schedule (02:00 UTC) to CI workflow
 - Tests:
   - Added tests/code_generator/test_policy_and_parity.py for flatten policy and TF/PT parity
+  - Adjusted tests to expect ValueError when auto_flatten_output=False (strict policy)
+
