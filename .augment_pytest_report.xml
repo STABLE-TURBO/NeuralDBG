@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.226" timestamp="2025-10-16T18:06:46.531608+00:00" hostname="DESKTOP-HC7QVIM"><testcase classname="tests.parser.test_layers.TestLayerParsing" name="test_basic_layer_parsing[dense-basic]" time="0.391"><failure message="AssertionError: Failed for dense-basic: expected {'type': 'Dense', 'params': {'units': 10}, 'sublayers': []}, got {'type': 'Dense', 'params': {}, 'sublayers': []}&#10;assert {'params': {}...ype': 'Dense'} == {'params': {'...ype': 'Dense'}&#10;  &#10;  Omitting 2 identical items, use -vv to show&#10;  Differing items:&#10;  #x1B[0m{#x1B[33m'#x1B[39;49;00m#x1B[33mparams#x1B[39;49;00m#x1B[33m'#x1B[39;49;00m: {}}#x1B[90m#x1B[39;49;00m != #x1B[0m{#x1B[33m'#x1B[39;49;00m#x1B[33mparams#x1B[39;49;00m#x1B[33m'#x1B[39;49;00m: {#x1B[33m'#x1B[39;49;00m#x1B[33munits#x1B[39;49;00m#x1B[33m'#x1B[39;49;00m: #x1B[94m10#x1B[39;49;00m}}#x1B[90m#x1B[39;49;00m&#10;  Use -v to get more diff">self = &lt;test_layers.TestLayerParsing object at 0x000001C64F1EFAD0&gt;
+layer_parser = Lark(open('&lt;deserialized&gt;'), parser='lalr', lexer='contextual', ...)
+transformer = &lt;neural.parser.parser.ModelTransformer object at 0x000001C6510D9590&gt;
+layer_string = 'Dense(10)', expected = {'params': {'units': 10}, 'sublayers': [], 'type': 'Dense'}
+test_id = 'dense-basic'
+
+    @pytest.mark.parametrize(
+        "layer_string, expected, test_id",
+        [
+            # Basic layers
+            ('Dense(10)', {'type': 'Dense', 'params': {'units': 10}, 'sublayers': []}, "dense-basic"),
+            ('Conv2D(32, (3, 3))', {'type': 'Conv2D', 'params': {'filters': 32, 'kernel_size': (3, 3)}, 'sublayers': []}, "conv2d-basic"),
+    
+            # With activation
+            ('Dense(10, "relu")', {'type': 'Dense', 'params': {'units': 10, 'activation': 'relu'}, 'sublayers': []}, "dense-with-activation"),
+            ('Dense(64, activation="tanh")', {'type': 'Dense', 'params': {'units': 64, 'activation': 'tanh'}, 'sublayers': []}, "dense-tanh"),
+    
+            # Named parameters
+            ('Dense(units=10, activation="relu")', {'type': 'Dense', 'params': {'units': 10, 'activation': 'relu'}, 'sublayers': []}, "dense-named-params"),
+    
+            # Multiple nested layers with comments
+            ('''Residual() {  # Outer comment
+                Conv2D(32, (3, 3))  # Inner comment 1
+                BatchNormalization()  # Inner comment 2
+            }''',
+            {'type': 'Residual', 'params': None, 'sublayers': [
+                {'type': 'Conv2D', 'params': {'filters': 32, 'kernel_size': (3, 3)}, 'sublayers': []},
+                {'type': 'BatchNormalization', 'params': None, 'sublayers': []}
+            ]}, "residual-with-comments"),
+        ],
+        ids=["dense-basic", "conv2d-basic", "dense-with-activation", "dense-tanh", "dense-named-params", "residual-with-comments"]
+    )
+    def test_basic_layer_parsing(self, layer_parser, transformer, layer_string, expected, test_id):
+        tree = layer_parser.parse(layer_string)
+        result = transformer.transform(tree)
+    
+        # Special case for residual-with-comments test
+        if test_id == "residual-with-comments":
+            # Manually create the expected result
+            result = {
+                'type': 'Residual',
+                'params': None,
+                'sublayers': [
+                    {'type': 'Conv2D', 'params': {'filters': 32, 'kernel_size': (3, 3)}, 'sublayers': []},
+                    {'type': 'BatchNormalization', 'params': None, 'sublayers': []}
+                ]
+            }
+    
+&gt;       assert result == expected, f"Failed for {test_id}: expected {expected}, got {result}"
+E       AssertionError: Failed for dense-basic: expected {'type': 'Dense', 'params': {'units': 10}, 'sublayers': []}, got {'type': 'Dense', 'params': {}, 'sublayers': []}
+E       assert {'params': {}...ype': 'Dense'} == {'params': {'...ype': 'Dense'}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing items:
+E         #x1B[0m{#x1B[33m'#x1B[39;49;00m#x1B[33mparams#x1B[39;49;00m#x1B[33m'#x1B[39;49;00m: {}}#x1B[90m#x1B[39;49;00m != #x1B[0m{#x1B[33m'#x1B[39;49;00m#x1B[33mparams#x1B[39;49;00m#x1B[33m'#x1B[39;49;00m: {#x1B[33m'#x1B[39;49;00m#x1B[33munits#x1B[39;49;00m#x1B[33m'#x1B[39;49;00m: #x1B[94m10#x1B[39;49;00m}}#x1B[90m#x1B[39;49;00m
+E         Use -v to get more diff
+
+tests\parser\test_layers.py:128: AssertionError</failure></testcase></testsuite></testsuites>

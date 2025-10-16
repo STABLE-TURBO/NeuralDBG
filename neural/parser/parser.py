@@ -902,6 +902,11 @@ class ModelTransformer(lark.Transformer):
         raw_params = self._extract_value(params_node) if params_node else None
         device = self._extract_value(device_spec_node) if device_spec_node else None
         sublayers = self._extract_value(sublayers_node) if sublayers_node else []
+        try:
+            if layer_type == 'DENSE':
+                print('[DEBUG basic_layer] layer=DENSE params_node=', params_node, ' raw_params=', raw_params)
+        except Exception:
+            pass
 
         # Validate device name if provided
         if device is not None:
