@@ -13,24 +13,25 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow messages
 os.environ['PYTHONWARNINGS'] = 'ignore'    # Suppress Python warnings
 os.environ['MPLBACKEND'] = 'Agg'           # Non-interactive matplotlib backend
 
-# Redirect stderr to /dev/null to suppress any remaining debug messages
-# that might be printed directly to stderr
-try:
-    # Save the original stderr
-    original_stderr = sys.stderr
-    # Open /dev/null for writing
-    null_fd = open(os.devnull, 'w')
-    # Replace stderr with /dev/null
-    sys.stderr = null_fd
-    # Register a cleanup function to restore stderr when the program exits
-    import atexit
-    def restore_stderr():
-        sys.stderr = original_stderr
-        null_fd.close()
-    atexit.register(restore_stderr)
-except Exception:
-    # If anything goes wrong, just continue with the original stderr
-    pass
+# Optionally suppress stderr if explicitly requested via env var.
+# Set NEURAL_SUPPRESS_STDERR=1 to enable. Default is off to avoid hiding CLI output.
+if os.environ.get('NEURAL_SUPPRESS_STDERR') == '1':
+    try:
+        # Save the original stderr
+        original_stderr = sys.stderr
+        # Open /dev/null for writing
+        null_fd = open(os.devnull, 'w')
+        # Replace stderr with /dev/null
+        sys.stderr = null_fd
+        # Register a cleanup function to restore stderr when the program exits
+        import atexit
+        def restore_stderr():
+            sys.stderr = original_stderr
+            null_fd.close()
+        atexit.register(restore_stderr)
+    except Exception:
+        # If anything goes wrong, just continue with the original stderr
+        pass
 
 # Import the CLI after setting up the environment
 from neural.cli import cli

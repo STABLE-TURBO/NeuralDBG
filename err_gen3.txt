@@ -1,0 +1,11 @@
+ERR:Output layer expects 2D input (batch, features), got 4D: (None, 28, 28, 1)
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+  File "C:\Users\itsni\Desktop\Neural\neural\code_generation\code_generator.py", line 84, in generate_code
+    current_input_shape = propagator.propagate(current_input_shape, layer)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\itsni\Desktop\Neural\neural\shape_propagation\shape_propagator.py", line 120, in propagate
+    self._validate_layer_params(layer_type, params, input_shape)
+  File "C:\Users\itsni\Desktop\Neural\neural\shape_propagation\shape_propagator.py", line 443, in _validate_layer_params
+    raise ValueError(f"Output layer expects 2D input (batch, features), got {len(input_shape)}D: {input_shape}")
+ValueError: Output layer expects 2D input (batch, features), got 4D: (None, 28, 28, 1)

@@ -1,0 +1,13 @@
+ERR:invalid syntax (pretrained.py, line 136)
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+  File "C:\Users\itsni\Desktop\Neural\neural\code_generation\code_generator.py", line 2, in <module>
+    from neural.shape_propagation.shape_propagator import ShapePropagator
+  File "C:\Users\itsni\Desktop\Neural\neural\shape_propagation\__init__.py", line 8, in <module>
+    from .shape_propagator import ShapePropagator
+  File "C:\Users\itsni\Desktop\Neural\neural\shape_propagation\shape_propagator.py", line 18, in <module>
+    from pretrained_models.pretrained import PretrainedModelHub
+  File "C:\Users\itsni\Desktop\Neural\neural\pretrained_models\pretrained.py", line 136
+    else:
+    ^^^^
+SyntaxError: invalid syntax

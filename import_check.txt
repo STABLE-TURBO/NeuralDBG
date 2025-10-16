@@ -1,0 +1,7 @@
+click:OK
+lark:OK
+numpy:OK
+plotly:OK
+torch:OK
+tensorflow:OK
+onnx:ERR:ModuleNotFoundError:No module named 'onnx'

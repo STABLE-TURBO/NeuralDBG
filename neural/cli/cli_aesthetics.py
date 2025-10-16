@@ -90,6 +90,35 @@ class Colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+# Determine whether the current stdout supports common Unicode glyphs.
+# Fallback to ASCII symbols when the console encoding cannot encode them
+# or when NEURAL_ASCII=1 is set in the environment.
+try:
+    import codecs as _codecs
+except Exception:
+    _codecs = None
+
+def _supports_unicode() -> bool:
+    if os.environ.get('NEURAL_ASCII') == '1':
+        return False
+    enc = getattr(sys.stdout, 'encoding', None) or ''
+    if not enc:
+        return False
+    try:
+        '✓'.encode(enc)
+        '✗'.encode(enc)
+        '⚠'.encode(enc)
+        'ℹ'.encode(enc)
+        return True
+    except Exception:
+        return False
+
+_UNICODE = _supports_unicode()
+SYMBOL_CHECK = '✓' if _UNICODE else 'OK'
+SYMBOL_CROSS = '✗' if _UNICODE else 'ERR'
+SYMBOL_WARN = '⚠' if _UNICODE else 'WARN'
+SYMBOL_INFO = 'ℹ' if _UNICODE else 'INFO'
+
 # Spinner animation for loading
 class Spinner:
     def __init__(self, message="Processing", delay=0.1, quiet=False):
@@ -197,20 +226,24 @@ def animate_neural_network(duration=3, quiet=False):
 
 # Success and error messages
 def print_success(message):
-    print(f"{Colors.GREEN}✓ {message}{Colors.ENDC}")
+    # Use ASCII fallback when Unicode is not supported to avoid encoding errors
+    print(f"{Colors.GREEN}{SYMBOL_CHECK} {message}{Colors.ENDC}")
 
 def print_error(message):
-    print(f"{Colors.RED}✗ {message}{Colors.ENDC}")
+    print(f"{Colors.RED}{SYMBOL_CROSS} {message}{Colors.ENDC}")
 
 def print_warning(message):
-    print(f"{Colors.YELLOW}⚠ {message}{Colors.ENDC}")
+    print(f"{Colors.YELLOW}{SYMBOL_WARN} {message}{Colors.ENDC}")
 
 def print_info(message):
-    print(f"{Colors.BLUE}ℹ {message}{Colors.ENDC}")
+    print(f"{Colors.BLUE}{SYMBOL_INFO} {message}{Colors.ENDC}")
 
 # Print command header
 def print_command_header(command):
     header = COMMAND_HEADERS.get(command, NEURAL_LOGO_SMALL)
+    # Fallback to ASCII when Unicode is not supported or NEURAL_ASCII=1
+    if not _UNICODE or os.environ.get('NEURAL_ASCII') == '1':
+        header = NEURAL_LOGO_SMALL
     print(f"{Colors.CYAN}{header}{Colors.ENDC}")
 
 # Print Neural logo with version

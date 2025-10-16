@@ -1,0 +1,4 @@
+EXC
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+ModuleNotFoundError: No module named 'click'

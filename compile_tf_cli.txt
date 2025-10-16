@@ -1,0 +1,7 @@
+EXIT=2
+Usage: cli compile [OPTIONS] FILE
+Try 'cli compile -h' for help.
+
+Error: No such option: --no-animations
+
+EXC=SystemExit(2)

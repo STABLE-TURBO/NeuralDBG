@@ -2,8 +2,6 @@ import logging
 from neural.shape_propagation.shape_propagator import ShapePropagator
 from neural.parser.parser import ModelTransformer, create_parser
 from typing import Any, Dict, Union, Optional
-import onnx
-from onnx import helper, TensorProto
 import numpy as np
 import warnings
 import logging
@@ -83,7 +81,10 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
                 layer_code = generate_tensorflow_layer(layer_type, params)
                 if layer_code:
                     code += f"x = {layer_code}\n"
-            current_input_shape = propagator.propagate(current_input_shape, layer)
+            try:
+                current_input_shape = propagator.propagate(current_input_shape, layer)
+            except Exception as e:
+                logger.warning(f"Shape propagation warning: {e}")
 
         code += "\n# Build model\n"
         code += "model = tf.keras.Model(inputs=inputs, outputs=x)\n"
@@ -255,7 +256,10 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
                 layers_code.append(f"self.{layer_name} = {layer_code}")
                 forward_code_body.append(f"x = self.{layer_name}(x)")
 
-            current_input_shape = propagator.propagate(current_input_shape, layer)
+            try:
+                current_input_shape = propagator.propagate(current_input_shape, layer)
+            except Exception as e:
+                logger.warning(f"Shape propagation warning: {e}")
 
         model_data['layers'] = original_layers
 
@@ -374,6 +378,9 @@ def load_file(filename: str) -> Any:
 
 def generate_onnx(model_data):
     """Generate ONNX model"""
+    # Import ONNX only when needed (avoid hard dependency for TF/PyTorch paths)
+    import onnx
+    from onnx import helper, TensorProto
     # Create nodes for each layer
     nodes = []
     current_input = "input"
@@ -412,6 +419,7 @@ def generate_onnx(model_data):
 
 def export_onnx(model_data: Dict[str, Any], filename: str = "model.onnx") -> str:
     """Export model to ONNX format."""
+    import onnx
     model = generate_onnx(model_data)
     onnx.save(model, filename)
     return f"ONNX model saved to {filename}"

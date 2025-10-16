@@ -1,0 +1,22 @@
+Usage: cli [OPTIONS] COMMAND [ARGS]...
+
+  Neural CLI: A compiler-like interface for .neural and .nr files.
+
+Options:
+  -v, --verbose    Enable verbose logging
+  --cpu            Force CPU mode
+  --no-animations  Disable animations and spinners
+  --version        Show the version and exit.
+  -h, --help       Show this message and exit.
+
+Commands:
+  clean      Remove generated files (e.g., .py, .png, .svg, .html, cache).
+  cloud      Commands for cloud integration.
+  compile    Compile a .neural or .nr file into an executable Python script.
+  debug      Debug a neural network model with NeuralDbg.
+  help       Show help for commands.
+  no-code    Launch the no-code interface for building models.
+  run        Run a compiled model or optimize and run a .neural file.
+  track      Commands for experiment tracking.
+  version    Show the version of Neural CLI and dependencies.
+  visualize  Visualize network architecture and shape propagation.

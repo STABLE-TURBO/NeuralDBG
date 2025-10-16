@@ -57,7 +57,7 @@ setup(
     author="Lemniscate-SHA-256/SENOUVO Jacques-Charles Gad",
     author_email="Lemniscate_zero@proton.me",
     description="A domain-specific language and debugger for neural networks",
-    long_description=open("README.md").read() + "\n\n**Note**: See v0.2.9 release notes for latest fixes and improvements!",
+    long_description=open("README.md", encoding="utf-8").read() + "\n\n**Note**: See v0.2.9 release notes for latest fixes and improvements!",
     long_description_content_type="text/markdown",
     url="https://github.com/Lemniscate-SHA-256/Neural",
     classifiers=[

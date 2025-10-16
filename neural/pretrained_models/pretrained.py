@@ -1,10 +1,24 @@
 import os
 import json
 import torch
-import triton
 from pathlib import Path
-from huggingface_hub import hf_hub_download
 from typing import Dict, Any, List
+
+# Optional dependencies: triton and huggingface_hub
+try:
+    import triton  # type: ignore
+    _HAS_TRITON = True
+except Exception:
+    triton = None  # type: ignore
+    _HAS_TRITON = False
+
+try:
+    from huggingface_hub import hf_hub_download  # type: ignore
+    _HAS_HF = True
+except Exception:
+    _HAS_HF = False
+    def hf_hub_download(*args, **kwargs):  # type: ignore
+        raise ImportError("huggingface_hub is not installed. Install it to download pretrained weights.")
 
 def fuse_conv_bn_weights(conv_w, conv_b, bn_rm, bn_rv, bn_w, bn_b, eps):
     # Fuse Conv and BN weights mathematically
@@ -99,28 +113,40 @@ class FusedConvBNLayer(torch.nn.Module):
         super().__init__()
         # Implementation for fused layer
 
-class TritonConv2D(torch.autograd.Function):
-    @staticmethod
-    @triton.jit
-    def forward(ctx, input, weight, bias, stride, padding, dilation):
-        # Custom Triton kernel for Conv2D
-        output = triton.ops.conv2d(
-            input, weight, bias,
-            stride, padding, dilation
-        )
-        ctx.save_for_backward(input, weight, bias)
-        return output
+if _HAS_TRITON:
+    class TritonConv2D(torch.autograd.Function):
+        @staticmethod
+        @triton.jit
+        def forward(ctx, input, weight, bias, stride, padding, dilation):
+            # Custom Triton kernel for Conv2D
+            output = triton.ops.conv2d(
+                input, weight, bias,
+                stride, padding, dilation
+            )
+            ctx.save_for_backward(input, weight, bias)
+            # Save convolution parameters for backward
+            ctx.stride, ctx.padding, ctx.dilation = stride, padding, dilation
+            return output
 
-    @staticmethod
-    @triton.jit
-    def backward(ctx, grad_output):
-        # Optimized backward pass
-        input, weight, bias = ctx.saved_tensors
-        grad_input, grad_weight, grad_bias = triton.ops.conv2d_backward(
-            grad_output, input, weight,
-            ctx.stride, ctx.padding, ctx.dilation
-        )
-        return grad_input, grad_weight, grad_bias
+        @staticmethod
+        @triton.jit
+        def backward(ctx, grad_output):
+            # Optimized backward pass
+            input, weight, bias = ctx.saved_tensors
+            grad_input, grad_weight, grad_bias = triton.ops.conv2d_backward(
+                grad_output, input, weight, ctx.stride, ctx.padding, ctx.dilation
+            )
+            # Return gradients for (input, weight, bias) and None for non-tensor args
+            return grad_input, grad_weight, grad_bias, None, None, None
+else:
+    class TritonConv2D(torch.autograd.Function):
+        @staticmethod
+        def forward(ctx, *args, **kwargs):  # pragma: no cover - optional path
+            raise ImportError("triton is not installed. TritonConv2D is unavailable.")
+
+        @staticmethod
+        def backward(ctx, *args, **kwargs):  # pragma: no cover - optional path
+            raise ImportError("triton is not installed. TritonConv2D is unavailable.")
 
 class OptimizedModel:
     def __init__(self, model_config: Dict):

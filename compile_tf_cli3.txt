@@ -1,0 +1,49 @@
+EXIT=1
+[96m
+╔═══════════════════════════════════════════╗
+║              Neural Compiler              ║
+╚═══════════════════════════════════════════╝
+[0m
+[94mℹ Compiling examples/tiny.neural for tensorflow backend[0m
+WARNING: Skipping unhandled item at index 3: None
+WARNING: Skipping unhandled item at index 4: None
+WARNING: Skipping unhandled item at index 5: None
+WARNING: Skipping unhandled item at index 6: None
+[91m✗ Failed to import neural.code_generation.code_generator: No module named 'triton'[0m
+[91m✗ Code generation failed: No module named 'triton'[0m
+Source path:... C:\Users\itsni\Desktop\Neural\neural\parser\parser.py
+Starting var:.. self = <neural.parser.parser.ModelTransformer object at 0x0000014087B458D0>
+Starting var:.. items = [Tree('layer_type', [Token('OUTPUT', 'Output')]), [10], None, None]
+10:52:11.433122 call       860     def basic_layer(self, items):
+10:52:11.438108 line       861         layer_type_node = items[0]
+New var:....... layer_type_node = Tree('layer_type', [Token('OUTPUT', 'Output')])
+10:52:11.438108 line       862         layer_type = layer_type_node.children[0].value.upper()
+New var:....... layer_type = 'OUTPUT'
+10:52:11.438108 line       863         params_node = items[1] if len(items) > 1 else None
+New var:....... params_node = [10]
+10:52:11.438108 line       864         device_spec_node = items[2] if len(items) > 2 else None
+New var:....... device_spec_node = None
+10:52:11.439110 line       865         sublayers_node = items[3] if len(items) > 3 else None
+New var:....... sublayers_node = None
+10:52:11.439110 line       867         raw_params = self._extract_value(params_node) if params_node else None
+New var:....... raw_params = [10]
+10:52:11.439110 line       868         device = self._extract_value(device_spec_node) if device_spec_node else None
+New var:....... device = None
+10:52:11.439110 line       869         sublayers = self._extract_value(sublayers_node) if sublayers_node else []
+New var:....... sublayers = []
+10:52:11.439110 line       872         if device is not None:
+10:52:11.439110 line       886         method_name = self.layer_type_map.get(layer_type)
+New var:....... method_name = 'output'
+10:52:11.439110 line       887         if method_name and hasattr(self, method_name):
+10:52:11.439110 line       888             try:
+10:52:11.439110 line       890                 layer_info = getattr(self, method_name)([raw_params])
+New var:....... layer_info = {'type': 'Output', 'params': {'units': 10}, 'sublayers': []}
+10:52:11.440103 line       892                 layer_info['sublayers'] = sublayers if sublayers else layer_info.get('sublayers', [])
+10:52:11.440103 line       893                 layer_info['params'] = layer_info.get('params', {})  # Default to {} if None
+10:52:11.440103 line       894                 if device is not None:
+10:52:11.440103 line       896                 return layer_info
+10:52:11.440103 return     896                 return layer_info
+Return value:.. {'type': 'Output', 'params': {'units': 10}, 'sublayers': []}
+Elapsed time: 00:00:00.006981
+
+EXC=SystemExit(1)
