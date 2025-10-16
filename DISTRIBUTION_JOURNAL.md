@@ -27,3 +27,10 @@
 - Static analysis config:
   - Added ruff config in pyproject.toml
   - Added mypy.ini with permissive baseline (to tighten incrementally)
+
+- README updates:
+  - Added CI badge and Reproducibility section (seed utility usage)
+- CI enhancement:
+  - Added nightly schedule (02:00 UTC) to CI workflow
+- Tests:
+  - Added tests/code_generator/test_policy_and_parity.py for flatten policy and TF/PT parity

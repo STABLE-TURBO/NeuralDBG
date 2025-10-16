@@ -9,7 +9,7 @@
   [![Pylint](https://github.com/Lemniscate-world/Neural/actions/workflows/pylint.yml/badge.svg?branch=main)](https://github.com/Lemniscate-world/Neural/actions/workflows/pylint.yml)
   [![Python package](https://github.com/Lemniscate-world/Neural/actions/workflows/python-package.yml/badge.svg?branch=main)](https://github.com/Lemniscate-world/Neural/actions/workflows/python-package.yml)
   [![CodeQL Advanced](https://github.com/Lemniscate-world/Neural/actions/workflows/codeql.yml/badge.svg)](https://github.com/Lemniscate-world/Neural/actions/workflows/codeql.yml)
-  [![Tests](https://github.com/Lemniscate-world/Neural/actions/workflows/pytest.yml/badge.svg?branch=main)](https://github.com/Lemniscate-world/Neural/actions/workflows/pytest-to-issues.yml)
+  [![CI](https://github.com/Lemniscate-world/Neural/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Lemniscate-world/Neural/actions/workflows/ci.yml)
   [![Coverage](https://img.shields.io/codecov/c/github/Lemniscate-world/Neural)](https://codecov.io/gh/Lemniscate-world/Neural)
 
   <a href="https://www.producthunt.com/posts/neural-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-neural&#0045;2" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=945073&theme=dark&t=1742808173867" alt="Neural - DSL for defining, training, debugging neural networks | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
@@ -195,6 +195,9 @@ Open your browser to http://localhost:8050 to monitor execution traces, gradient
 neural --no_code
 ```
 
+
+
+
 Open your browser to http://localhost:8051 to build and compile models via a graphical interface.
 
 ---
@@ -206,6 +209,8 @@ Open your browser to http://localhost:8051 to build and compile models via a gra
 neural debug mnist.neural
 ```
 **Features:**
+
+
 ✅ Layer-wise execution trace
 ✅ Memory & FLOP profiling
 ✅ Live performance monitoring
@@ -425,6 +430,19 @@ Each directory contains its own README with detailed documentation:
 - [docs](docs/README.md): Documentation
 - [examples](examples/README.md): Example models
 - [tests](tests/README.md): Test suite
+
+
+## Reproducibility
+
+To get deterministic results across Python, NumPy, PyTorch, and TensorFlow, use the built-in seeding utility:
+
+```python
+from neural.utils.seed import set_seed
+set_seed(42)
+```
+
+This sets Python's random, NumPy, PyTorch (including CUDA if present), and TensorFlow seeds.
+
 
 
 

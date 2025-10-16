@@ -3,6 +3,8 @@ name: CI
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "0 2 * * *"  # nightly at 02:00 UTC
 
 jobs:
   build:
