@@ -5,3 +5,20 @@ build-backend = "setuptools.build_meta"
 # Note: We keep setup.py as the source of truth for metadata (including version 0.3.0.dev0).
 # Moving to PEP 621 ([project]) can be done later; for now, this provides modern build isolation.
 
+
+[tool.ruff]
+line-length = 100
+src = ["neural", "tests"]
+exclude = [
+  ".git",
+  ".venv",
+  "build",
+  "dist",
+  "neural/src",
+]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # pycodestyle, pyflakes, isort
+ignore = []
+

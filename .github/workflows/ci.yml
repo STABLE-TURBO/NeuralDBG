@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: lint-type-test-audit (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install project and tools
+        run: |
+          python -m pip install -e .
+          python -m pip install ruff mypy pip-audit pytest
+
+      - name: Ruff (lint)
+        run: python -m ruff check .
+
+      - name: Mypy (type check)
+        run: python -m mypy .
+
+      - name: Pytest (unit tests)
+        run: python -m pytest -q
+
+      - name: pip-audit (supply chain)
+        run: python -m pip_audit -l --progress-spinner off
+        continue-on-error: true
+

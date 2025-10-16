@@ -21,3 +21,9 @@
   - Installed optional dev dependencies: jax[cpu], optuna (for version and CI checks)
 - Repo hygiene:
   - Added ROADMAP.md to .gitignore (keep roadmap local, reduce distribution noise)
+
+- CI skeleton:
+  - Added .github/workflows/ci.yml (Ubuntu+Windows, Python 3.11): ruff, mypy, pytest, pip-audit (non-blocking)
+- Static analysis config:
+  - Added ruff config in pyproject.toml
+  - Added mypy.ini with permissive baseline (to tighten incrementally)
