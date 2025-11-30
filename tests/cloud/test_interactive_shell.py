@@ -29,19 +29,19 @@ class TestInteractiveShell(unittest.TestCase):
         self.mock_remote = MagicMock()
         self.mock_remote_class.return_value = self.mock_remote
 
-        # Mock the connect_to_kaggle method
-        self.mock_remote.connect_to_kaggle.return_value = {'success': True, 'message': 'Connected to Kaggle'}
+        # Mock the connect_to_sagemaker method
+        self.mock_remote.connect_to_sagemaker.return_value = {'success': True, 'message': 'Connected to Kaggle'}
 
-        # Mock the create_kaggle_kernel method
-        self.mock_remote.create_kaggle_kernel.return_value = 'test-kernel-id'
+        # Mock the create_sagemaker_notebook method
+        self.mock_remote.create_sagemaker_notebook.return_value = 'test-notebook-name'
 
-        # Mock the execute_on_kaggle method
-        self.mock_remote.execute_on_kaggle.return_value = {'success': True, 'output': 'Test output'}
+        # Mock the execute_on_sagemaker method
+        self.mock_remote.execute_on_sagemaker.return_value = {'success': True, 'output': 'Test output'}
 
         # Create a shell with mocks
         with patch('neural.cloud.interactive_shell.tempfile.mkdtemp') as mock_mkdtemp:
             mock_mkdtemp.return_value = self.temp_dir.name
-            self.shell = NeuralCloudShell('kaggle', self.mock_remote)
+            self.shell = NeuralCloudShell('sagemaker', self.mock_remote)
             self.shell.temp_dir = Path(self.temp_dir.name)
 
     def tearDown(self):
@@ -52,18 +52,18 @@ class TestInteractiveShell(unittest.TestCase):
     def test_initialization(self):
         """Test shell initialization."""
         # Verify the remote connection was initialized
-        self.assertEqual(self.shell.platform, 'kaggle')
+        self.assertEqual(self.shell.platform, 'sagemaker')
         self.assertEqual(self.shell.remote, self.mock_remote)
-        self.assertEqual(self.shell.kernel_id, 'test-kernel-id')
+        self.assertEqual(self.shell.notebook_name, 'test-notebook-name')
 
-        # Verify connect_to_kaggle was called
-        self.mock_remote.connect_to_kaggle.assert_called_once()
+        # Verify connect_to_sagemaker was called
+        self.mock_remote.connect_to_sagemaker.assert_called_once()
 
-        # Verify create_kaggle_kernel was called
-        self.mock_remote.create_kaggle_kernel.assert_called_once()
+        # Verify create_sagemaker_notebook was called
+        self.mock_remote.create_sagemaker_notebook.assert_called_once()
 
-        # Verify execute_on_kaggle was called for initialization
-        self.mock_remote.execute_on_kaggle.assert_called_once()
+        # Verify execute_on_sagemaker was called for initialization
+        self.mock_remote.execute_on_sagemaker.assert_called_once()
 
     def test_run_command(self):
         """Test the run command."""
@@ -73,18 +73,18 @@ class TestInteractiveShell(unittest.TestCase):
             f.write('network TestModel { input: (10, 10, 3) }')
 
         # Reset the mock
-        self.mock_remote.execute_on_kaggle.reset_mock()
+        self.mock_remote.execute_on_sagemaker.reset_mock()
 
         # Run the command
         with patch('builtins.print') as mock_print:
             self.shell.do_run(f'{test_file} --backend tensorflow --dataset MNIST --epochs 5')
 
-        # Verify execute_on_kaggle was called
-        self.mock_remote.execute_on_kaggle.assert_called_once()
+        # Verify execute_on_sagemaker was called
+        self.mock_remote.execute_on_sagemaker.assert_called_once()
 
         # Verify the arguments
-        args, kwargs = self.mock_remote.execute_on_kaggle.call_args
-        self.assertEqual(args[0], 'test-kernel-id')
+        args, kwargs = self.mock_remote.execute_on_sagemaker.call_args
+        self.assertEqual(args[0], 'test-notebook-name')
         self.assertIn('network TestModel { input: (10, 10, 3) }', args[1])
         self.assertIn("backend='tensorflow'", args[1])
         self.assertIn("dataset='MNIST'", args[1])
@@ -98,18 +98,18 @@ class TestInteractiveShell(unittest.TestCase):
             f.write('network TestModel { input: (10, 10, 3) }')
 
         # Reset the mock
-        self.mock_remote.execute_on_kaggle.reset_mock()
+        self.mock_remote.execute_on_sagemaker.reset_mock()
 
         # Run the command
         with patch('builtins.print') as mock_print:
             self.shell.do_visualize(f'{test_file} --format png')
 
-        # Verify execute_on_kaggle was called
-        self.mock_remote.execute_on_kaggle.assert_called_once()
+        # Verify execute_on_sagemaker was called
+        self.mock_remote.execute_on_sagemaker.assert_called_once()
 
         # Verify the arguments
-        args, kwargs = self.mock_remote.execute_on_kaggle.call_args
-        self.assertEqual(args[0], 'test-kernel-id')
+        args, kwargs = self.mock_remote.execute_on_sagemaker.call_args
+        self.assertEqual(args[0], 'test-notebook-name')
         self.assertIn('network TestModel { input: (10, 10, 3) }', args[1])
         self.assertIn("output_format='png'", args[1])
 
@@ -121,18 +121,18 @@ class TestInteractiveShell(unittest.TestCase):
             f.write('network TestModel { input: (10, 10, 3) }')
 
         # Reset the mock
-        self.mock_remote.execute_on_kaggle.reset_mock()
+        self.mock_remote.execute_on_sagemaker.reset_mock()
 
         # Run the command
         with patch('builtins.print') as mock_print:
             self.shell.do_debug(f'{test_file} --backend tensorflow --no-tunnel')
 
-        # Verify execute_on_kaggle was called
-        self.mock_remote.execute_on_kaggle.assert_called_once()
+        # Verify execute_on_sagemaker was called
+        self.mock_remote.execute_on_sagemaker.assert_called_once()
 
         # Verify the arguments
-        args, kwargs = self.mock_remote.execute_on_kaggle.call_args
-        self.assertEqual(args[0], 'test-kernel-id')
+        args, kwargs = self.mock_remote.execute_on_sagemaker.call_args
+        self.assertEqual(args[0], 'test-notebook-name')
         self.assertIn('network TestModel { input: (10, 10, 3) }', args[1])
         self.assertIn("backend='tensorflow'", args[1])
         self.assertIn("setup_tunnel=False", args[1])
@@ -140,35 +140,35 @@ class TestInteractiveShell(unittest.TestCase):
     def test_shell_command(self):
         """Test the shell command."""
         # Reset the mock
-        self.mock_remote.execute_on_kaggle.reset_mock()
+        self.mock_remote.execute_on_sagemaker.reset_mock()
 
         # Run the command
         with patch('builtins.print') as mock_print:
             self.shell.do_shell('ls -la')
 
-        # Verify execute_on_kaggle was called
-        self.mock_remote.execute_on_kaggle.assert_called_once()
+        # Verify execute_on_sagemaker was called
+        self.mock_remote.execute_on_sagemaker.assert_called_once()
 
         # Verify the arguments
-        args, kwargs = self.mock_remote.execute_on_kaggle.call_args
-        self.assertEqual(args[0], 'test-kernel-id')
+        args, kwargs = self.mock_remote.execute_on_sagemaker.call_args
+        self.assertEqual(args[0], 'test-notebook-name')
         self.assertIn('ls -la', args[1])
 
     def test_python_command(self):
         """Test the python command."""
         # Reset the mock
-        self.mock_remote.execute_on_kaggle.reset_mock()
+        self.mock_remote.execute_on_sagemaker.reset_mock()
 
         # Run the command
         with patch('builtins.print') as mock_print:
             self.shell.do_python('print("Hello, world!")')
 
-        # Verify execute_on_kaggle was called
-        self.mock_remote.execute_on_kaggle.assert_called_once()
+        # Verify execute_on_sagemaker was called
+        self.mock_remote.execute_on_sagemaker.assert_called_once()
 
         # Verify the arguments
-        args, kwargs = self.mock_remote.execute_on_kaggle.call_args
-        self.assertEqual(args[0], 'test-kernel-id')
+        args, kwargs = self.mock_remote.execute_on_sagemaker.call_args
+        self.assertEqual(args[0], 'test-notebook-name')
         self.assertEqual(args[1], 'print("Hello, world!")')
 
     def test_history_command(self):
@@ -198,8 +198,8 @@ class TestInteractiveShell(unittest.TestCase):
         # Verify the result
         self.assertTrue(result)
 
-        # Verify delete_kaggle_kernel was called
-        self.mock_remote.delete_kaggle_kernel.assert_called_once_with('test-kernel-id')
+        # Verify delete_sagemaker_notebook was called
+        self.mock_remote.delete_sagemaker_notebook.assert_called_once_with('test-notebook-name')
 
         # Verify cleanup was called
         self.mock_remote.cleanup.assert_called_once()
@@ -213,8 +213,8 @@ class TestInteractiveShell(unittest.TestCase):
         # Verify the result
         self.assertTrue(result)
 
-        # Verify delete_kaggle_kernel was called
-        self.mock_remote.delete_kaggle_kernel.assert_called_once_with('test-kernel-id')
+        # Verify delete_sagemaker_notebook was called
+        self.mock_remote.delete_sagemaker_notebook.assert_called_once_with('test-notebook-name')
 
         # Verify cleanup was called
         self.mock_remote.cleanup.assert_called_once()

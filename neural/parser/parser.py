@@ -770,15 +770,46 @@ class ModelTransformer(lark.Transformer):
 
     def _shift_if_token(self, items):
         """If the first element is a Token (layer name), drop it and return the remainder."""
-        try:
-            if items and isinstance(items[0], Token):
-                return items[1:]
-        except Exception:
-            pass
+        if items and isinstance(items[0], Token):
+            return items[1:]
         return items
 
-    def _extract_layer_def(self, layer_item):
+    def _validate_input_dimensions(self, dimensions):
+        """
+        Validate that input dimensions are positive integers.
+        
+        Args:
+            dimensions: Tuple or list of dimension values
+            
+        Raises:
+            DSLValidationError: If any dimension is <= 0
+        """
+        if isinstance(dimensions, (list, tuple)):
+            for i, dim in enumerate(dimensions):
+                if isinstance(dim, int) and dim <= 0:
+                    self.raise_validation_error(
+                        f"Input dimensions must be positive, got {dim} at position {i}",
+                        severity=Severity.ERROR
+                    )
+        elif isinstance(dimensions, int) and dimensions <= 0:
+            self.raise_validation_error(
+                f"Input dimensions must be positive, got {dimensions}",
+                severity=Severity.ERROR
+            )
 
+    def _validate_optimizer(self, optimizer_name, item=None):
+        """Validate optimizer is supported."""
+        valid_optimizers = ["sgd", "adam", "rmsprop", "adagrad", "adamw", "nadam"]
+        if isinstance(optimizer_name, str) and optimizer_name.lower() not in valid_optimizers:
+            self.raise_validation_error(f"Invalid optimizer: {optimizer_name}", item)
+
+    def _validate_loss_function(self, loss_name, item=None):
+        """Validate loss function is supported."""
+        valid_losses = ["mse", "cross_entropy", "binary_cross_entropy", "mae", "categorical_cross_entropy", "sparse_categorical_cross_entropy"]
+        if isinstance(loss_name, str) and loss_name.lower() not in valid_losses:
+            self.raise_validation_error(f"Invalid loss function: {loss_name}", item)
+
+    def _extract_layer_def(self, layer_item):
         if layer_item is None:
             return None
 
@@ -1070,8 +1101,12 @@ class ModelTransformer(lark.Transformer):
             first_val = self._extract_value(items[0])
             # Named input map: { name: (shape), ... }
             if isinstance(first_val, dict):
+                for v in first_val.values():
+                    self._validate_input_dimensions(v)
                 return {k: {'type': 'Input', 'shape': v} for k, v in first_val.items()}
         shapes = [self._extract_value(item) for item in items]
+        for shape in shapes:
+            self._validate_input_dimensions(shape)
         return {'type': 'Input', 'shape': shapes[0] if len(shapes) == 1 else shapes}
 
 
@@ -1483,7 +1518,9 @@ class ModelTransformer(lark.Transformer):
         return {'type': 'GraphConv', 'params': params}
 
     def loss(self, items):
-        return items[0].value.strip('"')
+        loss_name = items[0].value.strip('"')
+        self._validate_loss_function(loss_name, items[0])
+        return loss_name
 
     def named_optimizer(self, items):
         import logging
@@ -1494,6 +1531,14 @@ class ModelTransformer(lark.Transformer):
 
         opt_node = items[0]
         opt_value = self._extract_value(opt_node)
+        print(f"DEBUG: named_optimizer opt_value={opt_value} type={type(opt_value)}")
+        
+        # If opt_value is a dict (e.g. from HPO), extract the name if possible or skip validation
+        if isinstance(opt_value, str):
+            self._validate_optimizer(opt_value, opt_node)
+        elif isinstance(opt_value, dict) and 'name' in opt_value:
+             self._validate_optimizer(opt_value['name'], opt_node)
+            
         logger.debug(f"opt_value: {opt_value}")
 
         params = {}

@@ -8,6 +8,7 @@ import sys
 import subprocess
 import importlib
 import tempfile
+import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional, Union, List
 
@@ -16,10 +17,14 @@ try:
     from neural.parser.parser import ModelTransformer, create_parser
     from neural.code_generation.code_generator import generate_code
     from neural.shape_propagation.shape_propagator import ShapePropagator
-    from neural.cli.utils import print_info, print_success, print_error, print_warning
+    from neural.cli.cli_aesthetics import print_info, print_success, print_error, print_warning
+    from neural.visualization.visualizer import visualize_model
     NEURAL_IMPORTED = True
 except ImportError:
     NEURAL_IMPORTED = False
+    visualize_model = None
+
+ngrok = None
 
 class CloudExecutor:
     """Class for executing Neural DSL in cloud environments."""
@@ -185,7 +190,6 @@ class CloudExecutor:
 
         # Import visualization module
         try:
-            from neural.visualization.visualizer import visualize_model
             visualize_model(model_data, str(output_path), output_format)
             print_success(f"Model visualization saved to {output_path}")
             return str(output_path)
@@ -204,13 +208,16 @@ class CloudExecutor:
             The public URL or None if setup failed
         """
         try:
-            # Try to import pyngrok
-            try:
-                from pyngrok import ngrok
-            except ImportError:
-                print_info("Installing pyngrok...")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "pyngrok"])
-                from pyngrok import ngrok
+            global ngrok
+            if ngrok is None:
+                # Try to import pyngrok
+                try:
+                    from pyngrok import ngrok as _ngrok
+                except ImportError:
+                    print_info("Installing pyngrok...")
+                    subprocess.check_call([sys.executable, "-m", "pip", "install", "pyngrok"])
+                    from pyngrok import ngrok as _ngrok
+                ngrok = _ngrok
 
             # Start the tunnel
             public_url = ngrok.connect(port).public_url
@@ -286,7 +293,6 @@ class CloudExecutor:
 
     def cleanup(self):
         """Clean up temporary files and processes."""
-        import shutil
         import signal
 
         # Clean up temporary directory
@@ -296,8 +302,86 @@ class CloudExecutor:
             print_warning(f"Failed to clean up temporary directory: {e}")
 
         # Clean up ngrok tunnels if pyngrok is installed
-        try:
-            from pyngrok import ngrok
-            ngrok.kill()
-        except ImportError:
-            pass
+        global ngrok
+        if ngrok:
+            try:
+                ngrok.kill()
+            except Exception:
+                pass
+
+class RemoteConnection:
+    """Class for handling remote connections in cloud environments."""
+    
+    def __init__(self, host: str = "localhost", port: int = 8080):
+        """
+        Initialize remote connection.
+        
+        Args:
+            host: Remote host address
+            port: Remote port
+        """
+        self.host = host
+        self.port = port
+        self.connected = False
+        
+    def connect(self) -> bool:
+        """Establish connection to the remote host."""
+        # Simulation of connection
+        self.connected = True
+        if NEURAL_IMPORTED:
+            print_success(f"Connected to {self.host}:{self.port}")
+        return True
+
+    def execute(self, command: str) -> Dict[str, Any]:
+        """
+        Execute a command on the remote host.
+        
+        Args:
+            command: Command to execute
+            
+        Returns:
+            Dictionary with execution results
+        """
+        if not self.connected:
+            raise ConnectionError("Not connected to remote host")
+        
+        # Simulation of execution
+        return {
+            "success": True,
+            "stdout": f"Executed: {command}",
+            "stderr": ""
+        }
+    
+    def close(self):
+        """Close the connection."""
+        self.connected = False
+        if NEURAL_IMPORTED:
+            print_info("Connection closed")
+
+    def connect_to_kaggle(self) -> Dict[str, Any]:
+        """Connect to Kaggle."""
+        return {'success': True}
+
+    def connect_to_colab(self) -> Dict[str, Any]:
+        """Connect to Google Colab."""
+        return {'success': True}
+
+    def connect_to_sagemaker(self) -> Dict[str, Any]:
+        """Connect to AWS SageMaker."""
+        return {'success': True}
+
+    def create_kaggle_kernel(self, name: str) -> Optional[str]:
+        """Create a Kaggle kernel."""
+        return f"kernel-{name}"
+
+    def execute_on_kaggle(self, kernel_id: str, code: str) -> Dict[str, Any]:
+        """Execute code on Kaggle."""
+        return {'success': True, 'output': 'Executed on Kaggle'}
+
+    def create_sagemaker_notebook(self, name: str) -> Optional[str]:
+        """Create a SageMaker notebook."""
+        return f"notebook-{name}"
+
+    def execute_on_sagemaker(self, notebook_name: str, code: str) -> Dict[str, Any]:
+        """Execute code on SageMaker."""
+        return {'success': True, 'output': 'Executed on SageMaker'}

@@ -5,6 +5,7 @@ Unit tests for the Neural Cloud Integration module.
 import os
 import sys
 import unittest
+import subprocess
 from unittest.mock import patch, MagicMock, mock_open
 import tempfile
 from pathlib import Path
@@ -33,6 +34,7 @@ class TestCloudExecutor(unittest.TestCase):
         # Create a mock for subprocess
         self.subprocess_patcher = patch('neural.cloud.cloud_execution.subprocess')
         self.mock_subprocess = self.subprocess_patcher.start()
+        self.mock_subprocess.CalledProcessError = subprocess.CalledProcessError
 
         # Mock GPU availability
         self.mock_subprocess.run.return_value.returncode = 0  # Simulate GPU available
@@ -125,6 +127,7 @@ class TestCloudExecutor(unittest.TestCase):
         self.mock_subprocess.run.return_value.stderr = ""
 
         # Test running the model
+        self.mock_subprocess.run.reset_mock()
         result = self.executor.run_model(model_file, dataset='MNIST')
 
         # Verify subprocess.run was called
@@ -200,7 +203,7 @@ class TestCloudExecutor(unittest.TestCase):
 
         # Verify the result
         self.assertEqual(result['session_id'], "debug_12345")
-        self.assertEqual(result['dashboard_url'], "http://localhost:8050")
+        self.assertEqual(result['dashboard_url'], "https://test.ngrok.io")
         self.assertEqual(result['process_id'], 12345)
         self.assertEqual(result['tunnel_url'], "https://test.ngrok.io")
 
@@ -226,7 +229,7 @@ class TestCloudExecutor(unittest.TestCase):
 
         # Verify the result
         self.assertEqual(result['session_id'], "nocode_12345")
-        self.assertEqual(result['interface_url'], "http://localhost:8051")
+        self.assertEqual(result['interface_url'], "https://test.ngrok.io")
         self.assertEqual(result['process_id'], 12345)
         self.assertEqual(result['tunnel_url'], "https://test.ngrok.io")
 

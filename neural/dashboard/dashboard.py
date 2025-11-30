@@ -142,7 +142,7 @@ def update_interval(new_interval):
 # Start WebSocket in a Separate Thread (only if socketio is available)
 propagator = ShapePropagator()
 if socketio is not None:
-    threading.Thread(target=socketio.run, args=("localhost", 5001), daemon=True).start()
+    threading.Thread(target=socketio.run, args=(server,), kwargs={"host": "localhost", "port": 5001, "allow_unsafe_werkzeug": True}, daemon=True).start()
 
 ####################################################
 #### Layers Execution Trace Graph & Its Subplots ###

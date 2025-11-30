@@ -15,6 +15,7 @@ import readline
 import shlex
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
+from neural.cloud.cloud_execution import RemoteConnection
 
 # Configure logging - redirect to file to avoid cluttering the console
 log_file = os.path.join(tempfile.gettempdir(), "neural_cloud_shell.log")
@@ -76,13 +77,7 @@ Available commands:
         if remote_connection:
             self.remote = remote_connection
         else:
-            try:
-                from neural.cloud.remote_connection import RemoteConnection
-                self.remote = RemoteConnection()
-            except ImportError:
-                if not self.quiet:
-                    print("Error: Remote connection module not found.")
-                sys.exit(1)
+            self.remote = RemoteConnection()
 
         # Connect to the platform
         self._connect_to_platform()
@@ -409,7 +404,7 @@ dsl_code = \"\"\"
 \"\"\"
 
 # Debug the model
-dashboard_info = debug_model(dsl_code, backend='{backend}', setup_tunnel={str(setup_tunnel).lower()})
+dashboard_info = debug_model(dsl_code, backend='{backend}', setup_tunnel={setup_tunnel})
 """
 
         if self.platform.lower() == 'kaggle':
@@ -476,7 +471,7 @@ dashboard_info = debug_model(dsl_code, backend='{backend}', setup_tunnel={str(se
 
         Usage: run <file> [--backend <backend>] [--dataset <dataset>] [--epochs <epochs>]
         """
-        args = shlex.split(arg)
+        args = shlex.split(arg, posix=(os.name != 'nt'))
         if not args:
             print("Error: Missing file argument")
             return
@@ -540,7 +535,7 @@ dashboard_info = debug_model(dsl_code, backend='{backend}', setup_tunnel={str(se
 
         Usage: visualize <file> [--format <format>]
         """
-        args = shlex.split(arg)
+        args = shlex.split(arg, posix=(os.name != 'nt'))
         if not args:
             print("Error: Missing file argument")
             return
@@ -592,7 +587,7 @@ dashboard_info = debug_model(dsl_code, backend='{backend}', setup_tunnel={str(se
 
         Usage: debug <file> [--backend <backend>] [--no-tunnel]
         """
-        args = shlex.split(arg)
+        args = shlex.split(arg, posix=(os.name != 'nt'))
         if not args:
             print("Error: Missing file argument")
             return

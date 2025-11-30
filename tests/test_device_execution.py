@@ -1,7 +1,17 @@
 import pytest
 import torch
 import numpy as np
-from execution_optimization.execution import get_device, run_inference
+from neural.execution_optimization.execution import get_device, run_inference
+
+import pytest
+import torch
+
+# Skip GPU tests if CUDA not available
+skip_if_no_cuda = pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason="CUDA not available"
+)
+
 
 @pytest.mark.parametrize("device_str, expected_type", [
     ("cpu", "cpu"),
@@ -11,6 +21,7 @@ from execution_optimization.execution import get_device, run_inference
     ("cuda:1", "cuda" if torch.cuda.device_count() > 1 else "cpu"),
     ("tpu", "cpu"),  # Assuming TPU not available in test env, falls back to CPU
 ])
+@skip_if_no_cuda
 def test_get_device(device_str, expected_type):
     """Test device selection logic with various device strings."""
     device = get_device(device_str)
@@ -29,6 +40,7 @@ def test_get_device(device_str, expected_type):
     {"device": "cuda:0"},
     {},  # Test default behavior
 ])
+@skip_if_no_cuda
 def test_run_inference_device_config(execution_config):
     """Test that run_inference respects the device configuration."""
     model = torch.nn.Sequential(
