@@ -1308,6 +1308,7 @@ class ModelTransformer(lark.Transformer):
             except (TypeError, ValueError):
                 self.raise_validation_error("Dense units must be a number", items[0], Severity.ERROR)
 
+
         if 'activation' in params:
             activation = params['activation']
             if isinstance(activation, dict) and 'hpo' in activation:
@@ -1323,7 +1324,7 @@ class ModelTransformer(lark.Transformer):
                 }
                 if activation.lower() not in valid_activations:
                     self.raise_validation_error(
-                        f"Invalid activation function {activation}. Allowed: {', '.join(valid_activations)}",
+                        f"Invalid activation function '{activation}'",
                         items[0]
                     )
 
@@ -2151,29 +2152,6 @@ class ModelTransformer(lark.Transformer):
                             params['units'] = val
             elif isinstance(param_values, dict):
                 params = param_values
-            else:
-                # Single positional parameter, e.g., GRU(64)
-                params['units'] = param_values
-
-        if 'units' not in params:
-            self.raise_validation_error("GRU requires 'units' parameter", items[0])
-
-        units = params['units']
-        if isinstance(units, dict) and 'hpo' in units:
-            pass
-        else:
-            if not isinstance(units, (int, float)) or (isinstance(units, float) and not units.is_integer()):
-                self.raise_validation_error(f"GRU units must be an integer, got {units}", items[0])
-            if units <= 0:
-                self.raise_validation_error(f"GRU units must be positive, got {units}", items[0])
-            params['units'] = int(units)
-
-        return {'type': 'GRU', 'params': params}
-
-    def simplernn(self, items):
-        params = {}
-        if items and items[0] is not None:
-            param_node = items[0]
             param_values = self._extract_value(param_node)
             if isinstance(param_values, list):
                 for val in param_values:
@@ -2804,28 +2782,52 @@ class ModelTransformer(lark.Transformer):
         # logger.debug(f"Processing network with items: {items}")
 
         name = items[0].value
-        input = self._extract_value(items[1])
-        layers = self._extract_value(items[2])
+        input = self._extract_value(items[1]) if items[1] is not None else None
+        layers = self._extract_value(items[2]) if items[2] is not None else None
+
+        # Validate required sections
+        if input is None:
+            self.raise_validation_error("Network must have an input section", items[0], Severity.ERROR)
+        if layers is None:
+            self.raise_validation_error("Network must have a layers section", items[0], Severity.ERROR)
+        
+        # Validate layers is not empty
+        if isinstance(layers, list) and len(layers) == 0:
+            self.raise_validation_error("Layers section cannot be empty", items[0], Severity.ERROR)
 
         # Initialize configs
         loss_config = None
         optimizer_config = None
         training_config = {}
         execution_config = None
+        
+        # Track if we've seen input section (to detect duplicates)
+        seen_input = False
 
         # Process remaining items (loss, optimizer, training_config, execution_config)
         for i, item in enumerate(items[3:], 3):
             value = self._extract_value(item)
-            # logger.debug(f"Processing item {i}: {item}, value: {value}")
+            # logger.debug(f"Processing item {i}: {item}, value: {value}")
 
             if isinstance(item, Tree):
-                if item.data == 'loss':
+                if item.data == 'input_layer':
+                    # Duplicate input section detected
+                    if seen_input:
+                        self.raise_validation_error("Duplicate input section", items[0], Severity.ERROR)
+                    seen_input = True
+                elif item.data == 'loss':
                     loss_config = value
                 elif item.data == 'optimizer_param':
                     optimizer_config = value.get('optimizer')
-                    # logger.debug(f"Found optimizer_param: {optimizer_config}")
+                    # logger.debug(f"Found optimizer_param: {optimizer_config}")
                 elif item.data == 'training_config':
                     training_config = value.get('params', value) if isinstance(value, dict) else value
+                    # Validate training parameters
+                    if isinstance(training_config, dict):
+                        for param_name, param_value in training_config.items():
+                            if param_name in ['epochs', 'batch_size'] and isinstance(param_value, (int, float)):
+                                if param_value <= 0:
+                                    self.raise_validation_error("Training parameters must be positive", items[0], Severity.ERROR)
                 elif item.data == 'execution_config':
                     execution_config = value
                 else:
