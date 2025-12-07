@@ -40,7 +40,7 @@ setup(
             "transformers>=4.30",
             "torchvision>=0.15",
             "multiprocess>=0.70",
-            "tweepy==4.15.0",
+            "tweepy==4.16.0",
             "pandas>=1.3",
             "scikit-learn>=1.0",
             "scipy>=1.7",
