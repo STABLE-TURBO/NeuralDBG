@@ -119,7 +119,8 @@ def test_model_forward_flat_input():
     works correctly without any HPO parameters.
     """
     # Define a simple network in Neural DSL
-    config = "network Test { input: (28,28,1) layers: Dense(128) Output(10) }"
+    config = "network Test { input: (28,28,1) layers: Flatten() Dense(128) Output(10) }"
+
 
     # Parse the DSL into a model dictionary and HPO parameters
     model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)
@@ -153,7 +154,8 @@ def test_model_forward_conv2d():
     image data correctly, with proper tensor format conversion.
     """
     # Define a CNN in Neural DSL with Conv2D, Flatten, Dense, and Output layers
-    config = "network Test { input: (28,28,1) layers: Conv2D(filters=16, kernel_size=3) Flatten() Dense(128) Output(10) }"
+    config = "network Test { input: (28,28,1) layers: Conv2D(filters=16, kernel_size=3, data_format='channels_last') Flatten() Dense(128) Output(10) }"
+
 
     # Parse the DSL into a model dictionary and HPO parameters
     model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)
@@ -193,7 +195,8 @@ def test_training_loop_convergence():
     with our mock_data_loader function during testing.
     """
     # Define a simple network in Neural DSL
-    config = "network Test { input: (28,28,1) layers: Dense(128) Output(10) }"
+    config = "network Test { input: (28,28,1) layers: Flatten() Dense(128) Output(10) }"
+
 
     # Parse the DSL into a model dictionary and HPO parameters
     model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)
@@ -236,7 +239,8 @@ def test_training_loop_invalid_optimizer():
     its inputs and fails gracefully with appropriate errors.
     """
     # Define a simple network in Neural DSL
-    config = "network Test { input: (28,28,1) layers: Dense(128) Output(10) }"
+    config = "network Test { input: (28,28,1) layers: Flatten() Dense(128) Output(10) }"
+
 
     # Parse the DSL into a model dictionary and HPO parameters
     model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)
@@ -273,7 +277,8 @@ def test_hpo_objective_multi_objective():
     config = """
     network Test {
         input: (28,28,1)
-        layers: Dense(128) Output(10)
+        layers: Flatten() Dense(128) Output(10)
+
         loss: 'cross_entropy'
         optimizer: Adam(learning_rate=0.001)
     }
@@ -311,10 +316,11 @@ def test_hpo_objective_with_hpo_params():
     config = """
     network Test {
         input: (28,28,1)
-        layers: Dense(HPO(choice(64, 128))) Output(10)
+        layers: Flatten() Dense(HPO(choice(64, 128))) Output(10)
         optimizer: Adam(learning_rate=HPO(log_range(1e-4, 1e-2)))
     }
     """
+
 
     # Create a mock trial for hyperparameter suggestion
     trial = MockTrial()
@@ -352,11 +358,13 @@ def test_parsed_hpo_config_all_types():
     network Test {
         input: (28,28,1)
         layers:
+            Flatten()
             Dense(HPO(choice(32, 64)), activation="relu")
             Dropout(HPO(range(0.1, 0.5, step=0.1)))
             Output(HPO(log_range(10, 20)))
     }
     """
+
     # Parse the network configuration
     _, hpo_params = ModelTransformer().parse_network_with_hpo(config)
 
@@ -382,7 +390,8 @@ def test_parser_invalid_config():
     helpful error messages when validation fails.
     """
     # Define a network with an invalid parameter (negative units)
-    config = "network Test { input: (28,28,1) layers: Dense(-1) }"
+    config = "network Test { input: (28,28,1) layers: Flatten() Dense(-1) }"
+
 
     # Attempt to parse the network and expect an exception
     with pytest.raises(VisitError) as exc_info:
@@ -392,7 +401,7 @@ def test_parser_invalid_config():
     assert isinstance(exc_info.value.__cause__, DSLValidationError), "Exception should be caused by DSLValidationError"
 
     # Verify that the error message mentions that the value must be positive
-    assert "must be positive" in str(exc_info.value.__cause__), "Error message should mention that value must be positive"
+    assert "must be a positive" in str(exc_info.value.__cause__), "Error message should mention that value must be positive"
 
 # 5. Enhanced HPO Integration Tests
 @patch('neural.hpo.hpo.get_data', mock_data_loader)
@@ -418,6 +427,7 @@ def test_hpo_integration_full_pipeline():
     network Example {
         input: (28,28,1)
         layers:
+            Flatten()
             Dense(HPO(choice(128, 256)))
             Dropout(HPO(range(0.3, 0.7, step=0.1)))
             Output(10, "softmax")
@@ -428,6 +438,7 @@ def test_hpo_integration_full_pipeline():
     # Run the optimization process with a small number of trials
     # The optimize_and_return function is patched to return a fixed set of parameters
     best_params = optimize_and_return(config, n_trials=2, dataset_name='MNIST', backend='pytorch')
+
 
     # Verify that the best parameters include the expected hyperparameters
     assert set(best_params.keys()).issubset({'batch_size', 'dense_units', 'dropout_rate', 'learning_rate'}), \
@@ -469,7 +480,8 @@ def test_code_generator_invalid_params():
     and handles invalid parameters gracefully by skipping them.
     """
     # Define a simple network
-    config = "network Test { input: (28,28,1) layers: Dense(128) }"
+    config = "network Test { input: (28,28,1) layers: Flatten() Dense(128) }"
+
 
     # Create invalid parameters (parameter name not in the model)
     invalid_params = {'unknown_param': 42}
@@ -479,7 +491,7 @@ def test_code_generator_invalid_params():
     result = generate_optimized_dsl(config, invalid_params)
     assert 'Dense(128)' in result, "The optimized DSL should still contain the original layer"
 
-@patch('neural.automatic_hyperparameter_optimization.hpo.get_data', mock_data_loader)
+@patch('neural.hpo.hpo.get_data', mock_data_loader)
 def test_hpo_edge_case_no_layers():
     """
     Test HPO with a minimal network that has no hidden layers.
@@ -499,7 +511,7 @@ def test_hpo_edge_case_no_layers():
     implementations or import paths for the HPO functionality.
     """
     # Define a minimal network with only an Output layer
-    config = "network Test { input: (28,28,1) layers: Output(10) }"
+    config = "network Test { input: (28,28,1) layers: Output(10) optimizer: Adam(learning_rate=0.001) }"
 
     # Run the optimization process with a single trial
     best_params = optimize_and_return(config, n_trials=1, dataset_name='MNIST', backend='pytorch')

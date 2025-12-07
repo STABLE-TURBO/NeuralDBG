@@ -135,9 +135,10 @@ class ShapePropagator:
             raise ValueError(f"Input shape cannot contain negative dimensions: {input_shape}")
 
         # Validate layer parameters based on layer type
-        self._validate_layer_params(layer_type, params, input_shape)
+        self._validate_layer_params(layer_type, params, input_shape, framework)
 
         # Only set kernel_size for layers that need it
+
         if layer_type in ['Conv2D', 'MaxPooling2D']:  # Add other layers as needed
             kernel_size = params.get("kernel_size", 3)
             if isinstance(kernel_size, int):
@@ -386,7 +387,7 @@ class ShapePropagator:
         standardized.setdefault('data_format', 'channels_first' if framework == 'pytorch' else 'channels_last')
         return standardized
 
-    def _validate_layer_params(self, layer_type, params, input_shape):
+    def _validate_layer_params(self, layer_type, params, input_shape, framework='tensorflow'):
         """Validate layer parameters based on layer type."""
         # Validate based on layer type
         if layer_type == 'Conv2D':
@@ -421,7 +422,7 @@ class ShapePropagator:
                     else:
                         spatial_dims = input_shape[1:3]
                 else:
-                    spatial_dims = input_shape[1:3]  # Default to channels_last
+                    spatial_dims = input_shape[2:4] if framework == 'pytorch' else input_shape[1:3]
 
                 if len(spatial_dims) >= 2 and len(kernel_size) >= 2:
                     if kernel_size[0] > spatial_dims[0] or kernel_size[1] > spatial_dims[1]:

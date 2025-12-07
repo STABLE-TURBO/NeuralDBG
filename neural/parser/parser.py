@@ -155,7 +155,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         FLATTEN: "flatten"i
         LSTM: "lstm"i
         GRU: "gru"i
-        SIMPLE_RNN_DROPOUT_WRAPPER: "simplernndropoutwrapper"i
+        SIMPLE_RNN_DROPOUT_WRAPPER.2: "simplernndropoutwrapper"i
         SIMPLERNN: "simplernn"i
         OUTPUT: "output"i
         TRANSFORMER: "transformer"i
@@ -335,12 +335,12 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         optimizer: "optimizer" ":" ( NAME "(" [param_style1 ("," param_style1)*] ")" | STRING )
         EXPONENTIALDECAY: "ExponentialDecay"
         exponential_decay: EXPONENTIALDECAY "(" [exponential_decay_param ("," exponential_decay_param)*] ")"
-        exponential_decay_param: hpo_expr | number | STRING | ( hpo_expr ("," decay_steps)* ("," hpo_expr)* )
+        exponential_decay_param: hpo_expr | number | STRING
         decay_steps: number
         learning_rate_param: "learning_rate=" (exponential_decay | FLOAT | hpo_expr | NAME "(" [lr_schedule_args] ")")
         lr_schedule_args: param_style1 ("," param_style1)*
         momentum_param: "momentum=" param_style1
-        search_method_param: "search_method:" STRING
+        search_method_param: "search_method:" STRING -> search_method_param_rule
         validation_split_param: "validation_split:" FLOAT
 
 
@@ -1533,7 +1533,7 @@ class ModelTransformer(lark.Transformer):
         return {'type': 'GraphConv', 'params': params}
 
     def loss(self, items):
-        loss_name = items[0].value.strip('"')
+        loss_name = items[0].value.strip('"\'')
         self._validate_loss_function(loss_name, items[0])
         return loss_name
 
@@ -1678,6 +1678,11 @@ class ModelTransformer(lark.Transformer):
 
         return params
 
+    def search_method_param_rule(self, items):
+        """Process search_method parameter."""
+        return {'search_method': self._extract_value(items[0])}
+
+
     def validation_split_param(self, items):
         return {'validation_split': self._extract_value(items[0])}
 
@@ -1740,24 +1745,34 @@ class ModelTransformer(lark.Transformer):
             'params': params
         }
 
+    def exponential_decay_param(self, items):
+        """Process an exponential decay parameter."""
+        return self._extract_value(items[0])
+
     def exponential_decay(self, items):
         """Process ExponentialDecay learning rate schedule."""
+        print(f"DEBUG: exponential_decay items: {items}")
         params = {}
+        
+        # items is a list of [initial_learning_rate, decay_steps, decay_rate]
+        # or [TOKEN, initial, decay_steps, decay_rate]
+        
+        args = items
+        if args and (isinstance(args[0], str) and args[0] == 'ExponentialDecay' or hasattr(args[0], 'type') and args[0].type == 'EXPONENTIALDECAY'):
+             args = args[1:]
+        
+        if args:
+            if len(args) >= 1:
+                params['initial_learning_rate'] = args[0] 
+            if len(args) >= 2:
+                params['decay_steps'] = args[1]
+            if len(args) >= 3:
+                params['decay_rate'] = args[2]
 
-        if items and items[0]:
-            param_values = self._extract_value(items[0])
 
-            # Handle different parameter formats
-            if isinstance(param_values, list):
-                # Extract parameters from the list
-                if len(param_values) >= 1:
-                    params['initial_learning_rate'] = param_values[0]
-                if len(param_values) >= 2:
-                    params['decay_steps'] = param_values[1]
-                if len(param_values) >= 3:
-                    params['decay_rate'] = param_values[2]
-            elif isinstance(param_values, dict):
-                params = param_values
+        if 'initial_learning_rate' not in params:
+             self.raise_validation_error("ExponentialDecay requires 'initial_learning_rate' parameter", items[0] if items else None)
+
 
         # Ensure required parameters are present
         if 'initial_learning_rate' not in params:
@@ -2639,37 +2654,7 @@ class ModelTransformer(lark.Transformer):
                     result[key.strip()] = v.strip()
         return {'metrics': result}
 
-    def exponential_decay(self, items):
-        """Process ExponentialDecay learning rate schedule with parameters."""
-        # Expected structure:
-        # {
-        #     'type': 'ExponentialDecay',
-        #     'params': {
-        #         'initial_learning_rate': {'hpo': {...}},
-        #         'decay_steps': 1000,
-        #         'decay_rate': {'hpo': {...}}
-        #     }
-        # }
 
-        params = {}
-
-        # Parse the arguments based on their position
-        # First argument is initial_learning_rate
-        if len(items) > 0:
-            params['initial_learning_rate'] = items[0]
-
-        # Second argument is decay_steps
-        if len(items) > 1:
-            params['decay_steps'] = items[1]
-
-        # Third argument is decay_rate
-        if len(items) > 2:
-            params['decay_rate'] = items[2]
-
-        return {
-            'type': 'ExponentialDecay',
-            'params': params
-        }
 
 
     def accuracy_param(self, items):
@@ -2832,9 +2817,13 @@ class ModelTransformer(lark.Transformer):
                     # Validate training parameters
                     if isinstance(training_config, dict):
                         for param_name, param_value in training_config.items():
-                            if param_name in ['epochs', 'batch_size'] and isinstance(param_value, (int, float)):
-                                if param_value <= 0:
+                            if param_name in ['epochs', 'batch_size']:
+                                if isinstance(param_value, (int, float)) and param_value <= 0:
                                     self.raise_validation_error("Training parameters must be positive", items[0], Severity.ERROR)
+                                elif isinstance(param_value, list):
+                                    for v in param_value:
+                                        if isinstance(v, (int, float)) and v <= 0:
+                                            self.raise_validation_error("Training parameters must be positive", items[0], Severity.ERROR)
                 elif item.data == 'execution_config':
                     execution_config = value
                 else:
@@ -2900,6 +2889,10 @@ class ModelTransformer(lark.Transformer):
             # Ensure input_shape is a tuple
             if isinstance(input_shape, list):
                 input_shape = tuple(input_shape)
+            
+            # Ensure batch dimension exists for 3D inputs (e.g. image (H,W,C) -> (None,H,W,C))
+            if input_shape and len(input_shape) == 3:
+                 input_shape = (None,) + input_shape
             
             # Propagate shapes
             current_shape = input_shape
