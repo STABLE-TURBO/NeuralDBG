@@ -731,6 +731,8 @@ class ModelTransformer(lark.Transformer):
             'RESIDUALCONNECTION': 'residual',
             'GLOBALAVERAGEPOOLING2D': 'global_average_pooling2d',
             'GLOBALAVERAGEPOOLING1D': 'global_average_pooling1d',
+            'INCEPTION': 'inception',
+            'SQUEEZEEXCITATION': 'squeeze_excitation',
         }
         self.hpo_params = []
 
