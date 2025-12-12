@@ -90,6 +90,10 @@ coverage.xml
 htmlcov/
 *.prof
 output.prof
+*.onnx
+test_model*.py
+*_inference_model.py
+tests/tmp_path/
 
 # Performance test results
 tests/performance/*.prof
