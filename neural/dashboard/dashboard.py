@@ -6,22 +6,24 @@ import os
 import numpy as np
 import pysnooper
 import plotly.graph_objects as go
-from flask import Flask
+from flask import Flask, request, jsonify
 from numpy import random
 import json
 import requests
 import time
-# Make flask_socketio optional - allows tests to run without it
+from collections import deque
+from scipy import stats
+from sklearn.ensemble import IsolationForest
+import threading
+from dash_bootstrap_components import themes
+
 try:
     from flask_socketio import SocketIO
     SOCKETIO_AVAILABLE = True
 except ImportError:
     SocketIO = None
     SOCKETIO_AVAILABLE = False
-import threading
-from dash_bootstrap_components import themes
 
-# Add the parent directory of 'neural' to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from neural.shape_propagation.shape_propagator import ShapePropagator
@@ -32,11 +34,8 @@ from neural.dashboard.tensor_flow import (
 )
 
 
-
-# Flask app for WebSocket integration (if needed later)
 server = Flask(__name__)
 
-# Dash app
 app = dash.Dash(
     __name__,
     server=server,
@@ -44,13 +43,11 @@ app = dash.Dash(
     external_stylesheets=[themes.DARKLY]
 )
 
-# Initialize WebSocket Connection (only if flask_socketio is available)
 if SOCKETIO_AVAILABLE and SocketIO is not None:
     socketio = SocketIO(server, cors_allowed_origins=["http://localhost:8050"])
 else:
     socketio = None
 
-# Configuration (load from config.yaml or set defaults)
 try:
     import yaml
     with open("config.yaml", "r") as f:
@@ -58,21 +55,288 @@ try:
 except Exception as e:
     config = {}
 
-UPDATE_INTERVAL = config.get("websocket_interval", 1000) # Use default if config file not found
+UPDATE_INTERVAL = config.get("websocket_interval", 1000)
 
 
-# Store Execution Trace Data and Model Data
-# Use a shared list so TRACE_DATA and trace_data always reference the same object
 _trace_data_list = []
 trace_data = _trace_data_list
-TRACE_DATA = _trace_data_list  # Export for test compatibility - both point to same list
+TRACE_DATA = _trace_data_list
 model_data = None
 backend = 'tensorflow'
 shape_history = []
 
+breakpoints = {}
+breakpoint_state = {"paused": False, "current_layer": None, "layer_data": {}}
+
+layer_inspection_history = deque(maxlen=100)
+performance_profile = {"layers": [], "execution_times": [], "memory_usage": [], "timestamps": []}
+anomaly_detector = None
+anomaly_history = deque(maxlen=1000)
+
+
+class BreakpointManager:
+    def __init__(self):
+        self.breakpoints = {}
+        self.paused = False
+        self.current_layer = None
+        self.condition_cache = {}
+        self.hit_counts = {}
+    
+    def add_breakpoint(self, layer_name, condition=None, enabled=True):
+        self.breakpoints[layer_name] = {
+            "enabled": enabled,
+            "condition": condition,
+            "hit_count": 0
+        }
+    
+    def remove_breakpoint(self, layer_name):
+        if layer_name in self.breakpoints:
+            del self.breakpoints[layer_name]
+    
+    def toggle_breakpoint(self, layer_name):
+        if layer_name in self.breakpoints:
+            self.breakpoints[layer_name]["enabled"] = not self.breakpoints[layer_name]["enabled"]
+    
+    def should_break(self, layer_name, layer_data):
+        if layer_name not in self.breakpoints:
+            return False
+        
+        bp = self.breakpoints[layer_name]
+        if not bp["enabled"]:
+            return False
+        
+        bp["hit_count"] += 1
+        
+        if bp["condition"]:
+            try:
+                return eval(bp["condition"], {"layer_data": layer_data, "np": np})
+            except Exception as e:
+                print(f"Error evaluating breakpoint condition: {e}")
+                return False
+        
+        return True
+    
+    def get_breakpoint_info(self):
+        return {name: {"enabled": bp["enabled"], "hit_count": bp["hit_count"]} 
+                for name, bp in self.breakpoints.items()}
+
+
+class AnomalyDetector:
+    def __init__(self, sensitivity=0.95):
+        self.sensitivity = sensitivity
+        self.history = deque(maxlen=100)
+        self.layer_stats = {}
+        self.isolation_forest = IsolationForest(contamination=1 - sensitivity, random_state=42)
+        self.fitted = False
+    
+    def add_sample(self, layer_name, metrics):
+        if layer_name not in self.layer_stats:
+            self.layer_stats[layer_name] = {
+                "execution_times": deque(maxlen=50),
+                "memory_usage": deque(maxlen=50),
+                "activations": deque(maxlen=50),
+                "gradients": deque(maxlen=50)
+            }
+        
+        stats = self.layer_stats[layer_name]
+        stats["execution_times"].append(metrics.get("execution_time", 0))
+        stats["memory_usage"].append(metrics.get("memory", 0))
+        stats["activations"].append(metrics.get("mean_activation", 0))
+        stats["gradients"].append(metrics.get("grad_norm", 0))
+        
+        self.history.append({
+            "layer": layer_name,
+            "metrics": metrics,
+            "timestamp": time.time()
+        })
+    
+    def detect_anomalies(self, layer_name, current_metrics):
+        if layer_name not in self.layer_stats:
+            return {"is_anomaly": False, "scores": {}}
+        
+        stats = self.layer_stats[layer_name]
+        anomaly_scores = {}
+        is_anomaly = False
+        
+        for metric_name, values in stats.items():
+            if len(values) < 5:
+                continue
+            
+            current_value = current_metrics.get(metric_name.replace("_", ""), 0)
+            if current_value == 0:
+                continue
+            
+            values_array = np.array(list(values))
+            mean = np.mean(values_array)
+            std = np.std(values_array)
+            
+            if std > 0:
+                z_score = abs((current_value - mean) / std)
+                anomaly_scores[metric_name] = z_score
+                
+                if z_score > 3:
+                    is_anomaly = True
+        
+        iqr_anomaly = self._detect_iqr_anomaly(layer_name, current_metrics)
+        if iqr_anomaly:
+            is_anomaly = True
+            anomaly_scores["iqr_based"] = iqr_anomaly
+        
+        return {"is_anomaly": is_anomaly, "scores": anomaly_scores}
+    
+    def _detect_iqr_anomaly(self, layer_name, current_metrics):
+        if layer_name not in self.layer_stats:
+            return False
+        
+        stats = self.layer_stats[layer_name]
+        exec_times = list(stats["execution_times"])
+        
+        if len(exec_times) < 10:
+            return False
+        
+        q1 = np.percentile(exec_times, 25)
+        q3 = np.percentile(exec_times, 75)
+        iqr = q3 - q1
+        
+        current_time = current_metrics.get("execution_time", 0)
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        
+        return current_time < lower_bound or current_time > upper_bound
+    
+    def get_layer_statistics(self, layer_name):
+        if layer_name not in self.layer_stats:
+            return {}
+        
+        stats = self.layer_stats[layer_name]
+        result = {}
+        
+        for metric_name, values in stats.items():
+            if len(values) > 0:
+                values_array = np.array(list(values))
+                result[metric_name] = {
+                    "mean": float(np.mean(values_array)),
+                    "std": float(np.std(values_array)),
+                    "min": float(np.min(values_array)),
+                    "max": float(np.max(values_array)),
+                    "median": float(np.median(values_array))
+                }
+        
+        return result
+
+
+class PerformanceProfiler:
+    def __init__(self):
+        self.call_stack = []
+        self.flame_data = []
+        self.layer_profiles = {}
+        self.start_time = time.time()
+    
+    def start_layer(self, layer_name):
+        self.call_stack.append({
+            "name": layer_name,
+            "start": time.time(),
+            "children": []
+        })
+    
+    def end_layer(self, layer_name):
+        if not self.call_stack or self.call_stack[-1]["name"] != layer_name:
+            return
+        
+        layer_profile = self.call_stack.pop()
+        layer_profile["end"] = time.time()
+        layer_profile["duration"] = layer_profile["end"] - layer_profile["start"]
+        
+        if layer_name not in self.layer_profiles:
+            self.layer_profiles[layer_name] = {
+                "total_time": 0,
+                "call_count": 0,
+                "min_time": float('inf'),
+                "max_time": 0,
+                "avg_time": 0
+            }
+        
+        profile = self.layer_profiles[layer_name]
+        profile["total_time"] += layer_profile["duration"]
+        profile["call_count"] += 1
+        profile["min_time"] = min(profile["min_time"], layer_profile["duration"])
+        profile["max_time"] = max(profile["max_time"], layer_profile["duration"])
+        profile["avg_time"] = profile["total_time"] / profile["call_count"]
+        
+        self.flame_data.append(layer_profile)
+        
+        if self.call_stack:
+            self.call_stack[-1]["children"].append(layer_profile)
+    
+    def get_flame_graph_data(self):
+        flame_rows = []
+        
+        def process_node(node, depth=0, parent_start=0):
+            start = node["start"] - self.start_time
+            duration = node.get("duration", 0)
+            
+            flame_rows.append({
+                "name": node["name"],
+                "start": start,
+                "end": start + duration,
+                "duration": duration,
+                "depth": depth
+            })
+            
+            for child in node.get("children", []):
+                process_node(child, depth + 1, start)
+        
+        for root_node in self.flame_data:
+            if "duration" in root_node:
+                process_node(root_node)
+        
+        return flame_rows
+    
+    def get_summary(self):
+        return self.layer_profiles
+
+
+breakpoint_manager = BreakpointManager()
+anomaly_detector = AnomalyDetector()
+profiler = PerformanceProfiler()
+
+
+@server.route('/api/breakpoint', methods=['POST', 'GET', 'DELETE'])
+def manage_breakpoint():
+    if request.method == 'POST':
+        data = request.json
+        layer_name = data.get('layer_name')
+        condition = data.get('condition')
+        breakpoint_manager.add_breakpoint(layer_name, condition)
+        return jsonify({"status": "success", "message": f"Breakpoint added for {layer_name}"})
+    
+    elif request.method == 'GET':
+        return jsonify(breakpoint_manager.get_breakpoint_info())
+    
+    elif request.method == 'DELETE':
+        data = request.json
+        layer_name = data.get('layer_name')
+        breakpoint_manager.remove_breakpoint(layer_name)
+        return jsonify({"status": "success", "message": f"Breakpoint removed for {layer_name}"})
+
+
+@server.route('/api/layer_inspect/<layer_name>', methods=['GET'])
+def inspect_layer(layer_name):
+    layer_info = {
+        "statistics": anomaly_detector.get_layer_statistics(layer_name),
+        "breakpoint": breakpoint_manager.breakpoints.get(layer_name, {}),
+        "profile": profiler.layer_profiles.get(layer_name, {})
+    }
+    return jsonify(layer_info)
+
+
+@server.route('/api/continue', methods=['POST'])
+def continue_execution():
+    breakpoint_manager.paused = False
+    return jsonify({"status": "success", "message": "Execution continued"})
+
+
 def get_trace_data():
-    """Get trace data, checking TRACE_DATA first (for test compatibility)."""
-    # Check if TRACE_DATA has been reassigned in the module namespace
     import neural.dashboard.dashboard as dashboard_module
     if hasattr(dashboard_module, 'TRACE_DATA') and dashboard_module.TRACE_DATA is not None:
         return dashboard_module.TRACE_DATA
@@ -96,77 +360,70 @@ def print_dashboard_data():
         logger.debug("  First entry: %s", trace_data[0])
     logger.debug("=====================")
 
-# Function to update dashboard data
+
 def update_dashboard_data(new_model_data=None, new_trace_data=None, new_backend=None):
-    """Update the dashboard data with new data from the CLI."""
     global model_data, trace_data, backend, shape_history, _trace_data_list
 
     if new_model_data is not None:
         model_data = new_model_data
 
     if new_trace_data is not None:
-        # Convert numpy values to Python native types for JSON serialization
         processed_trace_data = []
         for entry in new_trace_data:
             processed_entry = {}
             for key, value in entry.items():
                 if hasattr(value, 'item') and callable(getattr(value, 'item')):
-                    # Convert numpy values to Python native types
                     processed_entry[key] = value.item()
                 else:
                     processed_entry[key] = value
             processed_trace_data.append(processed_entry)
-        # Update the shared list to maintain reference sharing
-        # Clear and extend to preserve the reference that trace_data and TRACE_DATA share
+            
+            layer_name = processed_entry.get("layer", "Unknown")
+            anomaly_detector.add_sample(layer_name, processed_entry)
+            
+            layer_inspection_history.append({
+                "layer": layer_name,
+                "data": processed_entry,
+                "timestamp": time.time()
+            })
+        
         _trace_data_list.clear()
         _trace_data_list.extend(processed_trace_data)
 
     if new_backend is not None:
         backend = new_backend
 
-    # Clear shape history to force recalculation
     shape_history = []
-
-    # Print the updated data
     print_dashboard_data()
 
-# Print initial data when module is loaded
+
 print_dashboard_data()
 
-### Interval Updates ####
+
 @app.callback(
     [Output("interval_component", "interval")],
     [Input("update_interval", "value")]
 )
-
 def update_interval(new_interval):
-    """Update the interval dynamically based on slider value."""
     return [new_interval]
 
-# Start WebSocket in a Separate Thread (only if socketio is available)
+
 propagator = ShapePropagator()
 if socketio is not None:
     threading.Thread(target=socketio.run, args=(server,), kwargs={"host": "localhost", "port": 5001, "allow_unsafe_werkzeug": True}, daemon=True).start()
 
-####################################################
-#### Layers Execution Trace Graph & Its Subplots ###
-####################################################
 
 @app.callback(
     [Output("trace_graph", "figure")],
     [Input("interval_component", "n_intervals"), Input("viz_type", "value"), Input("layer_filter", "value")]
 )
 def update_trace_graph(n, viz_type, selected_layers=None):
-    """Update execution trace graph with various visualization types."""
     global trace_data
-    # Use get_trace_data() to get the current trace data (handles test reassignments)
     data_source = get_trace_data()
 
-    ### ***Errors Handling*** ###
     if not data_source or any(not isinstance(entry["execution_time"], (int, float)) for entry in data_source):
-        return [go.Figure()]  # Return empty figure for invalid data
+        return [go.Figure()]
 
-    # Filter data based on selected layers (if any)
     if selected_layers:
         filtered_data = [entry for entry in data_source if entry["layer"] in selected_layers]
     else:
@@ -178,23 +435,19 @@ def update_trace_graph(n, viz_type, selected_layers=None):
     layers = [entry["layer"] for entry in filtered_data]
     execution_times = [entry["execution_time"] for entry in filtered_data]
 
-    # Simulate compute_time and transfer_time for stacked bar (you can extend ShapePropagator to include these)
     compute_times = []
     transfer_times = []
     for t in execution_times:
-        # Ensure t is a number
         if isinstance(t, (int, float)):
-            compute_times.append(t * 0.7)  # 70% of execution time for compute
-            transfer_times.append(t * 0.3)  # 30% for data transfer
+            compute_times.append(t * 0.7)
+            transfer_times.append(t * 0.3)
         else:
-            # Default values if t is not a number
             compute_times.append(0.1)
             transfer_times.append(0.05)
 
     fig = go.Figure()
 
     if viz_type == "basic":
-        ### Basic Bar Chart ###
         fig = go.Figure([go.Bar(x=layers, y=execution_times, name="Execution Time (s)")])
         fig.update_layout(
             title="Layer Execution Time",
@@ -204,7 +457,6 @@ def update_trace_graph(n, viz_type, selected_layers=None):
         )
 
     elif viz_type == "stacked":
-        # Stacked Bar Chart
         fig = go.Figure([
             go.Bar(x=layers, y=compute_times, name="Compute Time"),
             go.Bar(x=layers, y=transfer_times, name="Data Transfer"),
@@ -218,7 +470,6 @@ def update_trace_graph(n, viz_type, selected_layers=None):
         )
 
     elif viz_type == "horizontal":
-        # Horizontal Bar Chart with Sorting
         sorted_data = sorted(filtered_data, key=lambda x: x["execution_time"], reverse=True)
         sorted_layers = [entry["layer"] for entry in sorted_data]
         sorted_times = [entry["execution_time"] for entry in sorted_data]
@@ -231,9 +482,7 @@ def update_trace_graph(n, viz_type, selected_layers=None):
         )
 
     elif viz_type == "box":
-        ### Box Plots for Variability ###
-        # Use unique layers from filtered_data, maintaining original order
-        unique_layers = list(dict.fromkeys(entry["layer"] for entry in filtered_data))  # Preserves order, removes duplicates
+        unique_layers = list(dict.fromkeys(entry["layer"] for entry in filtered_data))
         times_by_layer = {layer: [entry["execution_time"] for entry in filtered_data if entry["layer"] == layer] for layer in unique_layers}
         fig = go.Figure([go.Box(x=unique_layers, y=[times_by_layer[layer] for layer in unique_layers], name="Execution Variability")])
         fig.update_layout(
@@ -244,7 +493,6 @@ def update_trace_graph(n, viz_type, selected_layers=None):
         )
 
     elif viz_type == "gantt":
-        # Gantt Chart for Timeline
         for i, entry in enumerate(filtered_data):
             fig.add_trace(go.Bar(x=[i, i], y=[0, entry["execution_time"]], orientation="v", name=entry["layer"]))
         fig.update_layout(
@@ -256,16 +504,12 @@ def update_trace_graph(n, viz_type, selected_layers=None):
         )
 
     elif viz_type == "heatmap":
-        # Ensure TRACE_DATA has multiple iterations or simulate them
         iterations = 5
         heatmap_data = np.random.rand(len(layers), iterations)
         fig = go.Figure(data=go.Heatmap(z=heatmap_data, x=[f"Iteration {i+1}" for i in range(iterations)], y=layers))
         fig.update_layout(title="Execution Time Heatmap", xaxis_title="Iterations", yaxis_title="Layers")
 
-
-
     elif viz_type == "thresholds":
-        # Bar Chart with Annotations and Thresholds
         marker_colors = []
         for t in execution_times:
             if isinstance(t, (int, float)) and t > 0.003:
@@ -288,7 +532,6 @@ def update_trace_graph(n, viz_type, selected_layers=None):
             template="plotly_white"
         )
 
-    # Add common layout enhancements
     fig.update_layout(
         showlegend=True,
         hovermode="x unified",
@@ -299,16 +542,12 @@ def update_trace_graph(n, viz_type, selected_layers=None):
 
     return [fig]
 
-############################
-#### FLOPS Memory Chart ####
-############################
 
 @app.callback(
     Output("flops_memory_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
 def update_flops_memory_chart(n):
-    """Update FLOPs and memory usage visualization."""
     if not trace_data:
         return go.Figure()
 
@@ -316,7 +555,6 @@ def update_flops_memory_chart(n):
     flops = [entry["flops"] for entry in trace_data]
     memory = [entry["memory"] for entry in trace_data]
 
-    # Create Dual Bar Graph (FLOPs & Memory)
     fig = go.Figure([
         go.Bar(x=layers, y=flops, name="FLOPs"),
         go.Bar(x=layers, y=memory, name="Memory Usage (MB)")
@@ -325,34 +563,16 @@ def update_flops_memory_chart(n):
 
     return [fig]
 
-##################
-### Loss Graph ###
-##################
 
 @app.callback(
     Output("loss_graph", "figure"),
     Input("interval_component", "n_intervals")
 )
-
 def update_loss(n):
-    loss_data = [random.uniform(0.1, 1.0) for _ in range(n)]  # Simulated loss data
+    loss_data = [random.uniform(0.1, 1.0) for _ in range(n)]
     fig = go.Figure(data=[go.Scatter(y=loss_data, mode="lines+markers")])
     fig.update_layout(title="Loss Over Time")
     return fig
-
-# This layout is replaced by the principal layout below
-# app.layout = html.Div([
-#     html.H1("Compare Architectures"),
-#     dcc.Dropdown(id="architecture_selector", options=[
-#         {"label": "Model A", "value": "A"},
-#         {"label": "Model B", "value": "B"},
-#     ], value="A"),
-#     dcc.Graph(id="architecture_graph"),
-# ])
-
-##########################
-### Architecture Graph ###
-##########################
 
 
 @app.callback(
@@ -360,46 +580,36 @@ def update_loss(n):
     Input("architecture_selector", "value")
 )
 def update_graph(arch):
-    """Update the architecture graph visualization."""
     global model_data, backend, trace_data
 
-    # Print debug information
     print(f"Updating architecture graph with model_data: {model_data is not None}")
 
-    # Create a figure
     fig = go.Figure()
 
-    # If we have model data, use it
     if model_data and isinstance(model_data, dict):
-        # Get input shape from model data
         if 'input' in model_data and 'shape' in model_data['input']:
             input_shape = model_data['input']['shape']
             print(f"Input shape: {input_shape}")
 
-            # Get layers from model data
             if 'layers' in model_data and isinstance(model_data['layers'], list):
                 layers = model_data['layers']
                 print(f"Layers: {len(layers)}")
 
-                # Extract layer types for visualization
                 layer_types = []
                 for layer in layers:
                     if isinstance(layer, dict) and 'type' in layer:
                         layer_types.append(layer['type'])
 
-                # Create a simple network visualization
-                x_positions = [0]  # Input node
+                x_positions = [0]
                 y_positions = [0]
                 node_labels = ["Input"]
                 node_colors = ["blue"]
 
-                # Add layer nodes
                 for i, layer_type in enumerate(layer_types):
                     x_positions.append(i + 1)
-                    y_positions.append(0 if i % 2 == 0 else 1)  # Alternate y positions
+                    y_positions.append(0 if i % 2 == 0 else 1)
                     node_labels.append(layer_type)
 
-                    # Color based on layer type
                     if "Conv" in layer_type:
                         node_colors.append("red")
                     elif "Pool" in layer_type:
@@ -411,13 +621,11 @@ def update_graph(arch):
                     else:
                         node_colors.append("gray")
 
-                # Add output node
                 x_positions.append(len(layer_types) + 1)
                 y_positions.append(0)
                 node_labels.append("Output")
                 node_colors.append("blue")
 
-                # Add nodes to the figure
                 fig.add_trace(go.Scatter(
                     x=x_positions,
                     y=y_positions,
@@ -427,7 +635,6 @@ def update_graph(arch):
                     textposition="bottom center"
                 ))
 
-                # Add edges (connections between nodes)
                 edge_x = []
                 edge_y = []
 
@@ -443,7 +650,6 @@ def update_graph(arch):
                     hoverinfo="none"
                 ))
 
-                # Update layout
                 fig.update_layout(
                     title="Network Architecture",
                     showlegend=False,
@@ -462,9 +668,7 @@ def update_graph(arch):
     else:
         print("No valid model data available")
 
-    # Fallback to default behavior if no model data is available
     if arch == "A":
-        # Simple architecture
         fig.add_trace(go.Scatter(
             x=[0, 1, 2, 3],
             y=[0, 1, 0, 1],
@@ -474,7 +678,6 @@ def update_graph(arch):
             textposition="bottom center"
         ))
 
-        # Add edges
         fig.add_trace(go.Scatter(
             x=[0, 1, 1, 2, 2, 3],
             y=[0, 1, 1, 0, 0, 1],
@@ -483,7 +686,6 @@ def update_graph(arch):
             hoverinfo="none"
         ))
     else:
-        # More complex architecture
         fig.add_trace(go.Scatter(
             x=[0, 1, 2, 3, 4, 5],
             y=[0, 1, 0, 1, 0, 1],
@@ -493,7 +695,6 @@ def update_graph(arch):
             textposition="bottom center"
         ))
 
-        # Add edges
         fig.add_trace(go.Scatter(
             x=[0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
             y=[0, 1, 1, 0, 0, 1, 1, 0, 0, 1],
@@ -502,7 +703,6 @@ def update_graph(arch):
             hoverinfo="none"
         ))
 
-    # Update layout
     fig.update_layout(
         title=f"Network Architecture {arch}",
         showlegend=False,
@@ -516,15 +716,11 @@ def update_graph(arch):
     return fig
 
 
-###########################
-### Gradient Flow Panel ###
-###########################
 @app.callback(
     Output("gradient_flow_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
 def update_gradient_chart(n):
-    """Visualizes gradient flow per layer."""
     global trace_data
 
     if not trace_data:
@@ -538,15 +734,12 @@ def update_gradient_chart(n):
 
     return fig
 
-#########################
-### Dead Neuron Panel ###
-#########################
+
 @app.callback(
     Output("dead_neuron_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
 def update_dead_neurons(n):
-    """Displays percentage of dead neurons per layer."""
     global trace_data
 
     if not trace_data:
@@ -560,15 +753,12 @@ def update_dead_neurons(n):
 
     return fig
 
-##############################
-### Anomaly Detection Panel###
-##############################
+
 @app.callback(
     Output("anomaly_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
 def update_anomaly_chart(n):
-    """Visualizes unusual activations per layer."""
     global trace_data
 
     if not trace_data:
@@ -576,55 +766,66 @@ def update_anomaly_chart(n):
 
     layers = [entry["layer"] for entry in trace_data]
     activations = [entry.get("mean_activation", 0) for entry in trace_data]
-    anomalies = [1 if entry.get("anomaly", False) else 0 for entry in trace_data]
+    
+    anomalies_list = []
+    anomaly_scores = []
+    for entry in trace_data:
+        layer_name = entry["layer"]
+        result = anomaly_detector.detect_anomalies(layer_name, entry)
+        anomalies_list.append(1 if result["is_anomaly"] else 0)
+        
+        if result["scores"]:
+            max_score = max(result["scores"].values())
+            anomaly_scores.append(max_score)
+        else:
+            anomaly_scores.append(0)
 
     fig = go.Figure([
-        go.Bar(x=layers, y=activations, name="Mean Activation"),
-        go.Bar(x=layers, y=anomalies, name="Anomaly Detected", marker_color="red")
+        go.Bar(x=layers, y=activations, name="Mean Activation", marker_color="lightblue"),
+        go.Bar(x=layers, y=anomalies_list, name="Anomaly Detected", marker_color="red"),
+        go.Scatter(x=layers, y=anomaly_scores, name="Anomaly Score", mode="lines+markers", 
+                  line=dict(color="orange", width=2), yaxis="y2")
     ])
-    fig.update_layout(title="Activation Anomalies", xaxis_title="Layers", yaxis_title="Activation Magnitude")
+    
+    fig.update_layout(
+        title="Activation Anomalies with Z-Score Detection",
+        xaxis_title="Layers",
+        yaxis_title="Activation Magnitude",
+        yaxis2=dict(title="Anomaly Score (Z-Score)", overlaying="y", side="right"),
+        template="plotly_white"
+    )
 
     return fig
 
-###########################
-### Step Debugger Button###
-###########################
+
 @app.callback(
     Output("step_debug_output", "children"),
     Input("step_debug_button", "n_clicks")
 )
 def trigger_step_debug(n):
-    """Manually pauses execution at a layer."""
     if n:
         requests.get("http://localhost:5001/trigger_step_debug")
         return "Paused. Check terminal for tensor inspection."
     return "Click to pause execution."
 
-####################################
-### Resource Monitoring Callback ###
-####################################
 
 @app.callback(
     Output("resource_graph", "figure"),
     Input("interval_component", "n_intervals")
 )
 def update_resource_graph(n):
-    """Visualize CPU/GPU usage, memory, and I/O bottlenecks."""
     try:
         import psutil
 
-        # Get CPU and memory usage
         cpu_usage = psutil.cpu_percent()
         memory_usage = psutil.virtual_memory().percent
 
-        # Try to get GPU usage if available
         gpu_memory = 0
         try:
             import torch
             if torch.cuda.is_available():
-                gpu_memory = torch.cuda.memory_allocated() / (1024 ** 3) * 100  # Convert to percentage
+                gpu_memory = torch.cuda.memory_allocated() / (1024 ** 3) * 100
         except (ImportError, Exception):
-            # If torch is not available or there's an error, just use 0
             pass
 
         fig = go.Figure([
@@ -638,7 +839,6 @@ def update_resource_graph(n):
             height=400
         )
     except Exception as e:
-        # If there's an error, return an empty figure
         print(f"Error in resource monitoring: {e}")
         fig = go.Figure()
         fig.update_layout(
@@ -648,72 +848,197 @@ def update_resource_graph(n):
 
     return fig
 
-#################################
-### Tensor Flow Visualization ###
-#################################
+
 @app.callback(
     Output("tensor_flow_graph", "figure"),
     Input("interval_component", "n_intervals")
 )
 def update_tensor_flow(n):
-    """Visualize tensor flow through the network."""
     global shape_history, model_data, backend
 
-    # If we have shape_history, use it
     if shape_history:
         return create_animated_network(shape_history)
 
-    # If we have a global propagator with shape_history, use it
     if 'propagator' in globals() and hasattr(propagator, 'shape_history'):
         return create_animated_network(propagator.shape_history)
 
-    # If we have model_data, create a new shape history
     if model_data and isinstance(model_data, dict):
         if 'input' in model_data and 'shape' in model_data['input'] and 'layers' in model_data:
             input_shape = model_data['input']['shape']
             layers = model_data['layers']
 
-            # Check if layers is a list
             if isinstance(layers, list) and layers:
-                # Create a new propagator
                 local_propagator = ShapePropagator()
 
-                # Propagate shapes through the network
                 for layer in layers:
                     try:
                         input_shape = local_propagator.propagate(input_shape, layer, backend)
                     except Exception as e:
                         print(f"Error propagating shape for layer {layer.get('type', 'unknown')}: {e}")
 
-                # Store the shape history for future use
                 shape_history = local_propagator.shape_history
 
-                # Return the animated network
                 return create_animated_network(shape_history)
 
-    # If all else fails, return an empty figure
     return go.Figure()
 
 
-# Custom Theme
-app = Dash(__name__, external_stylesheets=[themes.DARKLY])  # Darkly theme for Dash Bootstrap
+@app.callback(
+    Output("layer_inspector", "children"),
+    [Input("layer_selector", "value")]
+)
+def update_layer_inspector(selected_layer):
+    if not selected_layer or not trace_data:
+        return html.Div("Select a layer to inspect")
+    
+    layer_entries = [entry for entry in trace_data if entry.get("layer") == selected_layer]
+    if not layer_entries:
+        return html.Div(f"No data available for {selected_layer}")
+    
+    latest_entry = layer_entries[-1]
+    stats = anomaly_detector.get_layer_statistics(selected_layer)
+    
+    details = [
+        html.H4(f"Layer: {selected_layer}"),
+        html.Hr(),
+        html.H5("Current Metrics:"),
+        html.P(f"Execution Time: {latest_entry.get('execution_time', 0):.6f}s"),
+        html.P(f"Memory Usage: {latest_entry.get('memory', 0):.2f} MB"),
+        html.P(f"FLOPs: {latest_entry.get('flops', 0):,}"),
+        html.P(f"Mean Activation: {latest_entry.get('mean_activation', 0):.4f}"),
+        html.P(f"Gradient Norm: {latest_entry.get('grad_norm', 0):.4f}"),
+        html.Hr(),
+        html.H5("Statistical Summary:"),
+    ]
+    
+    if stats:
+        for metric_name, metric_stats in stats.items():
+            details.append(html.H6(f"{metric_name.replace('_', ' ').title()}:"))
+            details.append(html.P(f"  Mean: {metric_stats['mean']:.6f}, Std: {metric_stats['std']:.6f}"))
+            details.append(html.P(f"  Min: {metric_stats['min']:.6f}, Max: {metric_stats['max']:.6f}"))
+    else:
+        details.append(html.P("Insufficient data for statistics"))
+    
+    return html.Div(details)
 
-# Custom CSS for additional styling
+
+@app.callback(
+    Output("breakpoint_list", "children"),
+    [Input("interval_component", "n_intervals")]
+)
+def update_breakpoint_list(n):
+    bp_info = breakpoint_manager.get_breakpoint_info()
+    
+    if not bp_info:
+        return html.Div("No breakpoints set", style={"padding": "10px"})
+    
+    bp_items = []
+    for layer_name, info in bp_info.items():
+        status = "✓" if info["enabled"] else "✗"
+        bp_items.append(
+            html.Div([
+                html.Span(f"{status} {layer_name}", style={"fontWeight": "bold"}),
+                html.Span(f" (hits: {info['hit_count']})", style={"marginLeft": "10px", "color": "gray"}),
+                html.Button("Toggle", id={"type": "toggle-bp", "index": layer_name}, 
+                           style={"marginLeft": "10px", "fontSize": "10px"}),
+                html.Button("Remove", id={"type": "remove-bp", "index": layer_name}, 
+                           style={"marginLeft": "5px", "fontSize": "10px", "backgroundColor": "red"})
+            ], style={"padding": "5px", "borderBottom": "1px solid #ddd"})
+        )
+    
+    return html.Div(bp_items)
+
+
+@app.callback(
+    Output("flame_graph", "figure"),
+    [Input("interval_component", "n_intervals")]
+)
+def update_flame_graph(n):
+    flame_data = profiler.get_flame_graph_data()
+    
+    if not flame_data:
+        return go.Figure().update_layout(title="Flame Graph (No Data Available)")
+    
+    fig = go.Figure()
+    
+    max_depth = max([item["depth"] for item in flame_data]) if flame_data else 0
+    colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22']
+    
+    for item in flame_data:
+        color = colors[item["depth"] % len(colors)]
+        fig.add_trace(go.Bar(
+            x=[item["duration"]],
+            y=[item["depth"]],
+            orientation='h',
+            base=item["start"],
+            marker=dict(color=color, line=dict(color='white', width=1)),
+            name=item["name"],
+            text=f"{item['name']}<br>{item['duration']:.4f}s",
+            textposition="inside",
+            hovertemplate=f"<b>{item['name']}</b><br>Duration: {item['duration']:.6f}s<br>Start: {item['start']:.6f}s<extra></extra>"
+        ))
+    
+    fig.update_layout(
+        title="Performance Flame Graph",
+        xaxis_title="Time (seconds)",
+        yaxis_title="Call Depth",
+        showlegend=False,
+        height=600,
+        barmode='overlay',
+        template="plotly_white"
+    )
+    
+    return fig
+
+
+@app.callback(
+    Output("performance_summary", "children"),
+    [Input("interval_component", "n_intervals")]
+)
+def update_performance_summary(n):
+    summary = profiler.get_summary()
+    
+    if not summary:
+        return html.Div("No performance data available")
+    
+    sorted_layers = sorted(summary.items(), key=lambda x: x[1]["total_time"], reverse=True)
+    
+    rows = [
+        html.Tr([
+            html.Th("Layer"),
+            html.Th("Calls"),
+            html.Th("Total Time"),
+            html.Th("Avg Time"),
+            html.Th("Min Time"),
+            html.Th("Max Time")
+        ])
+    ]
+    
+    for layer_name, stats in sorted_layers[:10]:
+        rows.append(html.Tr([
+            html.Td(layer_name),
+            html.Td(str(stats["call_count"])),
+            html.Td(f"{stats['total_time']:.6f}s"),
+            html.Td(f"{stats['avg_time']:.6f}s"),
+            html.Td(f"{stats['min_time']:.6f}s"),
+            html.Td(f"{stats['max_time']:.6f}s")
+        ]))
+    
+    return html.Table(rows, style={"width": "100%", "borderCollapse": "collapse"})
+
+
+app = Dash(__name__, external_stylesheets=[themes.DARKLY])
+
 app.css.append_css({
-    "external_url": "https://custom-theme.com/neural.css"  # Create this file or use inline CSS
+    "external_url": "https://custom-theme.com/neural.css"
 })
 
 
-########################
-### Principal Layout ###
-########################
-
 app.layout = html.Div([
-    html.H1("NeuralDbg: Neural Network Debugger", style={"textAlign": "center", "marginBottom": "30px"}),
+    html.H1("NeuralDbg: Advanced Neural Network Debugger", 
+            style={"textAlign": "center", "marginBottom": "30px"}),
 
-    # Main container with two columns
     html.Div([
-        # Left column - Model Structure
         html.Div([
             html.H2("Model Structure", style={"textAlign": "center"}),
             html.Div([
@@ -738,7 +1063,6 @@ app.layout = html.Div([
             ], style={"border": "1px solid #ddd", "padding": "15px", "borderRadius": "5px"}),
         ], style={"width": "48%", "display": "inline-block", "verticalAlign": "top"}),
 
-        # Right column - Analysis
         html.Div([
             html.H2("Gradient Flow Analysis", style={"textAlign": "center"}),
             html.Div([
@@ -750,14 +1074,57 @@ app.layout = html.Div([
                 dcc.Graph(id="dead_neuron_chart"),
             ], style={"border": "1px solid #ddd", "padding": "15px", "borderRadius": "5px"}),
 
-            html.H2("Anomaly Detection", style={"textAlign": "center", "marginTop": "20px"}),
+            html.H2("Enhanced Anomaly Detection", style={"textAlign": "center", "marginTop": "20px"}),
             html.Div([
                 dcc.Graph(id="anomaly_chart"),
             ], style={"border": "1px solid #ddd", "padding": "15px", "borderRadius": "5px"}),
         ], style={"width": "48%", "display": "inline-block", "verticalAlign": "top", "marginLeft": "4%"}),
     ]),
 
-    # Bottom row - Resource monitoring
+    html.Div([
+        html.Div([
+            html.H2("Layer-by-Layer Inspector", style={"textAlign": "center", "marginTop": "20px"}),
+            html.Div([
+                dcc.Dropdown(
+                    id="layer_selector",
+                    options=[],
+                    placeholder="Select a layer to inspect",
+                    style={"marginBottom": "10px"}
+                ),
+                html.Div(id="layer_inspector", style={"padding": "10px", "minHeight": "200px"})
+            ], style={"border": "1px solid #ddd", "padding": "15px", "borderRadius": "5px"}),
+        ], style={"width": "48%", "display": "inline-block", "verticalAlign": "top"}),
+
+        html.Div([
+            html.H2("Breakpoint Manager", style={"textAlign": "center", "marginTop": "20px"}),
+            html.Div([
+                html.Div([
+                    dcc.Input(id="bp_layer_name", placeholder="Layer name", 
+                             style={"width": "40%", "marginRight": "5px"}),
+                    dcc.Input(id="bp_condition", placeholder="Condition (optional)", 
+                             style={"width": "40%", "marginRight": "5px"}),
+                    html.Button("Add Breakpoint", id="add_bp_button", 
+                               style={"width": "15%", "backgroundColor": "#2196F3", "color": "white"})
+                ], style={"marginBottom": "10px"}),
+                html.Div(id="breakpoint_list", style={"maxHeight": "150px", "overflowY": "auto"})
+            ], style={"border": "1px solid #ddd", "padding": "15px", "borderRadius": "5px"}),
+        ], style={"width": "48%", "display": "inline-block", "verticalAlign": "top", "marginLeft": "4%"}),
+    ]),
+
+    html.Div([
+        html.H2("Performance Flame Graph", style={"textAlign": "center", "marginTop": "20px"}),
+        html.Div([
+            dcc.Graph(id="flame_graph"),
+        ], style={"border": "1px solid #ddd", "padding": "15px", "borderRadius": "5px"}),
+    ]),
+
+    html.Div([
+        html.H2("Performance Summary", style={"textAlign": "center", "marginTop": "20px"}),
+        html.Div([
+            html.Div(id="performance_summary", style={"padding": "10px"})
+        ], style={"border": "1px solid #ddd", "padding": "15px", "borderRadius": "5px"}),
+    ]),
+
     html.Div([
         html.H2("Resource Monitoring", style={"textAlign": "center", "marginTop": "20px"}),
         html.Div([
@@ -765,14 +1132,11 @@ app.layout = html.Div([
         ], style={"border": "1px solid #ddd", "padding": "15px", "borderRadius": "5px"}),
     ]),
 
-    # Interval for updates
     dcc.Interval(id="interval_component", interval=UPDATE_INTERVAL, n_intervals=0),
-
-    # Hidden div for storing progress data
     html.Div(id="progress-store", style={"display": "none"})
 ])
 
-# Add callbacks for the visualization and progress updates
+
 @app.callback(
     [Output("architecture_viz_graph", "figure"),
      Output("progress-store", "children")],
@@ -780,30 +1144,23 @@ app.layout = html.Div([
     [State("progress-store", "children")]
 )
 def update_network_visualization(n_clicks, _):
-    """Generate a visualization of the neural network architecture."""
     global model_data, backend, shape_history
 
-    # Print debug information
     print(f"Updating network visualization with n_clicks={n_clicks}")
     print(f"Model data available: {model_data is not None}")
     if model_data:
         print(f"Model data keys: {model_data.keys() if isinstance(model_data, dict) else 'Not a dict'}")
 
-    # Create a default figure
     fig = go.Figure()
 
-    # Always generate visualization regardless of n_clicks
-    # Start with progress updates
     progress = 10
     details = "Starting visualization..."
 
-    # If we have model_data, use it to create a visualization
     if model_data and isinstance(model_data, dict):
         if 'input' in model_data and 'layers' in model_data and isinstance(model_data['layers'], list):
             progress = 20
             details = "Processing model data..."
 
-            # Extract layer types for visualization
             layers = model_data['layers']
             layer_types = []
             for layer in layers:
@@ -812,19 +1169,16 @@ def update_network_visualization(n_clicks, _):
                     layer_types.append(layer_type)
                     print(f"Found layer: {layer_type}")
 
-            # Create a simple network visualization
-            x_positions = [0]  # Input node
+            x_positions = [0]
             y_positions = [0]
             node_labels = ["Input"]
             node_colors = ["blue"]
 
-            # Add layer nodes
             for i, layer_type in enumerate(layer_types):
                 x_positions.append(i + 1)
-                y_positions.append(0 if i % 2 == 0 else 1)  # Alternate y positions
+                y_positions.append(0 if i % 2 == 0 else 1)
                 node_labels.append(layer_type)
 
-                # Color based on layer type
                 if "Conv" in layer_type:
                     node_colors.append("red")
                 elif "Pool" in layer_type:
@@ -836,13 +1190,11 @@ def update_network_visualization(n_clicks, _):
                 else:
                     node_colors.append("gray")
 
-            # Add output node
             x_positions.append(len(layer_types) + 1)
             y_positions.append(0)
             node_labels.append("Output")
             node_colors.append("blue")
 
-            # Add nodes to the figure
             fig.add_trace(go.Scatter(
                 x=x_positions,
                 y=y_positions,
@@ -852,7 +1204,6 @@ def update_network_visualization(n_clicks, _):
                 textposition="bottom center"
             ))
 
-            # Add edges (connections between nodes)
             edge_x = []
             edge_y = []
 
@@ -868,7 +1219,6 @@ def update_network_visualization(n_clicks, _):
                 hoverinfo="none"
             ))
 
-            # Update layout
             fig.update_layout(
                 title="Network Architecture",
                 showlegend=False,
@@ -884,12 +1234,9 @@ def update_network_visualization(n_clicks, _):
 
             return fig, json.dumps({"progress": progress, "details": details})
 
-    # Fallback to default visualization if we don't have model_data
     progress = 50
     details = "Using default visualization..."
 
-    # Create a default visualization
-    # Simple architecture
     fig.add_trace(go.Scatter(
         x=[0, 1, 2, 3, 4, 5],
         y=[0, 1, 0, 1, 0, 1],
@@ -899,7 +1246,6 @@ def update_network_visualization(n_clicks, _):
         textposition="bottom center"
     ))
 
-    # Add edges
     fig.add_trace(go.Scatter(
         x=[0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
         y=[0, 1, 1, 0, 0, 1, 1, 0, 0, 1],
@@ -908,7 +1254,6 @@ def update_network_visualization(n_clicks, _):
         hoverinfo="none"
     ))
 
-    # Update layout
     fig.update_layout(
         title="Network Architecture (Default)",
         showlegend=False,
@@ -919,10 +1264,9 @@ def update_network_visualization(n_clicks, _):
         height=500
     )
 
-    # Return the figure and final progress state
     return fig, json.dumps({"progress": 100, "details": "Default visualization complete"})
 
-# Update progress bar
+
 @app.callback(
     [Output("progress-bar", "style"),
      Output("progress-text", "children"),
@@ -937,7 +1281,6 @@ def update_progress_display(progress_json):
     progress = progress_data.get("progress", 0)
     details = progress_data.get("details", "")
 
-    # Update progress bar style
     bar_style = {
         "width": f"{progress}%",
         "backgroundColor": "#4CAF50",
@@ -946,32 +1289,26 @@ def update_progress_display(progress_json):
 
     return bar_style, f"{progress:.1f}%", details
 
-# Add computation timeline
+
 @app.callback(
     Output("computation-timeline", "figure"),
     [Input("interval_component", "n_intervals")]
 )
 def update_computation_timeline(n_intervals):
-    """Create a Gantt chart showing layer execution times."""
     global trace_data
 
-    # Print debug information
     print(f"Updating computation timeline with trace_data: {len(trace_data) if trace_data else 0} entries")
 
-    # Create a figure
     fig = go.Figure()
 
     if trace_data and len(trace_data) > 0:
-        # Extract layer names and execution times
         layers = [entry.get("layer", "Unknown") for entry in trace_data]
         execution_times = [entry.get("execution_time", 0) for entry in trace_data]
 
-        # Calculate cumulative times for Gantt chart
         start_times = [0]
         for i in range(1, len(execution_times)):
             start_times.append(start_times[i-1] + execution_times[i-1])
 
-        # Create Gantt chart
         for i, layer in enumerate(layers):
             fig.add_trace(go.Bar(
                 x=[execution_times[i]],
@@ -990,7 +1327,6 @@ def update_computation_timeline(n_intervals):
             showlegend=False
         )
     else:
-        # Use default data if no trace data is available
         layer_data = [
             {"layer": "Input", "execution_time": 0.1},
             {"layer": "Conv2D", "execution_time": 0.8},
@@ -1000,16 +1336,13 @@ def update_computation_timeline(n_intervals):
             {"layer": "Output", "execution_time": 0.2}
         ]
 
-        # Extract layer names and execution times
         layers = [entry["layer"] for entry in layer_data]
         execution_times = [entry["execution_time"] for entry in layer_data]
 
-        # Calculate cumulative times for Gantt chart
         start_times = [0]
         for i in range(1, len(execution_times)):
             start_times.append(start_times[i-1] + execution_times[i-1])
 
-        # Create Gantt chart
         for i, layer in enumerate(layers):
             fig.add_trace(go.Bar(
                 x=[execution_times[i]],
@@ -1029,6 +1362,31 @@ def update_computation_timeline(n_intervals):
         )
 
     return fig
+
+
+@app.callback(
+    Output("layer_selector", "options"),
+    [Input("interval_component", "n_intervals")]
+)
+def update_layer_options(n):
+    if not trace_data:
+        return []
+    
+    unique_layers = list(dict.fromkeys([entry.get("layer", "Unknown") for entry in trace_data]))
+    return [{"label": layer, "value": layer} for layer in unique_layers]
+
+
+@app.callback(
+    Output("bp_layer_name", "value"),
+    [Input("add_bp_button", "n_clicks")],
+    [State("bp_layer_name", "value"), State("bp_condition", "value")]
+)
+def add_breakpoint(n_clicks, layer_name, condition):
+    if n_clicks and layer_name:
+        breakpoint_manager.add_breakpoint(layer_name, condition)
+        return ""
+    return layer_name or ""
+
 
 if __name__ == "__main__":
     app.run_server(debug=False, use_reloader=False)
