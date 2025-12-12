@@ -1,5 +1,8 @@
 from typing import Any, Dict
 from neural.code_generation.base_generator import BaseCodeGenerator
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ONNXGenerator(BaseCodeGenerator):
@@ -48,9 +51,38 @@ def generate_onnx(model_data: Dict[str, Any]):
     return model
 
 
-def export_onnx(model_data: Dict[str, Any], filename: str = "model.onnx") -> str:
-    """Export model to ONNX format."""
+def export_onnx(model_data: Dict[str, Any], filename: str = "model.onnx", optimize: bool = True) -> str:
+    """Export model to ONNX format with optional optimization.
+    
+    Args:
+        model_data: Dictionary containing model configuration
+        filename: Output filename for the ONNX model
+        optimize: Whether to apply ONNX optimizer passes
+        
+    Returns:
+        Status message indicating the file was saved
+    """
     import onnx
     model = generate_onnx(model_data)
+    
+    if optimize:
+        try:
+            from onnx import optimizer
+            passes = [
+                'eliminate_identity',
+                'eliminate_nop_pad',
+                'eliminate_nop_transpose',
+                'eliminate_unused_initializer',
+                'extract_constant_to_initializer',
+                'fuse_bn_into_conv',
+                'fuse_consecutive_transposes',
+                'fuse_matmul_add_bias_into_gemm',
+                'fuse_pad_into_conv',
+                'fuse_transpose_into_gemm'
+            ]
+            model = optimizer.optimize(model, passes)
+        except ImportError:
+            logger.warning("ONNX optimizer not available, saving unoptimized model")
+    
     onnx.save(model, filename)
     return f"ONNX model saved to {filename}"

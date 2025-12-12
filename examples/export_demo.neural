@@ -1,0 +1,17 @@
+network ExportDemo {
+    input: shape(1, 28, 28)
+    
+    layers: [
+        Conv2D(filters=32, kernel_size=3, activation="relu"),
+        MaxPooling2D(pool_size=2),
+        Conv2D(filters=64, kernel_size=3, activation="relu"),
+        MaxPooling2D(pool_size=2),
+        Flatten(),
+        Dense(units=128, activation="relu"),
+        Dropout(rate=0.5),
+        Output(units=10, activation="softmax")
+    ]
+    
+    optimizer: Adam(learning_rate=0.001)
+    loss: categorical_crossentropy
+}

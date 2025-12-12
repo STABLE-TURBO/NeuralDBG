@@ -1289,6 +1289,120 @@ print(f"Model visualization saved to: {{viz_path}}")
 
 @cli.command()
 @click.argument('file', type=click.Path(exists=True, file_okay=True, dir_okay=False))
+@click.option('--backend', '-b', default='tensorflow', help='Backend framework', type=click.Choice(['tensorflow', 'pytorch'], case_sensitive=False))
+@click.option('--format', '-f', 'export_format', default='onnx', help='Export format', type=click.Choice(['onnx', 'tflite', 'torchscript', 'savedmodel'], case_sensitive=False))
+@click.option('--output', '-o', default=None, help='Output path (defaults based on format)')
+@click.option('--optimize', is_flag=True, help='Apply optimization passes')
+@click.option('--quantize', is_flag=True, help='Apply quantization (TFLite only)')
+@click.option('--quantization-type', default='int8', type=click.Choice(['int8', 'float16', 'dynamic']), help='Quantization type (TFLite only)')
+@click.option('--deployment', type=click.Choice(['torchserve', 'tfserving', 'none'], case_sensitive=False), default='none', help='Generate deployment configs')
+@click.option('--model-name', default='model', help='Name for deployed model')
+@click.pass_context
+def export(ctx, file: str, backend: str, export_format: str, output: Optional[str], optimize: bool, quantize: bool, quantization_type: str, deployment: str, model_name: str):
+    """Export a model for deployment in various formats."""
+    print_command_header("export")
+    print_info(f"Exporting {file} to {export_format} format")
+    
+    ext = os.path.splitext(file)[1].lower()
+    start_rule = 'network' if ext in ['.neural', '.nr'] else 'research' if ext == '.rnr' else None
+    if not start_rule:
+        print_error(f"Unsupported file type: {ext}. Supported: .neural, .nr, .rnr")
+        sys.exit(1)
+    
+    try:
+        from neural.parser.parser import create_parser, ModelTransformer
+        with Spinner("Parsing Neural DSL file") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            parser_instance = create_parser(start_rule=start_rule)
+            with open(file, 'r') as f:
+                content = f.read()
+            tree = parser_instance.parse(content)
+            model_data = ModelTransformer().transform(tree)
+    except Exception as e:
+        print_error(f"Parsing failed: {str(e)}")
+        sys.exit(1)
+    
+    try:
+        from neural.code_generation.export import ModelExporter
+        exporter = ModelExporter(model_data, backend)
+        
+        if output is None:
+            format_extensions = {
+                'onnx': '.onnx',
+                'tflite': '.tflite',
+                'torchscript': '.pt',
+                'savedmodel': '_saved_model'
+            }
+            output = f"{os.path.splitext(file)[0]}{format_extensions[export_format]}"
+        
+        with Spinner(f"Exporting to {export_format}") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            
+            if export_format == 'onnx':
+                output_path = exporter.export_onnx(output, optimize=optimize)
+            elif export_format == 'tflite':
+                if backend != 'tensorflow':
+                    print_error("TFLite export requires TensorFlow backend")
+                    sys.exit(1)
+                output_path = exporter.export_tflite(
+                    output,
+                    quantize=quantize,
+                    quantization_type=quantization_type
+                )
+            elif export_format == 'torchscript':
+                if backend != 'pytorch':
+                    print_error("TorchScript export requires PyTorch backend")
+                    sys.exit(1)
+                output_path = exporter.export_torchscript(output)
+            elif export_format == 'savedmodel':
+                if backend != 'tensorflow':
+                    print_error("SavedModel export requires TensorFlow backend")
+                    sys.exit(1)
+                output_path = exporter.export_savedmodel(output)
+        
+        print_success(f"Model exported successfully!")
+        print(f"\n{Colors.CYAN}Export Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}Format:{Colors.ENDC}   {export_format}")
+        print(f"  {Colors.BOLD}Output:{Colors.ENDC}   {output_path}")
+        print(f"  {Colors.BOLD}Backend:{Colors.ENDC}  {backend}")
+        if optimize:
+            print(f"  {Colors.BOLD}Optimized:{Colors.ENDC} Yes")
+        if quantize:
+            print(f"  {Colors.BOLD}Quantized:{Colors.ENDC} Yes ({quantization_type})")
+        
+        if deployment != 'none':
+            print_info(f"Generating {deployment} deployment configs...")
+            deploy_dir = f"{os.path.splitext(file)[0]}_deployment"
+            
+            if deployment == 'torchserve':
+                config_path, model_store = exporter.create_torchserve_config(
+                    output_path, model_name, deploy_dir
+                )
+                scripts = exporter.generate_deployment_scripts(deploy_dir, 'torchserve')
+            elif deployment == 'tfserving':
+                config_path = exporter.create_tfserving_config(
+                    output_path, model_name, deploy_dir
+                )
+                scripts = exporter.generate_deployment_scripts(deploy_dir, 'tfserving')
+            
+            print_success("Deployment configs generated!")
+            print(f"\n{Colors.CYAN}Deployment Files:{Colors.ENDC}")
+            print(f"  {Colors.BOLD}Directory:{Colors.ENDC} {deploy_dir}")
+            print(f"  {Colors.BOLD}Config:{Colors.ENDC}    {config_path}")
+            for script in scripts:
+                print(f"  {Colors.BOLD}Script:{Colors.ENDC}    {script}")
+    
+    except Exception as e:
+        print_error(f"Export failed: {str(e)}")
+        import traceback
+        if ctx.obj.get('VERBOSE'):
+            traceback.print_exc()
+        sys.exit(1)
+
+@cli.command()
+@click.argument('file', type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.option('--gradients', is_flag=True, help='Analyze gradient flow')
 @click.option('--dead-neurons', is_flag=True, help='Detect dead neurons')
 @click.option('--anomalies', is_flag=True, help='Detect training anomalies')

@@ -26,6 +26,9 @@ neural compile examples/mnist.neural --backend tensorflow --output mnist_tensorf
 # Run the generated script
 python mnist_tensorflow.py
 
+# Export for production deployment
+neural export examples/mnist.neural --format onnx --optimize
+
 # Generate docs (Markdown, optional PDF with --pdf)
 neural docs examples/mnist.neural --output model.md
 
@@ -95,6 +98,7 @@ Help us improve Neural DSL! Share your feedback: [Typeform link](https://form.ty
 - **Blog Support**: Infrastructure for blog content with markdown support and Dev.to integration (#445).
 - **NeuralPaper.ai**: Interactive model visualization platform with annotation capabilities (in development).
 - **Multi-Backend Export**: Generate code for **TensorFlow**, **PyTorch**, or **ONNX**.
+- **🚀 Production-Ready Deployment**: Export to ONNX, TensorFlow Lite, TorchScript, and SavedModel with built-in optimization and quantization. Includes deployment configs for TensorFlow Serving and TorchServe. [Learn more](docs/deployment.md)
 - **Training Orchestration**: Configure optimizers, schedulers, and metrics in one place.
 - **Visual Debugging**: Render interactive 3D architecture diagrams.
 - **Extensible**: Add custom layers/losses via Python plugins.
@@ -223,6 +227,24 @@ neural --no_code
 
 
 Open your browser to http://localhost:8051 to build and compile models via a graphical interface.
+
+### 6. Export for Deployment
+
+```bash
+# Export to ONNX with optimization
+neural export mnist.neural --format onnx --optimize
+
+# Export to TensorFlow Lite with quantization
+neural export mnist.neural --backend tensorflow --format tflite --quantize --quantization-type int8
+
+# Export to TorchScript for PyTorch production
+neural export mnist.neural --backend pytorch --format torchscript
+
+# Generate TensorFlow Serving deployment
+neural export mnist.neural --backend tensorflow --format savedmodel --deployment tfserving --model-name mnist_model
+```
+
+For complete deployment guides, see [docs/deployment.md](docs/deployment.md) and [docs/DEPLOYMENT_QUICK_START.md](docs/DEPLOYMENT_QUICK_START.md).
 
 ---
 

@@ -1,3 +1,5 @@
+"""Code generation and export functionality for Neural DSL."""
+
 from neural.code_generation.code_generator import (
     generate_code,
     save_file,
@@ -16,6 +18,11 @@ from neural.code_generation.shape_policy_helpers import (
     get_rank_non_batch
 )
 
+try:
+    from neural.code_generation.export import ModelExporter
+except ImportError:
+    ModelExporter = None
+
 __all__ = [
     'generate_code',
     'save_file',
@@ -29,5 +36,6 @@ __all__ = [
     'BaseCodeGenerator',
     'ensure_2d_before_dense_tf',
     'ensure_2d_before_dense_pt',
-    'get_rank_non_batch'
+    'get_rank_non_batch',
+    'ModelExporter'
 ]

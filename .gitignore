@@ -48,6 +48,7 @@ wheels/
 # Virtual environments
 .venv/
 venv/
+.venv/
 env/
 ENV/
 
@@ -94,3 +95,19 @@ packages.*
 /sample_*.py
 /_temp_*.py
 /_temp_*.ps1
+
+# Model export and deployment artifacts
+*.onnx
+*.tflite
+*.pt
+*_saved_model/
+*_deployment/
+model-store/
+saved_model/
+
+# TensorFlow Serving
+models.config
+
+# TorchServe
+config.properties
+logs/
