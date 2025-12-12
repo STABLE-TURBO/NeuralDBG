@@ -1,0 +1,185 @@
+import logging
+import warnings
+from typing import Any, Dict
+from neural.code_generation.base_generator import BaseCodeGenerator
+from neural.code_generation.shape_policy_helpers import ensure_2d_before_dense_tf, get_rank_non_batch
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
+
+
+class TensorFlowGenerator(BaseCodeGenerator):
+    def generate(self) -> str:
+        expanded_layers = self.expand_layers()
+        optimizer_config = self.model_data.get('optimizer', {'type': 'Adam'})
+        optimizer_type = optimizer_config['type'] if isinstance(optimizer_config, dict) else optimizer_config
+
+        code = "import tensorflow as tf\nfrom tensorflow.keras import layers\n"
+        code += f"from tensorflow.keras.optimizers import {optimizer_type}\n"
+        code += "from neural.tracking.experiment_tracker import ExperimentManager\n\n"
+
+        code += "# Initialize Experiment Tracking\n"
+        code += "experiment_manager = ExperimentManager()\n"
+        code += "experiment = experiment_manager.create_experiment()\n"
+        code += "experiment.log_hyperparameters({'optimizer': '" + optimizer_type + "', 'backend': 'tensorflow'})\n\n"
+
+        code += "# Custom Callback for Tracking\n"
+        code += "class NeuralTrackingCallback(tf.keras.callbacks.Callback):\n"
+        code += "    def __init__(self, experiment):\n"
+        code += "        super().__init__()\n"
+        code += "        self.experiment = experiment\n\n"
+        code += "    def on_epoch_end(self, epoch, logs=None):\n"
+        code += "        if logs:\n"
+        code += "            self.experiment.log_metrics(logs, step=epoch)\n\n"
+
+        input_shape = tuple(self.model_data['input']['shape'])
+        code += f"# Input layer with shape {input_shape}\n"
+        code += f"inputs = layers.Input(shape={input_shape})\n"
+        code += "x = inputs\n\n"
+
+        for layer in expanded_layers:
+            layer_type = layer['type']
+            params = layer.get('params', {})
+
+            rank_non_batch = get_rank_non_batch(self.current_input_shape)
+            if layer_type in ("Dense", "Output"):
+                insert_code, self.current_input_shape = ensure_2d_before_dense_tf(
+                    rank_non_batch, self.auto_flatten_output, self.propagator, self.current_input_shape
+                )
+                code += insert_code
+
+            if layer_type == "Residual":
+                code += "# Residual block\n"
+                code += "residual_input = x\n"
+                for sub_layer in layer.get('sub_layers', []):
+                    sub_type = sub_layer['type']
+                    sub_params = sub_layer.get('params', {})
+                    layer_code = self.generate_layer(sub_type, sub_params)
+                    if layer_code:
+                        if ('\n' in layer_code) or ('x =' in layer_code):
+                            code += layer_code + "\n"
+                        else:
+                            code += f"x = {layer_code}(x)\n"
+                code += "x = layers.Add()([x, residual_input])\n"
+            else:
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    if ('\n' in layer_code) or ('x =' in layer_code):
+                        code += layer_code + "\n"
+                    else:
+                        code += f"x = {layer_code}(x)\n"
+            try:
+                self.current_input_shape = self.propagator.propagate(self.current_input_shape, layer)
+            except Exception as e:
+                logger.warning(f"Shape propagation warning: {e}")
+
+        code += "\n# Build model\n"
+        code += "model = tf.keras.Model(inputs=inputs, outputs=x)\n"
+
+        opt_params = []
+        if isinstance(optimizer_config, dict):
+            for k, v in optimizer_config.get('params', {}).items():
+                opt_params.append(f"{k}='{v}'" if isinstance(v, str) else f"{k}={v}")
+        loss_entry = self.model_data.get('loss', {'value': 'categorical_crossentropy'})
+        if loss_entry is None or not isinstance(loss_entry, (str, dict)):
+            loss_value = 'categorical_crossentropy'
+        elif isinstance(loss_entry, str):
+            loss_value = loss_entry
+        else:
+            loss_value = loss_entry.get('value', 'categorical_crossentropy')
+        code += f"# Compile model with {optimizer_type} optimizer and {loss_value} loss\n"
+        code += f"model.compile(loss='{loss_value}', optimizer={optimizer_type}({', '.join(opt_params)}))\n"
+
+        if 'training_config' in self.model_data:
+            tc = self.model_data['training_config']
+            code += "# Training configuration\n"
+            code += (
+                f"model.fit(\n    x_train, y_train,\n"
+                f"    epochs={tc.get('epochs', 10)},\n"
+                f"    batch_size={tc.get('batch_size', 32)},\n"
+                f"    validation_split={tc.get('validation_split', 0.2)},\n"
+                f"    callbacks=[NeuralTrackingCallback(experiment)],\n"
+                f"    verbose=1\n)\n"
+            )
+            if tc.get('mixed_precision', False):
+                code = "from tensorflow.keras.mixed_precision import set_global_policy\n" + code
+                code += "set_global_policy('mixed_float16')\n"
+            if 'save_path' in tc:
+                code += f"model.save('{tc['save_path']}')\n"
+        return code
+
+    def generate_layer(self, layer_type: str, params: Dict[str, Any]) -> str:
+        if layer_type == "TransformerEncoder":
+            num_heads = params.get("num_heads", 8)
+            ff_dim = params.get("ff_dim", 512)
+            dropout = params.get("dropout", 0.1)
+            code = [
+                "# TransformerEncoder block",
+                f"x = layers.LayerNormalization(epsilon=1e-6)(x)",
+                f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim})(x, x)",
+                f"x = layers.Add()([x, attn_output])",
+                f"x = layers.LayerNormalization(epsilon=1e-6)(x)",
+                f"x = layers.Dense({ff_dim}, activation='relu')(x)",
+                f"x = layers.Dense({ff_dim})(x)",
+                f"x = layers.Dropout({dropout})(x)"
+            ]
+            return "\n".join(code)
+        elif layer_type == "BatchNormalization":
+            momentum = params.get("momentum", 0.99)
+            epsilon = params.get("epsilon", 0.001)
+            if momentum == 0.99 and epsilon == 0.001:
+                return "layers.BatchNormalization()"
+            return f"layers.BatchNormalization(momentum={momentum}, epsilon={epsilon})"
+        elif layer_type == "Conv2D":
+            filters = params.get("filters", 32)
+            kernel_size = params.get("kernel_size", (3, 3))
+            if isinstance(kernel_size, (tuple, list)):
+                kernel_size = kernel_size[0]
+            padding = params.get("padding", "same")
+            activation = params.get("activation", None)
+            code = f"layers.Conv2D(filters={filters}, kernel_size={kernel_size}, padding='{padding}'"
+            if activation:
+                code += f", activation='{activation}'"
+            code += ")"
+            return code
+        elif layer_type == "Dense":
+            units = params.get("units", 64)
+            activation = params.get("activation", None)
+            code = f"layers.Dense(units={units}"
+            if activation:
+                code += f", activation='{activation}'"
+            code += ")"
+            return code
+        elif layer_type == "MaxPooling2D":
+            pool_size = params.get("pool_size", (2, 2))
+            if isinstance(pool_size, (tuple, list)):
+                pool_size = pool_size
+            strides = params.get("strides", None)
+            if strides:
+                return f"layers.MaxPooling2D(pool_size={pool_size}, strides={strides})"
+            return f"layers.MaxPooling2D(pool_size={pool_size})"
+        elif layer_type == "AveragePooling2D":
+            pool_size = params.get("pool_size", (2, 2))
+            if isinstance(pool_size, (tuple, list)):
+                pool_size = pool_size[0] if isinstance(pool_size[0], int) else pool_size
+            return f"layers.AveragePooling2D(pool_size={pool_size})"
+        elif layer_type == "Flatten":
+            return "layers.Flatten()"
+        elif layer_type == "LSTM":
+            units = params.get("units", 128)
+            return_sequences = params.get("return_sequences", False)
+            return f"layers.LSTM(units={units}, return_sequences={str(return_sequences)})"
+        elif layer_type == "GRU":
+            units = params.get("units", 64)
+            return_sequences = params.get("return_sequences", False)
+            return f"layers.GRU(units={units}, return_sequences={str(return_sequences)})"
+        elif layer_type == "Dropout":
+            rate = params.get("rate", 0.5)
+            return f"layers.Dropout(rate={rate})"
+        elif layer_type == "Output":
+            units = params.get("units", 10)
+            activation = params.get("activation", "softmax")
+            return f"layers.Dense(units={units}, activation='{activation}')"
+        else:
+            warnings.warn(f"Unsupported layer type '{layer_type}' for tensorflow. Skipping.", UserWarning)
+            return None
