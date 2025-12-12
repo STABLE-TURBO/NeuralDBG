@@ -3227,7 +3227,7 @@ class ModelTransformer(lark.Transformer):
         # Support both forms:
         # ResidualConnection(params) { ... } and ResidualConnection { ... }
         if not items:
-            return {'type': 'ResidualConnection', 'params': None, 'sublayers': []}
+            return {'type': 'ResidualConnection', 'params': {}, 'sublayers': []}
 
         first_val = self._extract_value(items[0])
         params = {}
@@ -3248,8 +3248,8 @@ class ModelTransformer(lark.Transformer):
             if len(items) > 1:
                 sub_layers = self._extract_value(items[1])
 
-        # Normalize empty params to None for consistency with tests
-        final_params = params if params else None
+        # Normalize empty params to {} for consistency with tests
+        final_params = params if params else {}
         return {'type': 'ResidualConnection', 'params': final_params, 'sublayers': sub_layers}
 
     def inception(self, items):
@@ -3305,7 +3305,7 @@ class ModelTransformer(lark.Transformer):
 
     def squeeze_excitation(self, items):
         params = self._extract_value(items[0]) if items else {}
-        return {'type': 'SqueezeExcitation', 'params': params, 'sublayers': []}
+        return {'type': 'SqueezeExcitation', 'params': params if params else {}, 'sublayers': []}
 
     def quantum(self, items):
         params = self._extract_value(items[0]) if items else None
