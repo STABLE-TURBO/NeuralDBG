@@ -47,8 +47,8 @@ wheels/
 
 # Virtual environments
 .venv/
+.venv*/
 venv/
-.venv/
 env/
 ENV/
 
