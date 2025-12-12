@@ -1,6 +1,7 @@
 import logging
 import json
 import time
+from functools import lru_cache
 # Make torch optional - allows tests to run without torch installed
 try:
     import torch
@@ -33,6 +34,9 @@ from .layer_handlers import (
     handle_zero_padding2d, handle_cropping2d
 )
 
+# Global caches for performance optimization
+_shape_cache = {}
+_param_cache = {}
 
 class ShapeMismatchError(Exception):
     """Enhanced exception for shape propagation errors with actionable diagnostics.
@@ -170,6 +174,7 @@ class ShapePropagator:
         self.hub = PretrainedModelHub() if PretrainedModelHub else None
         self.issues = []  # Store detected issues
         self.optimizations = []  # Store optimization suggestions
+        self._layer_cache = {}
 
         # Framework compatibility mappings
         self.param_aliases = {
@@ -338,16 +343,28 @@ class ShapePropagator:
 ### Performance Computation ###
 ###############################
 
+    @lru_cache(maxsize=512)
+    def _compute_performance_cached(self, layer_type: str, input_shape: tuple, output_shape: tuple, 
+                                     kernel_size: tuple, filters: int) -> tuple:
+        """Cached performance computation for common layer types."""
+        if layer_type == 'Conv2D':
+            flops = np.prod(kernel_size) * np.prod(output_shape) * input_shape[-1]
+        else:
+            flops = 0
+        
+        memory_usage = np.prod(output_shape) * 4 / (1024 ** 2)
+        compute_time = flops / 1e9
+        transfer_time = memory_usage * 1e3 / 1e9
+        
+        return flops, memory_usage, compute_time, transfer_time
+    
     def _compute_performance(self, layer: dict, input_shape: tuple, output_shape: tuple) -> tuple:
         """Compute performance metrics (FLOPs, memory usage, etc.)."""
-        # Replace None with 1 to avoid NoneType math errors
         input_shape = tuple(1 if dim is None else dim for dim in input_shape)
         output_shape = tuple(1 if dim is None else dim for dim in output_shape)
 
-        # Handle malformed layer structure (e.g., from parser issues)
         if "type" not in layer:
             if len(layer) == 1:
-                # Try to extract type from the malformed structure
                 key = next(iter(layer.keys()))
                 if hasattr(key, 'value'):
                     layer_type = key.value
@@ -358,9 +375,7 @@ class ShapePropagator:
         else:
             layer_type = layer['type']
 
-        # FLOPs calculation (example for Conv2D)
         if layer_type == 'Conv2D':
-            # Handle malformed layer structure
             if "params" not in layer:
                 if len(layer) == 1:
                     key = next(iter(layer.keys()))
@@ -370,20 +385,14 @@ class ShapePropagator:
             else:
                 params = layer['params']
 
-            kernel_size = params.get('kernel_size', (3, 3))
-            filters = params.get('filters', 32)
-            flops = np.prod(kernel_size) * np.prod(output_shape) * input_shape[-1]
-        else:
-            flops = 0  # Default for other layers
-
-        # Memory usage (output tensor size in MB)
-        memory_usage = np.prod(output_shape) * 4 / (1024 ** 2)  # 4 bytes per float
-
-        # Simplified timing estimates
-        compute_time = flops / 1e9  # 1 GFLOP/s
-        transfer_time = memory_usage * 1e3 / 1e9  # 1 GB/s
-
-        return flops, memory_usage, compute_time, transfer_time
+            kernel_size = tuple(params.get('kernel_size', (3, 3)))
+            filters = int(params.get('filters', 32))
+            
+            return self._compute_performance_cached(layer_type, input_shape, output_shape, 
+                                                   kernel_size, filters)
+        
+        memory_usage = np.prod(output_shape) * 4 / (1024 ** 2)
+        return 0, memory_usage, 0, memory_usage * 1e3 / 1e9
 
 ##################################################
 ### Send execution trace data to the dashboard ###
@@ -508,10 +517,21 @@ class ShapePropagator:
 
         return output_shape
 
+    @lru_cache(maxsize=256)
+    def _get_cache_key(self, layer_type, framework, params_tuple):
+        """Generate cache key for parameter standardization."""
+        return (layer_type, framework, params_tuple)
+    
     def _standardize_params(self, params, layer_type, framework):
-        # Ensure params is a dict, even if None is passed
         if params is None:
             params = {}
+        
+        params_hashable = tuple(sorted((k, str(v)) for k, v in params.items()))
+        cache_key = self._get_cache_key(layer_type, framework, params_hashable)
+        
+        if cache_key in _param_cache:
+            return _param_cache[cache_key].copy()
+        
         standardized = {}
         aliases = self.param_aliases.get(layer_type, {})
         for k, v in params.items():
@@ -520,6 +540,8 @@ class ShapePropagator:
             else:
                 standardized[k] = v
         standardized.setdefault('data_format', 'channels_first' if framework == 'pytorch' else 'channels_last')
+        
+        _param_cache[cache_key] = standardized.copy()
         return standardized
 
     def _validate_layer_params(self, layer_type, params, input_shape, framework='tensorflow'):

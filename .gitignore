@@ -72,6 +72,12 @@ neural_experiments/
 .pytest_cache/
 .coverage
 htmlcov/
+*.prof
+output.prof
+
+# Performance test results
+tests/performance/*.prof
+tests/performance/benchmark_results/
 
 # Generated files
 *.dot

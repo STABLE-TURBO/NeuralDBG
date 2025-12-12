@@ -536,10 +536,13 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         grammar,
         start=start_rule,
         parser='lalr',
-        lexer='contextual',
-        debug=True,
+        lexer='basic',
+        debug=False,
         cache=True,
         propagate_positions=True,
+        maybe_placeholders=False,
+        regex=True,
+        g_regex_flags=0,
     )
     # Provide a minimal grammar shim for tests that introspect parser.rules
     try:

@@ -1,20 +1,28 @@
 """
 Neural CLI module.
 This module provides the command-line interface for Neural.
+Uses lazy imports for optimal startup performance.
 """
 
-from .cli import cli, visualize
+from .lazy_imports import lazy_import
 
-# Import additional modules for testing
-try:
-    from ..parser.parser import create_parser, ModelTransformer
-    from ..shape_propagation.shape_propagator import ShapePropagator
-    _parser_available = True
-except ImportError:
-    _parser_available = False
+_cli_module = lazy_import('neural.cli.cli')
 
-__all__ = ['cli', 'visualize']
+def __getattr__(name):
+    """Lazy load CLI components on demand."""
+    if name == 'cli':
+        return _cli_module.cli
+    elif name == 'visualize':
+        return _cli_module.visualize
+    elif name == 'create_parser':
+        parser_module = lazy_import('neural.parser.parser')
+        return parser_module.create_parser
+    elif name == 'ModelTransformer':
+        parser_module = lazy_import('neural.parser.parser')
+        return parser_module.ModelTransformer
+    elif name == 'ShapePropagator':
+        shape_module = lazy_import('neural.shape_propagation.shape_propagator')
+        return shape_module.ShapePropagator
+    raise AttributeError(f"module 'neural.cli' has no attribute '{name}'")
 
-# Export parser functions if available
-if _parser_available:
-    __all__.extend(['create_parser', 'ModelTransformer', 'ShapePropagator'])
+__all__ = ['cli', 'visualize', 'create_parser', 'ModelTransformer', 'ShapePropagator']
