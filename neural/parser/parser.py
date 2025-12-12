@@ -1011,6 +1011,7 @@ class ModelTransformer(lark.Transformer):
                 # Ensure 'sublayers' is present, but do not clobber existing values
                 if 'sublayers' not in layer_info:
                     layer_info['sublayers'] = sublayers or []
+
                 elif sublayers:
                     # If parsed sublayers exist for this layer instance, prefer them
                     layer_info['sublayers'] = sublayers
@@ -1036,7 +1037,6 @@ class ModelTransformer(lark.Transformer):
         else:
             self.raise_validation_error(f"Unsupported layer type: {layer_type}", layer_type_node)
             return {'type': layer_type, 'params': raw_params, 'sublayers': sublayers}
-
 
     def branch_spec(self, items):
         # NAME ':' '{' (layer_or_repeated)* '}'
