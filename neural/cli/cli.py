@@ -1638,5 +1638,61 @@ def no_code(ctx, port: int):
     except KeyboardInterrupt:
         print_info("Server stopped by user")
 
+
+@cli.command(name='experiments')
+@click.option('--port', default=8052, help='Web interface port', type=int)
+@click.option('--base-dir', default='neural_experiments', help='Experiments directory', type=click.Path())
+@click.option('--host', default='127.0.0.1', help='Server host')
+@click.pass_context
+def experiments(ctx, port: int, base_dir: str, host: str):
+    """Launch the experiment comparison UI."""
+    print_command_header("experiments")
+    print_info("Loading experiment tracking system...")
+    
+    try:
+        from neural.tracking import ExperimentManager, ExperimentComparisonUI
+        
+        with Spinner("Initializing experiment manager") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            manager = ExperimentManager(base_dir=base_dir)
+            experiments_list = manager.list_experiments()
+        
+        print_success(f"Found {len(experiments_list)} experiments in {base_dir}")
+        
+        if len(experiments_list) > 0:
+            print(f"\n{Colors.CYAN}Recent Experiments:{Colors.ENDC}")
+            for exp in experiments_list[:5]:
+                status_color = Colors.GREEN if exp['status'] == 'completed' else Colors.YELLOW
+                print(f"  {status_color}●{Colors.ENDC} {exp['experiment_name']} ({exp['experiment_id']}) - {exp['status']}")
+            if len(experiments_list) > 5:
+                print(f"  {Colors.CYAN}... and {len(experiments_list) - 5} more{Colors.ENDC}")
+        else:
+            print_warning("No experiments found. Run some experiments first!")
+        
+        print(f"\n{Colors.CYAN}Server Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}URL:{Colors.ENDC}         http://{host}:{port}")
+        print(f"  {Colors.BOLD}Interface:{Colors.ENDC}   Experiment Comparison UI")
+        print(f"  {Colors.BOLD}Base Dir:{Colors.ENDC}    {base_dir}")
+        print(f"\n{Colors.YELLOW}Press Ctrl+C to stop the server{Colors.ENDC}\n")
+        
+        with Spinner("Starting web server") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            ui = ExperimentComparisonUI(manager=manager, port=port)
+        
+        ui.run(debug=False, host=host)
+        
+    except ImportError as e:
+        print_error(f"Failed to load experiment tracking: {str(e)}")
+        print_info("Install required packages: pip install dash dash-bootstrap-components plotly")
+        sys.exit(1)
+    except Exception as e:
+        print_error(f"Failed to launch experiment comparison UI: {str(e)}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print_info("Server stopped by user")
+
+
 if __name__ == '__main__':
     cli()

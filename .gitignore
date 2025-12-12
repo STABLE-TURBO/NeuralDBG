@@ -67,6 +67,10 @@ VISION.md
 
 # Experiment tracking directories
 neural_experiments/
+mlruns/
+wandb/
+runs/
+*.mlflow.db
 
 # HPO artifacts
 hpo_report.html

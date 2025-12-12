@@ -95,28 +95,30 @@ class BaseIntegration:
 class MLflowIntegration(BaseIntegration):
     """Integration with MLflow."""
 
-    def __init__(self, experiment_name: str = None, tracking_uri: str = None):
+    def __init__(self, experiment_name: str = None, tracking_uri: str = None, 
+                 run_name: str = None, tags: Dict[str, str] = None):
         """
         Initialize the MLflow integration.
 
         Args:
             experiment_name: Name of the experiment
             tracking_uri: MLflow tracking URI (optional)
+            run_name: Name for the run (optional)
+            tags: Tags for the run (optional)
         """
         super().__init__(experiment_name)
         self.tracking_uri = tracking_uri
         self.run_id = None
+        self.run_name = run_name
 
         try:
             import mlflow
             if tracking_uri:
                 mlflow.set_tracking_uri(tracking_uri)
 
-            # Set experiment
             mlflow.set_experiment(experiment_name)
 
-            # Start a run
-            self.run = mlflow.start_run()
+            self.run = mlflow.start_run(run_name=run_name, tags=tags)
             self.run_id = self.run.info.run_id
 
             logger.info(f"Started MLflow run: {self.run_id}")
