@@ -6,7 +6,46 @@
 
 ## Overview
 
-This directory contains comprehensive examples demonstrating various use cases and model architectures in Neural DSL. Each example includes detailed documentation, tutorial notebooks, and is validated by CI to ensure correctness.
+This directory contains comprehensive examples demonstrating various use cases and model architectures in Neural DSL. Each example includes detailed documentation, tutorial notebooks, and is validated by CI to ensure correctness. These examples serve as both documentation and starting points for your own models.
+
+## Featured Examples
+
+### 🌟 Annotated Learning Examples
+
+Perfect for learning - these examples include extensive comments explaining every line:
+
+#### Beginner Level
+- **[MNIST with Comments](mnist_commented.neural)**: Fully annotated CNN for digit classification
+  - Detailed explanation of each layer
+  - Shape transformation walkthrough
+  - Training configuration guide
+  - Performance expectations and tips
+
+#### Intermediate Level
+- **[Sentiment Analysis with Comments](sentiment_analysis_commented.neural)**: Complete LSTM tutorial
+  - Text preprocessing guide
+  - LSTM and Bidirectional processing explained
+  - HPO suggestions included
+  - Common pitfalls and solutions
+
+#### Advanced Level
+- **[ResNet with Macros](resnet_block_commented.neural)**: Advanced architecture patterns
+  - Macro definitions for reusable blocks
+  - Residual connections explained
+  - Batch normalization best practices
+  - Multi-stage architecture design
+  - HPO integration for macros
+  - Training tips for deep networks
+
+### 📚 Quick Reference Examples
+
+Standard examples demonstrating specific features:
+
+- **[mnist.neural](mnist.neural)**: Basic MNIST classifier
+- **[transformer.neural](transformer.neural)**: Transformer architecture
+- **[sentiment.neural](sentiment.neural)**: Sentiment analysis
+- **[mnist_hpo.neural](mnist_hpo.neural)**: HPO demonstration
+- **[gpu.neural](gpu.neural)**: GPU device specification
 
 ## 🎯 Quick Start
 
@@ -50,6 +89,9 @@ examples/
 ├── mnist.neural                   # Legacy examples (maintained)
 ├── sentiment.neural
 ├── transformer.neural
+├── mnist_commented.neural         # NEW: Annotated learning examples
+├── sentiment_analysis_commented.neural
+├── resnet_block_commented.neural
 └── README.md                      # This file
 ```
 

@@ -1,0 +1,166 @@
+# ============================================================================
+# MNIST Handwritten Digit Classifier - Detailed Example
+# ============================================================================
+# This example demonstrates a complete convolutional neural network for
+# classifying handwritten digits from the MNIST dataset.
+#
+# Model Architecture:
+#   - Input: 28x28 grayscale images
+#   - 2 Convolutional blocks with max pooling
+#   - Fully connected layers with dropout
+#   - 10-class softmax output (digits 0-9)
+#
+# Key Concepts Demonstrated:
+#   - Convolutional layers for feature extraction
+#   - Pooling for spatial dimension reduction
+#   - Dropout for regularization
+#   - Proper shape transitions (Conv → Flatten → Dense)
+# ============================================================================
+
+network MNISTClassifier {
+  # --------------------------------------------------------------------
+  # INPUT SPECIFICATION
+  # --------------------------------------------------------------------
+  # Define input shape: (height, width, channels)
+  # MNIST images are 28x28 pixels with 1 channel (grayscale)
+  # Format: (28, 28, 1) for TensorFlow (channels-last)
+  # Neural DSL will auto-convert for PyTorch (channels-first)
+  input: (28, 28, 1)
+  
+  # --------------------------------------------------------------------
+  # NETWORK LAYERS
+  # --------------------------------------------------------------------
+  layers:
+    # First Convolutional Block
+    # --------------------------
+    # Conv2D extracts low-level features (edges, corners)
+    # - filters=32: Learn 32 different feature detectors
+    # - kernel_size=(3,3): Each filter is a 3x3 sliding window
+    # - activation="relu": ReLU activation for non-linearity
+    # Output shape: (26, 26, 32) - reduces by kernel_size-1 per side
+    Conv2D(filters=32, kernel_size=(3, 3), activation="relu")
+    
+    # Max pooling reduces spatial dimensions by half
+    # - pool_size=(2,2): Takes maximum value in each 2x2 region
+    # Benefits: Reduces computation, provides translation invariance
+    # Output shape: (13, 13, 32)
+    MaxPooling2D(pool_size=(2, 2))
+    
+    # Second Convolutional Block
+    # ---------------------------
+    # Conv2D extracts higher-level features from previous features
+    # - filters=64: More filters capture more complex patterns
+    # - Same kernel size and activation as before
+    # Output shape: (11, 11, 64)
+    Conv2D(filters=64, kernel_size=(3, 3), activation="relu")
+    
+    # Second pooling layer
+    # Output shape: (5, 5, 64)
+    MaxPooling2D(pool_size=(2, 2))
+    
+    # Transition to Fully Connected Layers
+    # -------------------------------------
+    # Flatten converts 3D feature maps to 1D vector
+    # Input: (5, 5, 64) → Output: (1600,)
+    # This prepares data for dense layers
+    Flatten()
+    
+    # Fully Connected Layers
+    # -----------------------
+    # First dense layer for high-level reasoning
+    # - units=128: 128 neurons learn combinations of features
+    # - activation="relu": Non-linear activation
+    Dense(units=128, activation="relu")
+    
+    # Dropout for regularization
+    # - rate=0.5: Randomly drop 50% of neurons during training
+    # Prevents overfitting by forcing network to learn redundant representations
+    # Only active during training, disabled during inference
+    Dropout(rate=0.5)
+    
+    # Output Layer
+    # ------------
+    # Final classification layer
+    # - units=10: One neuron per class (digits 0-9)
+    # - activation="softmax": Converts to probability distribution
+    # Output: Vector of 10 probabilities summing to 1.0
+    Output(units=10, activation="softmax")
+  
+  # --------------------------------------------------------------------
+  # TRAINING CONFIGURATION
+  # --------------------------------------------------------------------
+  
+  # Loss Function
+  # -------------
+  # sparse_categorical_crossentropy: For integer class labels
+  # Use 'categorical_crossentropy' if labels are one-hot encoded
+  loss: "sparse_categorical_crossentropy"
+  
+  # Optimizer
+  # ---------
+  # Adam: Adaptive learning rate optimizer (good default choice)
+  # - learning_rate=0.001: Step size for weight updates
+  # Alternative optimizers: SGD, RMSprop, Adagrad
+  optimizer: Adam(learning_rate=0.001)
+  
+  # Evaluation Metrics
+  # ------------------
+  # Track accuracy during training
+  # Can add more metrics: ["accuracy", "precision", "recall"]
+  metrics: ["accuracy"]
+  
+  # Training Parameters
+  # -------------------
+  train {
+    # epochs: Number of complete passes through training data
+    # 15 epochs is usually sufficient for MNIST
+    epochs: 15
+    
+    # batch_size: Number of samples processed before weight update
+    # 64 is a good balance between speed and stability
+    # Smaller batches: More updates, noisier gradients
+    # Larger batches: Fewer updates, smoother gradients
+    batch_size: 64
+    
+    # validation_split: Fraction of training data used for validation
+    # 0.2 means 20% of data is held out for validation
+    # Helps monitor overfitting during training
+    validation_split: 0.2
+  }
+}
+
+# ============================================================================
+# USAGE EXAMPLES
+# ============================================================================
+#
+# Compile to TensorFlow:
+#   neural compile examples/mnist_commented.neural --backend tensorflow
+#
+# Compile to PyTorch:
+#   neural compile examples/mnist_commented.neural --backend pytorch
+#
+# Visualize architecture:
+#   neural visualize examples/mnist_commented.neural
+#
+# Debug with NeuralDbg:
+#   neural debug examples/mnist_commented.neural
+#
+# Run with execution:
+#   neural run examples/mnist_commented.neural --backend tensorflow
+#
+# ============================================================================
+# EXPECTED PERFORMANCE
+# ============================================================================
+#
+# MNIST is a simple dataset, expect:
+#   - Training accuracy: ~99%
+#   - Validation accuracy: ~98-99%
+#   - Training time: 2-3 minutes on CPU, <1 minute on GPU
+#   - Convergence: Loss should decrease steadily
+#
+# If performance is poor, check:
+#   - Data normalization (pixels should be scaled 0-1)
+#   - Learning rate (try 0.0001 if loss explodes)
+#   - Batch size (try 32 if memory is an issue)
+#
+# ============================================================================

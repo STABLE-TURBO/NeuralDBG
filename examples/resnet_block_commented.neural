@@ -1,0 +1,390 @@
+# ============================================================================
+# ResNet-Style Architecture with Macros - Advanced Example
+# ============================================================================
+# This example demonstrates advanced Neural DSL features:
+#   - Macro definitions for reusable components
+#   - Residual connections (skip connections)
+#   - Batch normalization
+#   - Complex architectural patterns
+#   - HPO integration for macro parameters
+#
+# ResNet (Residual Networks) uses skip connections to enable training of
+# very deep networks by allowing gradients to flow directly through layers.
+#
+# Key Concepts:
+#   - Macros: Define reusable building blocks
+#   - Residual blocks: Add input to output (skip connection)
+#   - Batch normalization: Normalize activations for faster training
+#   - Identity mappings: Preserve information flow
+# ============================================================================
+
+# --------------------------------------------------------------------
+# MACRO DEFINITIONS
+# --------------------------------------------------------------------
+# Macros allow you to define reusable components with parameterization
+
+# Basic Convolutional Block
+# --------------------------
+# Standard pattern: Conv → BatchNorm → Activation
+# Used as building block in ResNet
+define ConvBlock(filters, kernel_size) {
+  # Convolutional layer
+  Conv2D(
+    filters=$filters,
+    kernel_size=$kernel_size,
+    padding="same",       # Preserve spatial dimensions
+    use_bias=False        # Bias not needed with BatchNorm
+  )
+  
+  # Batch Normalization
+  # - Normalizes activations across batch
+  # - Reduces internal covariate shift
+  # - Allows higher learning rates
+  # - Acts as regularizer
+  BatchNormalization()
+  
+  # Activation function
+  # ReLU adds non-linearity
+  Activation("relu")
+}
+
+# Residual Block (ResNet Building Block)
+# ---------------------------------------
+# Implements the fundamental ResNet pattern:
+# Output = F(x) + x (where F(x) is learned residual)
+#
+# Benefits:
+# - Enables training of very deep networks (100+ layers)
+# - Addresses vanishing gradient problem
+# - Allows gradients to flow through skip connection
+# - Network can learn identity mapping if needed
+define ResidualBlock(filters) {
+  # Main path (F(x))
+  # ----------------
+  ConvBlock(filters=$filters, kernel_size=(3, 3))
+  
+  # Second convolution (no activation yet)
+  Conv2D(
+    filters=$filters,
+    kernel_size=(3, 3),
+    padding="same",
+    use_bias=False
+  )
+  BatchNormalization()
+  
+  # Skip connection will be added here
+  # In actual implementation, input is added to this output
+  # Output = BatchNorm(Conv(x)) + x
+  # Then: Activation(Output)
+  
+  # Final activation after adding skip connection
+  Activation("relu")
+}
+
+# Bottleneck Block (Efficient ResNet)
+# ------------------------------------
+# Used in deeper ResNet architectures (ResNet-50, ResNet-101)
+# Reduces computation by using 1x1 convolutions
+#
+# Architecture:
+# 1x1 Conv (reduce) → 3x3 Conv → 1x1 Conv (expand) + skip
+define BottleneckBlock(filters) {
+  # Dimension reduction (1x1 conv)
+  # Reduces channels to filters/4
+  ConvBlock(filters=$filters/4, kernel_size=(1, 1))
+  
+  # Standard convolution on reduced channels
+  ConvBlock(filters=$filters/4, kernel_size=(3, 3))
+  
+  # Dimension expansion (1x1 conv)
+  # Expands back to original filter count
+  Conv2D(
+    filters=$filters,
+    kernel_size=(1, 1),
+    padding="same",
+    use_bias=False
+  )
+  BatchNormalization()
+  
+  # Skip connection + activation
+  Activation("relu")
+}
+
+# Transition Block with Downsampling
+# -----------------------------------
+# Reduces spatial dimensions and changes channel count
+# Used between ResNet stages
+define TransitionBlock(filters) {
+  # Convolution with stride 2 for downsampling
+  Conv2D(
+    filters=$filters,
+    kernel_size=(3, 3),
+    strides=(2, 2),      # Reduces spatial dims by 2
+    padding="same",
+    use_bias=False
+  )
+  BatchNormalization()
+  Activation("relu")
+}
+
+# --------------------------------------------------------------------
+# MAIN NETWORK DEFINITION
+# --------------------------------------------------------------------
+
+network ResNetClassifier {
+  # Input specification
+  # -------------------
+  # Standard ImageNet-style input: 224x224 RGB images
+  # Adjust for your dataset:
+  # - CIFAR-10: (32, 32, 3)
+  # - MNIST: (28, 28, 1)
+  input: (224, 224, 3)
+  
+  layers:
+    # Initial Convolution
+    # -------------------
+    # Larger kernel to capture initial features
+    Conv2D(
+      filters=64,
+      kernel_size=(7, 7),
+      strides=(2, 2),      # Initial downsampling
+      padding="same"
+    )
+    BatchNormalization()
+    Activation("relu")
+    
+    # Max pooling for additional downsampling
+    MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding="same")
+    
+    # Stage 1: 64 filters
+    # -------------------
+    # First ResNet stage with base filter count
+    ResidualBlock(filters=64)
+    ResidualBlock(filters=64)
+    ResidualBlock(filters=64)
+    
+    # Transition to Stage 2
+    TransitionBlock(filters=128)
+    
+    # Stage 2: 128 filters
+    # --------------------
+    # Second stage with more filters
+    ResidualBlock(filters=128)
+    ResidualBlock(filters=128)
+    ResidualBlock(filters=128)
+    ResidualBlock(filters=128)
+    
+    # Transition to Stage 3
+    TransitionBlock(filters=256)
+    
+    # Stage 3: 256 filters
+    # --------------------
+    # Third stage with even more filters
+    # Can use Bottleneck blocks here for efficiency
+    BottleneckBlock(filters=256)
+    BottleneckBlock(filters=256)
+    BottleneckBlock(filters=256)
+    BottleneckBlock(filters=256)
+    BottleneckBlock(filters=256)
+    BottleneckBlock(filters=256)
+    
+    # Transition to Stage 4
+    TransitionBlock(filters=512)
+    
+    # Stage 4: 512 filters
+    # --------------------
+    # Final feature extraction stage
+    ResidualBlock(filters=512)
+    ResidualBlock(filters=512)
+    ResidualBlock(filters=512)
+    
+    # Classification Head
+    # -------------------
+    # Global pooling instead of Flatten
+    # Reduces parameters and handles variable input sizes
+    GlobalAveragePooling2D()
+    
+    # Optional: Additional dense layer
+    # Uncomment for more capacity
+    # Dense(units=HPO(choice(512, 1024, 2048)), activation="relu")
+    # Dropout(rate=HPO(range(0.3, 0.6, step=0.1)))
+    
+    # Output layer
+    # For 1000 classes (ImageNet), adjust for your dataset
+    Output(units=1000, activation="softmax")
+  
+  # --------------------------------------------------------------------
+  # TRAINING CONFIGURATION
+  # --------------------------------------------------------------------
+  
+  # Loss Function
+  loss: "sparse_categorical_crossentropy"
+  
+  # Optimizer with Learning Rate Schedule
+  # -------------------------------------
+  # ResNets typically use:
+  # - Lower initial learning rate
+  # - Learning rate decay
+  # - Momentum for stability
+  optimizer: SGD(
+    learning_rate=0.1,     # High initial LR with schedule
+    momentum=0.9,          # Heavy ball momentum
+    nesterov=True          # Nesterov accelerated gradient
+  )
+  
+  # Learning rate schedule
+  # Decay LR every 30 epochs by factor of 0.1
+  lr_schedule: StepDecay(
+    initial_lr=0.1,
+    decay_steps=30,
+    decay_rate=0.1
+  )
+  
+  # Metrics
+  metrics: ["accuracy", "top_k_accuracy"]
+  
+  # Training Parameters
+  # -------------------
+  train {
+    # ResNets typically train for many epochs
+    epochs: 90
+    
+    # Large batch size for stability
+    # Adjust based on available GPU memory
+    batch_size: 128
+    
+    # Data augmentation (define separately)
+    # Common augmentations:
+    # - Random crops
+    # - Horizontal flips
+    # - Color jittering
+    # - Mixup/Cutmix
+    
+    # Validation split
+    validation_split: 0.1
+    
+    # Gradient clipping for stability
+    gradient_clip: 5.0
+    
+    # Early stopping (optional)
+    # early_stopping: 10
+  }
+}
+
+# ============================================================================
+# USAGE AND CUSTOMIZATION GUIDE
+# ============================================================================
+#
+# Compiling:
+# ----------
+# TensorFlow:
+#   neural compile resnet_block_commented.neural --backend tensorflow
+#
+# PyTorch:
+#   neural compile resnet_block_commented.neural --backend pytorch
+#
+# Customization for Different Datasets:
+# --------------------------------------
+#
+# 1. CIFAR-10 (32x32 images, 10 classes):
+#    - Change input: (32, 32, 3)
+#    - Remove initial 7x7 conv and pooling
+#    - Start with 3x3 conv
+#    - Change output units: 10
+#
+# 2. MNIST (28x28 grayscale, 10 classes):
+#    - Change input: (28, 28, 1)
+#    - Use smaller initial conv
+#    - Reduce number of stages
+#    - Change output units: 10
+#
+# 3. Custom Dataset:
+#    - Adjust input shape
+#    - Modify number of residual blocks per stage
+#    - Change output units to match classes
+#
+# HPO Integration:
+# ----------------
+# Add HPO to optimize architecture:
+#
+# ResidualBlock(filters=HPO(choice(64, 128, 256)))
+# Dropout(rate=HPO(range(0.2, 0.6, step=0.1)))
+# optimizer: SGD(learning_rate=HPO(log_range(0.01, 1.0)))
+#
+# Macro Parameter Optimization:
+# -----------------------------
+# You can optimize macro parameters:
+#
+# define OptimizedBlock(filters) {
+#   ConvBlock(
+#     filters=HPO(choice($filters/2, $filters, $filters*2)),
+#     kernel_size=(3, 3)
+#   )
+# }
+#
+# ============================================================================
+# ARCHITECTURE VARIANTS
+# ============================================================================
+#
+# ResNet-18:  4 stages with [2, 2, 2, 2] blocks
+# ResNet-34:  4 stages with [3, 4, 6, 3] blocks
+# ResNet-50:  4 stages with [3, 4, 6, 3] bottleneck blocks
+# ResNet-101: 4 stages with [3, 4, 23, 3] bottleneck blocks
+# ResNet-152: 4 stages with [3, 8, 36, 3] bottleneck blocks
+#
+# This example is closest to ResNet-34 architecture.
+#
+# ============================================================================
+# TRAINING TIPS
+# ============================================================================
+#
+# 1. Batch Normalization:
+#    - Critical for ResNets
+#    - Allows higher learning rates
+#    - Update batch_norm during fine-tuning
+#
+# 2. Learning Rate:
+#    - Start high (0.1 with SGD)
+#    - Use learning rate schedule
+#    - Warm-up for first few epochs (optional)
+#
+# 3. Data Augmentation:
+#    - Essential for generalization
+#    - RandomCrop, RandomFlip, ColorJitter
+#    - Advanced: Mixup, CutMix, AutoAugment
+#
+# 4. Regularization:
+#    - Batch normalization acts as regularizer
+#    - Optional: Add dropout in classification head
+#    - Weight decay: 0.0001 (set in optimizer)
+#
+# 5. Hardware:
+#    - ResNets are GPU-intensive
+#    - Multi-GPU training recommended for large variants
+#    - Use mixed-precision training for speed
+#
+# 6. Convergence:
+#    - Training takes 2-3 hours on ImageNet (8 GPUs)
+#    - Expect validation accuracy: 75-80% (ResNet-50 on ImageNet)
+#    - Monitor gradient flow with NeuralDbg
+#
+# ============================================================================
+# DEBUGGING WITH NEURALDBG
+# ============================================================================
+#
+# Start debugging:
+#   neural debug resnet_block_commented.neural
+#
+# What to monitor:
+# - Gradient flow: Should be smooth across all layers
+# - Dead neurons: Minimal with proper initialization
+# - Memory usage: Can be high with large models
+# - Batch norm statistics: Should stabilize during training
+#
+# Common issues:
+# - Vanishing gradients: Check skip connections working
+# - Exploding gradients: Reduce learning rate, add gradient clipping
+# - Slow convergence: Check batch norm is enabled
+# - High memory: Reduce batch size or use gradient checkpointing
+#
+# ============================================================================

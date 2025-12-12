@@ -32,6 +32,89 @@ docs/
 └── _build/               # Generated documentation (gitignored)
 ```
 
+## User Documentation
+
+### 1. Getting Started
+
+- [Installation Guide](installation.md) - Setup and dependencies
+- [Quick Start Tutorial](tutorials/quickstart_tutorial.ipynb) - Interactive first model (NEW!)
+- [Troubleshooting Guide](troubleshooting.md) - Fix common issues (NEW!)
+- [Migration Guide](migration.md) - Version upgrades and framework migration (NEW!)
+
+### 2. Neural DSL Reference
+
+- [DSL Syntax](DSL.md)
+- [Layer Reference](layers.md)
+- [Optimizer Reference](optimizers.md)
+- [Training Configuration](training.md)
+- [Hyperparameter Specification](hyperparameters.md)
+
+### 3. CLI Reference
+
+- [Command-Line Interface](cli-reference.md)
+- [Command Reference](commands.md)
+- [Configuration Options](configuration.md)
+- [Environment Variables](environment.md)
+
+### 4. API Reference
+
+- [Parser API](api/parser.md)
+- [Code Generation API](api/code-generation.md)
+- [Shape Propagation API](api/shape-propagation.md)
+- [Visualization API](api/visualization.md)
+- [Dashboard API](api/dashboard.md)
+- [HPO API](api/hpo.md)
+
+### 5. Tutorials
+
+Comprehensive learning resources for all skill levels:
+
+- **[Tutorial Hub](tutorials/README.md)** - Complete tutorial directory with learning paths
+- **Interactive Notebooks:**
+  - [Quickstart Tutorial](tutorials/quickstart_tutorial.ipynb) - Your first model in 15 minutes (NEW!)
+  - [HPO Tutorial](tutorials/hpo_tutorial.ipynb) - Hyperparameter optimization (NEW!)
+- **Video Tutorials:**
+  - [Video Scripts & Storyboards](tutorials/video_scripts.md) - Complete production guide (NEW!)
+  - Getting Started (5 min) - Coming soon
+  - Building Your First Model (10 min) - Coming soon
+  - Hyperparameter Optimization (8 min) - Coming soon
+  - Debugging with NeuralDbg (7 min) - Coming soon
+- **Annotated Examples:**
+  - [MNIST with Comments](../examples/mnist_commented.neural) - Line-by-line CNN guide (NEW!)
+  - [Sentiment Analysis with Comments](../examples/sentiment_analysis_commented.neural) - LSTM tutorial (NEW!)
+
+### 6. Examples
+
+- [Basic Examples](examples/basic/)
+- [Computer Vision Examples](examples/computer-vision/)
+- [Natural Language Processing Examples](examples/nlp/)
+- [Reinforcement Learning Examples](examples/reinforcement-learning/)
+- [Generative Models Examples](examples/generative/)
+
+### 7. Guides
+
+- [Best Practices](guides/best-practices.md)
+- [Performance Optimization](guides/performance.md)
+- [Debugging Guide](guides/debugging.md)
+- [Deployment Guide](guides/deployment.md)
+- [Contributing Guide](guides/contributing.md)
+
+### 8. Blog
+
+- [Release Notes](blog/releases/)
+- [Feature Spotlights](blog/features/)
+- [Case Studies](blog/case-studies/)
+- [Tutorials](blog/tutorials/)
+
+## Documentation Formats
+
+The documentation is available in multiple formats:
+
+- **Markdown**: The primary format for all documentation
+- **HTML**: Generated from Markdown for web viewing
+- **PDF**: Generated from Markdown for offline reading
+- **Interactive Notebooks**: Jupyter notebooks for tutorials and examples
+
 ## Quick Start
 
 ### Install Dependencies
@@ -55,26 +138,6 @@ open _build/html/index.html  # Mac
 xdg-open _build/html/index.html  # Linux
 start _build/html/index.html  # Windows
 ```
-
-## Documentation Components
-
-### User Documentation
-- **installation.md** - Installation instructions
-- **quickstart.ipynb** - Quick start guide
-- **dsl.md** - DSL syntax reference
-- **cli.md** - CLI command reference
-
-### API Reference (`api/`)
-Auto-generated from docstrings using Sphinx autodoc:
-- Complete API reference for all modules
-- Class and function documentation
-- Type hints and examples
-- Cross-references between modules
-
-### Development Guides
-- **BUILD_DOCS.md** - How to build documentation
-- **API_DOCUMENTATION.md** - API documentation overview
-- **DOCSTRING_GUIDE.md** - Docstring writing guide
 
 ## Writing Documentation
 
@@ -152,21 +215,22 @@ pip install pydocstyle
 pydocstyle neural/
 ```
 
-## Continuous Integration
+## Contributing to Documentation
 
-Documentation is automatically built and published:
-- On every push to main branch
-- Published to Read the Docs (if configured)
-- Checked for warnings in CI
+We welcome contributions to the documentation! Here's how you can help:
 
-## Resources
+1. **Fix Typos and Errors**: If you find a typo or error, please submit a pull request with the fix.
+2. **Improve Existing Documentation**: If you think a section could be clearer or more detailed, feel free to improve it.
+3. **Add New Documentation**: If you'd like to add new tutorials, examples, or guides, please submit a pull request.
+4. **Translate Documentation**: Help make Neural accessible to more people by translating documentation.
 
-- [Sphinx Documentation](https://www.sphinx-doc.org/)
-- [NumPy Docstring Guide](https://numpydoc.readthedocs.io/en/latest/format.html)
-- [reStructuredText Primer](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
-- [Sphinx autodoc](https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html)
+Please follow these guidelines when contributing:
 
-## Contributing
+- Use clear, concise language
+- Include code examples where appropriate
+- Add diagrams and images to illustrate complex concepts
+- Follow the existing documentation structure
+- Test code examples to ensure they work
 
 When contributing code:
 
@@ -178,6 +242,23 @@ When contributing code:
 6. **Build docs locally** before submitting PR
 
 See `DOCSTRING_GUIDE.md` for detailed guidelines.
+
+## Documentation Tools
+
+The documentation is built using the following tools:
+
+- **MkDocs**: Static site generator for documentation
+- **Material for MkDocs**: Theme for MkDocs
+- **Mermaid**: Diagramming and charting tool
+- **Jupyter Book**: For interactive notebooks
+- **Sphinx**: For API documentation
+
+## Continuous Integration
+
+Documentation is automatically built and published:
+- On every push to main branch
+- Published to Read the Docs (if configured)
+- Checked for warnings in CI
 
 ## Troubleshooting
 
@@ -203,6 +284,13 @@ Check the warning messages and fix:
 ```bash
 pip install sphinx-rtd-theme
 ```
+
+## Resources
+
+- [Sphinx Documentation](https://www.sphinx-doc.org/)
+- [NumPy Docstring Guide](https://numpydoc.readthedocs.io/en/latest/format.html)
+- [reStructuredText Primer](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
+- [Sphinx autodoc](https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html)
 
 ## Support
 
