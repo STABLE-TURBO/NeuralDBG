@@ -3160,7 +3160,7 @@ class ModelTransformer(lark.Transformer):
         return {"input_dim": self._extract_value(items[0])}
 
     def named_output_dim(self, items):
-        return {"output_dim": self._extract_value(items[0])}
+        return {"output_dim": self._extract_value(items[1])}
 
     def groups_param(self, items):
         return {'groups': self._extract_value(items[0])}
