@@ -2,6 +2,7 @@
 """
 Main CLI implementation for Neural using Click.
 """
+from __future__ import annotations
 
 import os
 import sys
@@ -52,7 +53,7 @@ from .lazy_imports import (
     tensorflow, torch, jax, optuna
 )
 
-def configure_logging(verbose=False):
+def configure_logging(verbose: bool = False) -> None:
     """Configure logging levels based on verbosity."""
     # Set environment variables to suppress debug messages from dependencies
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow messages

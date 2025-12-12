@@ -1,6 +1,7 @@
 """
 Advanced search strategies for hyperparameter optimization.
 """
+from __future__ import annotations
 
 import logging
 import numpy as np

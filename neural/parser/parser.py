@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import lark
 # Optional debugging dependency
 try:
@@ -655,12 +657,12 @@ class NeuralParser:
     for parsing different types of Neural DSL constructs.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the Neural parser with the main network parser."""
-        self.parser = network_parser
-        self.transformer = ModelTransformer()
+        self.parser: lark.Lark = network_parser
+        self.transformer: ModelTransformer = ModelTransformer()
 
-    def parse(self, code: str):
+    def parse(self, code: str) -> Dict[str, Any]:
         """
         Parse a Neural DSL network definition.
 
@@ -1339,7 +1341,7 @@ class ModelTransformer(lark.Transformer):
                 else:
                     valid_activations = {
                         'relu', 'sigmoid', 'tanh', 'softmax', 'softplus',
-                        'softsign', 'selu', 'elu', 'exponential', 'linear'
+                        'softsign', 'selselu', 'elu', 'exponential', 'linear'
                     }
                     if activation.lower() not in valid_activations:
                         self.raise_validation_error(

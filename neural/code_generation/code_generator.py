@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import logging
 from neural.shape_propagation.shape_propagator import ShapePropagator
 from neural.parser.parser import ModelTransformer, create_parser
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Union, Optional, List, Tuple
 import numpy as np
 import warnings
-import logging
 import re
 
 # Set up logging
@@ -552,7 +553,7 @@ def export_onnx(model_data: Dict[str, Any], filename: str = "model.onnx", optimi
     onnx.save(model, filename)
     return f"ONNX model saved to {filename}"
 
-def generate_tensorflow_layer(layer_type, params):
+def generate_tensorflow_layer(layer_type: str, params: Dict[str, Any]) -> str:
     """Generate TensorFlow layer code"""
     if layer_type == "TransformerEncoder":
         num_heads = params.get("num_heads", 8)
