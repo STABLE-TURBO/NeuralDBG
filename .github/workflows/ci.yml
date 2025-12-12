@@ -181,7 +181,24 @@ jobs:
       - name: Install project and tools
         run: |
           python -m pip install -e .
-          python -m pip install pip-audit
+          python -m pip install ruff mypy pip-audit pytest bandit[toml] safety
+
+      - name: Ruff (lint)
+        run: python -m ruff check .
+
+      - name: Mypy (type check)
+        run: python -m mypy .
+
+      - name: Pytest (unit tests)
+        run: python -m pytest -q
+
+      - name: Bandit (security)
+        run: python -m bandit -r neural/ -ll
+        continue-on-error: true
+
+      - name: Safety (dependency vulnerabilities)
+        run: python -m safety check
+        continue-on-error: true
 
       - name: pip-audit (supply chain)
         run: python -m pip_audit -l --progress-spinner off

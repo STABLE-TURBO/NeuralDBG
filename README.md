@@ -708,6 +708,19 @@ Join our growing community of developers and researchers:
 </div>
 
 
+## Security
+
+Neural DSL takes security seriously. We use multiple tools to ensure code and dependency security:
+
+- **Bandit**: Python security linter
+- **Safety**: Dependency vulnerability scanner
+- **pip-audit**: Package vulnerability auditor
+- **git-secrets**: Secret scanning and prevention
+
+For security setup instructions, see [docs/SECURITY_SETUP.md](docs/SECURITY_SETUP.md).
+
+To report a security vulnerability, please email Lemniscate_zero@proton.me with subject `[SECURITY]`. See [SECURITY.md](SECURITY.md) for our full security policy.
+
 ## Contributing
 
 We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for detailed information on how to get started.

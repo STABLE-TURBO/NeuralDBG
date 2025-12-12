@@ -1,0 +1,108 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+jobs:
+  bandit:
+    name: Bandit Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install bandit
+        run: python -m pip install bandit[toml]
+
+      - name: Run bandit
+        run: |
+          python -m bandit -r neural/ -f json -o bandit-report.json || true
+          python -m bandit -r neural/ -f screen
+
+      - name: Upload bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+  safety:
+    name: Safety Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install safety
+        run: python -m pip install safety
+
+      - name: Run safety check
+        run: |
+          python -m pip install -e .
+          python -m safety check --json --output safety-report.json || true
+          python -m safety check
+
+      - name: Upload safety report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safety-report
+          path: safety-report.json
+
+  git-secrets:
+    name: Git Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install git-secrets
+        run: |
+          git clone https://github.com/awslabs/git-secrets.git
+          cd git-secrets
+          sudo make install
+
+      - name: Configure git-secrets
+        run: |
+          git secrets --register-aws
+          git secrets --add 'password\s*=\s*["\x27][^\x27"]*["\x27]'
+          git secrets --add 'api[_-]?key\s*=\s*["\x27][^\x27"]*["\x27]'
+          git secrets --add 'secret[_-]?key\s*=\s*["\x27][^\x27"]*["\x27]'
+          git secrets --add 'token\s*=\s*["\x27][^\x27"]*["\x27]'
+          git secrets --add '[a-zA-Z0-9_-]*[pP]assword[a-zA-Z0-9_-]*\s*=\s*["\x27][^\x27"]*["\x27]'
+          git secrets --add 'private[_-]?key'
+          git secrets --add 'BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY'
+
+      - name: Scan repository
+        run: |
+          git secrets --scan-history || echo "::warning::Potential secrets found in history"
+
+  trufflehog:
+    name: TruffleHog Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified

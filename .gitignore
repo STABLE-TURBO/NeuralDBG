@@ -182,3 +182,13 @@ Thumbs.db
 # Benchmark results
 benchmark_results/
 tests/benchmarks/benchmark_results/
+
+# Security scanning reports
+bandit-report.json
+safety-report.json
+pip-audit-report.json
+audit-*.json
+.secrets.baseline
+
+# git-secrets
+.git-secrets/

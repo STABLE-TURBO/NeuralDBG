@@ -51,3 +51,10 @@ exclude = '''
 )/
 '''
 
+[tool.bandit]
+exclude_dirs = [".venv", ".venv312", "venv", "tests", "docs"]
+skips = ["B101", "B601"]  # B101: assert_used (common in tests), B601: paramiko_calls
+
+[tool.bandit.assert_used]
+skips = ["*/test_*.py", "*/tests/*.py"]
+
