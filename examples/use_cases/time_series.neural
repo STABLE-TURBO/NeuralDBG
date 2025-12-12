@@ -1,0 +1,33 @@
+network TimeSeriesPredictor {
+  input: (None, 100, 1)
+  
+  layers:
+    Conv1D(filters=64, kernel_size=3, activation="relu", padding="same")
+    BatchNormalization()
+    Conv1D(filters=64, kernel_size=3, activation="relu", padding="same")
+    BatchNormalization()
+    MaxPooling1D(pool_size=2)
+    Dropout(rate=0.2)
+    
+    LSTM(units=128, return_sequences=True, dropout=0.2, recurrent_dropout=0.2)
+    LSTM(units=64, return_sequences=True, dropout=0.2, recurrent_dropout=0.2)
+    LSTM(units=32, dropout=0.2, recurrent_dropout=0.2)
+    
+    Dense(units=64, activation="relu")
+    BatchNormalization()
+    Dropout(rate=0.3)
+    Dense(units=32, activation="relu")
+    BatchNormalization()
+    Dropout(rate=0.3)
+    Output(units=1, activation="linear")
+
+  loss: "mse"
+  optimizer: Adam(learning_rate=0.001)
+  metrics: ["mae", "mse"]
+
+  train {
+    epochs: 50
+    batch_size: 64
+    validation_split: 0.2
+  }
+}

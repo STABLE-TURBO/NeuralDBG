@@ -1,0 +1,42 @@
+network GANGenerator {
+  input: (None, 100)
+  
+  layers:
+    Dense(units=256, activation="relu")
+    BatchNormalization()
+    Dense(units=512, activation="relu")
+    BatchNormalization()
+    Dense(units=1024, activation="relu")
+    BatchNormalization()
+    Dense(units=784, activation="tanh")
+    Reshape(target_shape=(28, 28, 1))
+
+  loss: "binary_crossentropy"
+  optimizer: Adam(learning_rate=0.0002)
+
+  train {
+    epochs: 100
+    batch_size: 128
+  }
+}
+
+network GANDiscriminator {
+  input: (None, 28, 28, 1)
+  
+  layers:
+    Flatten()
+    Dense(units=512, activation="relu")
+    Dropout(rate=0.3)
+    Dense(units=256, activation="relu")
+    Dropout(rate=0.3)
+    Output(units=1, activation="sigmoid")
+
+  loss: "binary_crossentropy"
+  optimizer: Adam(learning_rate=0.0002)
+  metrics: ["accuracy"]
+
+  train {
+    epochs: 100
+    batch_size: 128
+  }
+}

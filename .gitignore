@@ -96,7 +96,6 @@ classes.*
 packages.*
 
 # Development artifacts (test scripts should be in tests/)
-# Development artifacts (test scripts should be in tests/)
 /test_*.py
 /sample_*.py
 /_temp_*.py
@@ -117,3 +116,26 @@ models.config
 # TorchServe
 config.properties
 logs/
+
+# Neural artifacts
+.neural_cache/
+*.neural.lock
+comparison_plots/
+
+# Examples generated artifacts
+examples/**/*_tensorflow.py
+examples/**/*_pytorch.py
+examples/**/*_onnx.py
+examples/**/*.onnx
+examples/**/architecture.svg
+examples/**/architecture.png
+examples/**/shape_propagation.html
+examples/**/tensor_flow.html
+examples/**/.ipynb_checkpoints/
+examples/**/image_classifier.neural
+examples/**/sentiment_analyzer.neural
+examples/**/transformer_nlp.neural
+examples/**/time_series_predictor.neural
+examples/**/gan_*.neural
+examples/**/lstm_baseline.neural
+examples/**/test_output.py

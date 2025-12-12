@@ -1,0 +1,171 @@
+name: Validate Examples
+
+on:
+  push:
+    paths:
+      - 'examples/**'
+      - 'neural/**'
+      - '.github/workflows/validate_examples.yml'
+  pull_request:
+    paths:
+      - 'examples/**'
+      - 'neural/**'
+  schedule:
+    - cron: "0 3 * * *"  # Daily at 03:00 UTC
+
+jobs:
+  validate-dsl-examples:
+    name: Validate DSL Examples (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.8", "3.11"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install Neural DSL
+        run: |
+          python -m pip install -e .
+
+      - name: Validate Use Case Examples
+        run: |
+          python examples/use_cases/validate_examples.py
+
+      - name: Test Compilation (TensorFlow)
+        run: |
+          python -m pip install tensorflow
+          neural compile examples/use_cases/image_classification.neural --backend tensorflow --dry-run
+          neural compile examples/use_cases/sentiment_analysis.neural --backend tensorflow --dry-run
+          neural compile examples/use_cases/time_series.neural --backend tensorflow --dry-run
+        continue-on-error: true
+
+      - name: Test Compilation (PyTorch)
+        run: |
+          python -m pip install torch
+          neural compile examples/use_cases/image_classification.neural --backend pytorch --dry-run
+          neural compile examples/use_cases/sentiment_analysis.neural --backend pytorch --dry-run
+        continue-on-error: true
+
+      - name: Test Visualization
+        run: |
+          neural visualize examples/use_cases/image_classification.neural --format svg --no-cache
+          neural visualize examples/use_cases/sentiment_analysis.neural --format svg --no-cache
+        continue-on-error: true
+
+  validate-notebooks:
+    name: Validate Notebooks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install nbformat nbconvert jupyter
+
+      - name: Validate Notebook Format
+        run: |
+          python -c "
+          import json
+          from pathlib import Path
+          
+          notebooks = list(Path('examples/notebooks').glob('*.ipynb'))
+          print(f'Found {len(notebooks)} notebooks')
+          
+          for nb_path in notebooks:
+              print(f'Validating {nb_path.name}...')
+              with open(nb_path) as f:
+                  nb = json.load(f)
+              assert 'cells' in nb, f'{nb_path.name}: Missing cells'
+              assert 'metadata' in nb, f'{nb_path.name}: Missing metadata'
+              assert len(nb['cells']) > 0, f'{nb_path.name}: No cells'
+              print(f'  ✓ {nb_path.name} is valid')
+          
+          print(f'\\n✅ All {len(notebooks)} notebooks are valid')
+          "
+
+      - name: Check Notebook Content
+        run: |
+          python -c "
+          import json
+          from pathlib import Path
+          
+          notebooks = list(Path('examples/notebooks').glob('*.ipynb'))
+          
+          for nb_path in notebooks:
+              with open(nb_path) as f:
+                  nb = json.load(f)
+              
+              # Check for markdown cells (documentation)
+              markdown_cells = [c for c in nb['cells'] if c['cell_type'] == 'markdown']
+              code_cells = [c for c in nb['cells'] if c['cell_type'] == 'code']
+              
+              print(f'{nb_path.name}:')
+              print(f'  Markdown cells: {len(markdown_cells)}')
+              print(f'  Code cells: {len(code_cells)}')
+              
+              assert len(markdown_cells) > 0, f'{nb_path.name}: No documentation'
+              assert len(code_cells) > 0, f'{nb_path.name}: No code examples'
+          
+          print(f'\\n✅ All notebooks have proper structure')
+          "
+
+  test-example-end-to-end:
+    name: End-to-End Example Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Parse and Compile Example
+        run: |
+          # Test full workflow for one example
+          neural compile examples/use_cases/sentiment_analysis.neural --backend tensorflow --output test_output.py
+          
+          # Check output was created
+          test -f test_output.py || exit 1
+          
+          # Check output is valid Python
+          python -m py_compile test_output.py || exit 1
+          
+          echo "✅ End-to-end test passed"
+
+      - name: Test Visualization Generation
+        run: |
+          neural visualize examples/use_cases/sentiment_analysis.neural --format svg
+          
+          # Check visualization was created
+          test -f architecture.svg || exit 1
+          
+          echo "✅ Visualization test passed"

@@ -1,0 +1,44 @@
+network ImageClassifier {
+  input: (None, 224, 224, 3)
+  
+  layers:
+    Conv2D(filters=32, kernel_size=(3,3), activation="relu", padding="same")
+    BatchNormalization()
+    Conv2D(filters=32, kernel_size=(3,3), activation="relu", padding="same")
+    BatchNormalization()
+    MaxPooling2D(pool_size=(2,2))
+    Dropout(rate=0.25)
+    
+    Conv2D(filters=64, kernel_size=(3,3), activation="relu", padding="same")
+    BatchNormalization()
+    Conv2D(filters=64, kernel_size=(3,3), activation="relu", padding="same")
+    BatchNormalization()
+    MaxPooling2D(pool_size=(2,2))
+    Dropout(rate=0.25)
+    
+    Conv2D(filters=128, kernel_size=(3,3), activation="relu", padding="same")
+    BatchNormalization()
+    Conv2D(filters=128, kernel_size=(3,3), activation="relu", padding="same")
+    BatchNormalization()
+    MaxPooling2D(pool_size=(2,2))
+    Dropout(rate=0.25)
+    
+    Flatten()
+    Dense(units=512, activation="relu")
+    BatchNormalization()
+    Dropout(rate=0.5)
+    Dense(units=256, activation="relu")
+    BatchNormalization()
+    Dropout(rate=0.5)
+    Output(units=1000, activation="softmax")
+
+  loss: "categorical_crossentropy"
+  optimizer: Adam(learning_rate=0.001)
+  metrics: ["accuracy", "top_k_categorical_accuracy"]
+
+  train {
+    epochs: 100
+    batch_size: 32
+    validation_split: 0.2
+  }
+}
