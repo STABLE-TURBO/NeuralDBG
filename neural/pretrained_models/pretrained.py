@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import os
 import json
 import torch
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional, Tuple
 from neural.exceptions import DependencyError
 
 # Optional dependencies: triton and huggingface_hub
@@ -18,14 +20,15 @@ try:
     _HAS_HF = True
 except Exception:
     _HAS_HF = False
-    def hf_hub_download(*args, **kwargs):  # type: ignore
+    def hf_hub_download(*args: Any, **kwargs: Any) -> Any:  # type: ignore
         raise DependencyError(
             dependency='huggingface_hub',
             feature='download pretrained weights',
             install_hint='pip install huggingface_hub'
         )
 
-def fuse_conv_bn_weights(conv_w, conv_b, bn_rm, bn_rv, bn_w, bn_b, eps):
+def fuse_conv_bn_weights(conv_w: torch.Tensor, conv_b: Optional[torch.Tensor], bn_rm: torch.Tensor, 
+                         bn_rv: torch.Tensor, bn_w: torch.Tensor, bn_b: torch.Tensor, eps: float) -> Tuple[torch.Tensor, torch.Tensor]:
     # Fuse Conv and BN weights mathematically
     if conv_b is None:
         conv_b = torch.zeros_like(bn_rm)
@@ -35,8 +38,8 @@ def fuse_conv_bn_weights(conv_w, conv_b, bn_rm, bn_rv, bn_w, bn_b, eps):
     return fused_w, fused_b
 
 class PretrainedModelHub:
-    def __init__(self, framework="neural"):
-        self.model_db = {
+    def __init__(self, framework: str = "neural") -> None:
+        self.model_db: Dict[str, Dict[str, Dict[str, Any]]] = {
             "vision": {
                 "resnet50": {
                     "hf_repo": "pytorch/vision",
@@ -80,8 +83,8 @@ class PretrainedModelHub:
 
         return self._create_architecture(model_name)
 
-    def _convert_torch_weights(self, model: torch.nn.Module) -> Dict:
-        converted = {}
+    def _convert_torch_weights(self, model: torch.nn.Module) -> Dict[str, torch.Tensor]:
+        converted: Dict[str, torch.Tensor] = {}
         # Iterate through modules to find Conv2D followed by BatchNorm
         for name, module in model.named_modules():
             if isinstance(module, torch.nn.Conv2d):
@@ -114,15 +117,16 @@ class PretrainedModelHub:
         return torch.nn.Module()
 
 class FusedConvBNLayer(torch.nn.Module):
-    def __init__(self, layer_config: Dict):
+    def __init__(self, layer_config: Dict[str, Any]) -> None:
         super().__init__()
         # Implementation for fused layer
 
 if _HAS_TRITON:
     class TritonConv2D(torch.autograd.Function):
         @staticmethod
-        @triton.jit
-        def forward(ctx, input, weight, bias, stride, padding, dilation):
+        @triton.jit  # type: ignore
+        def forward(ctx: Any, input: torch.Tensor, weight: torch.Tensor, bias: Optional[torch.Tensor], 
+                   stride: Tuple[int, int], padding: Tuple[int, int], dilation: Tuple[int, int]) -> torch.Tensor:
             # Custom Triton kernel for Conv2D
             output = triton.ops.conv2d(
                 input, weight, bias,
@@ -134,8 +138,8 @@ if _HAS_TRITON:
             return output
 
         @staticmethod
-        @triton.jit
-        def backward(ctx, grad_output):
+        @triton.jit  # type: ignore
+        def backward(ctx: Any, grad_output: torch.Tensor) -> Tuple[Optional[torch.Tensor], ...]:
             # Optimized backward pass
             input, weight, bias = ctx.saved_tensors
             grad_input, grad_weight, grad_bias = triton.ops.conv2d_backward(
@@ -146,21 +150,21 @@ if _HAS_TRITON:
 else:
     class TritonConv2D(torch.autograd.Function):
         @staticmethod
-        def forward(ctx, *args, **kwargs):  # pragma: no cover - optional path
+        def forward(ctx: Any, *args: Any, **kwargs: Any) -> torch.Tensor:  # pragma: no cover - optional path
             raise ImportError("triton is not installed. TritonConv2D is unavailable.")
 
         @staticmethod
-        def backward(ctx, *args, **kwargs):  # pragma: no cover - optional path
+        def backward(ctx: Any, *args: Any, **kwargs: Any) -> Tuple[Optional[torch.Tensor], ...]:  # pragma: no cover - optional path
             raise ImportError("triton is not installed. TritonConv2D is unavailable.")
 
 class OptimizedModel:
-    def __init__(self, model_config: Dict):
+    def __init__(self, model_config: Dict[str, Any]) -> None:
         self.layers = self._compile_layers(model_config)
 
-    def _compile_layers(self, config: Dict) -> list:
+    def _compile_layers(self, config: Dict[str, Any]) -> List[torch.nn.Module]:
         return [self._create_optimized_layer(l) for l in config['layers']]
 
-    def _create_optimized_layer(self, layer: Dict) -> torch.nn.Module:
+    def _create_optimized_layer(self, layer: Dict[str, Any]) -> torch.nn.Module:
         if layer['type'] == 'Conv2D':
             if layer.get('fused_conv_bn'):
                 return FusedConvBNLayer(layer)
@@ -169,15 +173,15 @@ class OptimizedModel:
 
 
 class ModelOptimizer:
-    def __init__(self, model):
+    def __init__(self, model: Any) -> None:
         self.model = model
-        self.optimizations = {
+        self.optimizations: Dict[str, Any] = {
             'kernel_fusion': True,
             'mixed_precision': True,
             'sparse_format': 'blocked'
         }
 
-    def apply(self):
+    def apply(self) -> Any:
         if self.optimizations['kernel_fusion']:
             self._fuse_conv_bn()
 
@@ -186,7 +190,7 @@ class ModelOptimizer:
 
         return self._compile_model()
 
-    def _fuse_conv_bn(self):
+    def _fuse_conv_bn(self) -> None:
         # Automatic Conv-BN fusion
         for i, layer in enumerate(self.model.layers):
             if isinstance(layer, Conv2D) and isinstance(self.model.layers[i+1], BatchNorm):
@@ -194,7 +198,7 @@ class ModelOptimizer:
                 self.model.layers[i] = fused_layer
                 del self.model.layers[i+1]
 
-    def _convert_to_mixed_precision(self):
+    def _convert_to_mixed_precision(self) -> None:
         # Automatic precision conversion
         for layer in self.model.layers:
             if hasattr(layer, 'weight'):
@@ -202,6 +206,6 @@ class ModelOptimizer:
             if hasattr(layer, 'bias'):
                 layer.bias = layer.bias.half()
 
-    def _compile_model(self):
+    def _compile_model(self) -> Any:
         # JIT compile model graph
         return torch.jit.script(self.model)

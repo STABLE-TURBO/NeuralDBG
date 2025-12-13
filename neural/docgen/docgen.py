@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import shutil
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -94,4 +96,3 @@ def generate_markdown(model_data: Dict[str, Any]) -> str:
         lines.append("- PDF export not detected (Pandoc not available)\n")
 
     return "".join(lines)
-

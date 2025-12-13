@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 from neural.tracking import ExperimentManager, ExperimentComparisonUI
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Launch Neural Experiment Comparison UI"
     )

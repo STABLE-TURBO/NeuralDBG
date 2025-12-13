@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class ModelTrainer:
     """Trains models and collects metrics during training."""
 
-    def __init__(self, model_data: Dict[str, Any], trace_data: List[Dict[str, Any]], backend: str = 'tensorflow'):
+    def __init__(self, model_data: Dict[str, Any], trace_data: List[Dict[str, Any]], backend: str = 'tensorflow') -> None:
         """
         Initialize the model trainer.
 
@@ -29,7 +29,7 @@ class ModelTrainer:
         self.trace_data = trace_data
         self.backend = backend
 
-    def train_tensorflow_model(self, dataset='mnist'):
+    def train_tensorflow_model(self, dataset: str = 'mnist') -> Tuple[Any, Any, Any]:
         """
         Train a TensorFlow model and collect metrics.
 
@@ -74,7 +74,7 @@ class ModelTrainer:
             logger.error(f"Failed to train TensorFlow model: {str(e)}")
             return None, None, None
 
-    def train_pytorch_model(self, dataset='mnist'):
+    def train_pytorch_model(self, dataset: str = 'mnist') -> Tuple[Any, Any, Any, Any]:
         """
         Train a PyTorch model and collect metrics.
 
@@ -142,7 +142,7 @@ class ModelTrainer:
             logger.error(f"Failed to train PyTorch model: {str(e)}")
             return None, None, None, None
 
-    def _create_tensorflow_model(self):
+    def _create_tensorflow_model(self) -> Any:
         """Create a TensorFlow model from the model data."""
         try:
             import tensorflow as tf
@@ -189,7 +189,7 @@ class ModelTrainer:
             logger.error(f"Failed to create TensorFlow model: {str(e)}")
             return None
 
-    def _create_pytorch_model(self):
+    def _create_pytorch_model(self) -> Any:
         """Create a PyTorch model from the model data."""
         try:
             import torch

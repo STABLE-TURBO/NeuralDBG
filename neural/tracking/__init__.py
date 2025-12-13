@@ -35,7 +35,7 @@ __all__ = [
 def launch_comparison_ui(base_dir: str = "neural_experiments", 
                         port: int = 8052, 
                         host: str = "127.0.0.1",
-                        debug: bool = False):
+                        debug: bool = False) -> None:
     """
     Launch the experiment comparison UI.
     

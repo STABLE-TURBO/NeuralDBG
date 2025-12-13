@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class MetricsCollector:
     """Collects real metrics during model training."""
 
-    def __init__(self, model_data: Dict[str, Any], trace_data: List[Dict[str, Any]], backend: str = 'tensorflow'):
+    def __init__(self, model_data: Dict[str, Any], trace_data: List[Dict[str, Any]], backend: str = 'tensorflow') -> None:
         """
         Initialize the metrics collector.
 
@@ -29,9 +29,9 @@ class MetricsCollector:
         self.model_data = model_data
         self.trace_data = trace_data
         self.backend = backend
-        self.metrics_history = []
+        self.metrics_history: List[Dict[str, Any]] = []
 
-    def collect_tensorflow_metrics(self, model, x_data, y_data, batch_size=32):
+    def collect_tensorflow_metrics(self, model: Any, x_data: Any, y_data: Any, batch_size: int = 32) -> List[Dict[str, Any]]:
         """
         Collect metrics for TensorFlow models.
 
@@ -54,12 +54,12 @@ class MetricsCollector:
 
             # Create a callback to collect metrics during training
             class MetricsCallback(tf.keras.callbacks.Callback):
-                def __init__(self, collector, trace_data):
+                def __init__(self, collector: 'MetricsCollector', trace_data: List[Dict[str, Any]]) -> None:
                     super().__init__()
                     self.collector = collector
                     self.trace_data = trace_data
 
-                def on_epoch_end(self, epoch, logs=None):
+                def on_epoch_end(self, epoch: int, logs: Optional[Dict[str, Any]] = None) -> None:
                     # Collect gradient flow metrics
                     self.collector._collect_tensorflow_gradients(self.model, x_train_subset, y_train_subset)
 
@@ -95,7 +95,7 @@ class MetricsCollector:
             self._generate_simulated_metrics()
             return self.trace_data
 
-    def collect_pytorch_metrics(self, model, data_loader, criterion, optimizer, num_batches=10):
+    def collect_pytorch_metrics(self, model: Any, data_loader: Any, criterion: Any, optimizer: Any, num_batches: int = 10) -> List[Dict[str, Any]]:
         """
         Collect metrics for PyTorch models.
 
@@ -147,7 +147,7 @@ class MetricsCollector:
             self._generate_simulated_metrics()
             return self.trace_data
 
-    def _collect_tensorflow_gradients(self, model, x_data, y_data):
+    def _collect_tensorflow_gradients(self, model: Any, x_data: Any, y_data: Any) -> None:
         """Collect gradient flow metrics for TensorFlow models."""
         import tensorflow as tf
 
@@ -173,7 +173,7 @@ class MetricsCollector:
                     self.trace_data[layer_idx]['grad_norm'] = float(grad_norm)
                     layer_idx += 1
 
-    def _collect_tensorflow_dead_neurons(self, model, x_data):
+    def _collect_tensorflow_dead_neurons(self, model: Any, x_data: Any) -> None:
         """Collect dead neuron metrics for TensorFlow models."""
         import tensorflow as tf
         import numpy as np
@@ -195,7 +195,7 @@ class MetricsCollector:
             if i < len(self.trace_data):
                 self.trace_data[i]['dead_ratio'] = float(dead_ratio)
 
-    def _collect_tensorflow_anomalies(self, model, x_data):
+    def _collect_tensorflow_anomalies(self, model: Any, x_data: Any) -> None:
         """Collect anomaly metrics for TensorFlow models."""
         import tensorflow as tf
         import numpy as np
@@ -218,7 +218,7 @@ class MetricsCollector:
                         entry['mean_activation'] = float(mean_activation)
                         entry['anomaly'] = bool(anomaly)
 
-    def _collect_pytorch_gradients(self, model):
+    def _collect_pytorch_gradients(self, model: Any) -> None:
         """Collect gradient flow metrics for PyTorch models."""
         import torch
 
@@ -231,7 +231,7 @@ class MetricsCollector:
                 if i < len(self.trace_data):
                     self.trace_data[i]['grad_norm'] = float(grad_norm)
 
-    def _collect_pytorch_dead_neurons(self, model, data_loader):
+    def _collect_pytorch_dead_neurons(self, model: Any, data_loader: Any) -> None:
         """Collect dead neuron metrics for PyTorch models."""
         import torch
 
@@ -239,10 +239,10 @@ class MetricsCollector:
         model.eval()
 
         # Register hooks to get activations
-        activations = {}
+        activations: Dict[str, Any] = {}
 
-        def get_activation(name):
-            def hook(model, input, output):
+        def get_activation(name: str) -> Any:
+            def hook(model: Any, input: Any, output: Any) -> None:
                 activations[name] = output.detach()
             return hook
 
@@ -266,7 +266,7 @@ class MetricsCollector:
                 if name in entry.get('layer', ''):
                     entry['dead_ratio'] = float(dead_ratio)
 
-    def _collect_pytorch_anomalies(self, model, data_loader):
+    def _collect_pytorch_anomalies(self, model: Any, data_loader: Any) -> None:
         """Collect anomaly metrics for PyTorch models."""
         import torch
 
@@ -274,10 +274,10 @@ class MetricsCollector:
         model.eval()
 
         # Register hooks to get activations
-        activations = {}
+        activations: Dict[str, Any] = {}
 
-        def get_activation(name):
-            def hook(model, input, output):
+        def get_activation(name: str) -> Any:
+            def hook(model: Any, input: Any, output: Any) -> None:
                 activations[name] = output.detach()
             return hook
 
@@ -305,7 +305,7 @@ class MetricsCollector:
                     entry['mean_activation'] = float(mean_activation)
                     entry['anomaly'] = bool(anomaly)
 
-    def _generate_simulated_metrics(self):
+    def _generate_simulated_metrics(self) -> None:
         """Generate simulated metrics when real metrics collection fails."""
         for entry in self.trace_data:
             layer_type = entry.get('layer', '')
