@@ -10,6 +10,7 @@ is set to None and a warning is emitted. Check module availability before use.
 
 # Standard library imports
 import warnings  # For emitting optional dependency warnings
+from typing import Dict  # For type hints
 
 # Package metadata - always available
 __version__ = "0.3.0"  # Current stable version
@@ -43,6 +44,12 @@ from .exceptions import (
     DependencyError,
     ConfigurationError,
     ExecutionError,
+    MLOpsException,
+    ModelRegistryError,
+    ApprovalWorkflowError,
+    DeploymentError,
+    ABTestError,
+    AuditLogError,
 )
 
 # Core modules - imported optionally to handle missing dependencies gracefully
@@ -113,6 +120,13 @@ except Exception as e:
     utils = None  # Mark as unavailable
     warnings.warn(f"Utils module unavailable: {e}")
 
+# MLOps module - enterprise ML operations
+try:
+    from . import mlops  # MLOps capabilities (registry, deployment, A/B testing, audit)
+except Exception as e:
+    mlops = None  # Mark as unavailable
+    warnings.warn(f"MLOps module unavailable: {e}")
+
 
 def check_dependencies() -> Dict[str, bool]:
     """
@@ -154,6 +168,7 @@ def check_dependencies() -> Dict[str, bool]:
         "hpo": hpo is not None,  # HPO available?
         "cloud": cloud is not None,  # Cloud available?
         "utils": utils is not None,  # Utils available?
+        "mlops": mlops is not None,  # MLOps available?
     }
 
 
@@ -189,6 +204,12 @@ __all__ = [
     "DependencyError",
     "ConfigurationError",
     "ExecutionError",
+    "MLOpsException",
+    "ModelRegistryError",
+    "ApprovalWorkflowError",
+    "DeploymentError",
+    "ABTestError",
+    "AuditLogError",
     # Modules (may be None if dependencies missing)
     "cli",
     "parser",
@@ -199,6 +220,7 @@ __all__ = [
     "hpo",
     "cloud",
     "utils",
+    "mlops",
     # Helper function
     "check_dependencies",
 ]

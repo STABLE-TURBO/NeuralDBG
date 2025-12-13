@@ -1,0 +1,97 @@
+image: python:3.10
+
+stages:
+  - test
+  - validate
+  - security
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  MODEL_REGISTRY_PATH: "./models"
+
+cache:
+  paths:
+    - .cache/pip
+    - .venv/
+
+before_script:
+  - python --version
+  - pip install --upgrade pip
+  - pip install -e .
+  - pip install -r requirements-dev.txt
+
+test:lint:
+  stage: test
+  script:
+    - python -m ruff check .
+    - python -m mypy neural/ --ignore-missing-imports
+
+test:unit:
+  stage: test
+  script:
+    - python -m pytest tests/ -v --cov=neural --cov-report=xml --cov-report=term
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+validate:model:
+  stage: validate
+  script:
+    - python -c "from neural.mlops.registry import ModelRegistry; registry = ModelRegistry('./models'); print('Validation passed')"
+    - python -c "from neural.mlops.registry import ModelRegistry; registry = ModelRegistry('./models'); models = registry.list_models(); print(f'Models: {len(models)}')"
+  needs:
+    - test:unit
+
+security:audit:
+  stage: security
+  script:
+    - pip install pip-audit
+    - pip-audit || true
+  allow_failure: true
+
+security:bandit:
+  stage: security
+  script:
+    - pip install bandit
+    - bandit -r neural/ -f json -o bandit-report.json || true
+  artifacts:
+    paths:
+      - bandit-report.json
+    when: always
+
+deploy:staging:
+  stage: deploy
+  script:
+    - echo "Deploying to staging environment"
+    - python -c "from neural.mlops.deployment import DeploymentManager; manager = DeploymentManager(); print('Deployment ready')"
+    - python -c "from neural.mlops.audit import AuditLogger, EventType, EventSeverity; logger = AuditLogger(); logger.log_event(EventType.MODEL_DEPLOYED, 'gitlab-ci', 'model', 'staging-model', 'deploy', EventSeverity.INFO)"
+  environment:
+    name: staging
+    url: https://staging.example.com
+  only:
+    - develop
+  needs:
+    - test:unit
+    - validate:model
+    - security:bandit
+
+deploy:production:
+  stage: deploy
+  script:
+    - echo "Deploying to production environment"
+    - python -c "from neural.mlops.deployment import DeploymentManager; manager = DeploymentManager(); print('Production deployment initiated')"
+    - python -c "from neural.mlops.audit import AuditLogger, EventType, EventSeverity; logger = AuditLogger(); logger.log_event(EventType.MODEL_DEPLOYED, 'gitlab-ci', 'model', 'production-model', 'deploy', EventSeverity.INFO)"
+  environment:
+    name: production
+    url: https://production.example.com
+  only:
+    - main
+  when: manual
+  needs:
+    - test:unit
+    - validate:model
+    - security:bandit

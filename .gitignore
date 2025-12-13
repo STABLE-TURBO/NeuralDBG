@@ -325,3 +325,14 @@ examples_validation_report.md
 profiling_report.json
 profile_*.json
 *.pstats
+
+# MLOps artifacts
+models/
+ab_tests/
+deployments/
+audit_logs/
+example_models/
+example_ab_tests/
+example_deployments/
+example_audit_logs/
+example_audit_trail.json

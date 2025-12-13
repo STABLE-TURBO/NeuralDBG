@@ -550,6 +550,75 @@ class ExecutionError(NeuralException):
     pass
 
 
+class MLOpsException(NeuralException):
+    """
+    Base exception for MLOps-related errors.
+    
+    Raised during model registry, deployment, A/B testing, or audit operations.
+    """
+    pass
+
+
+class ModelRegistryError(MLOpsException):
+    """
+    Raised when model registry operations fail.
+    
+    Examples:
+        - Model not found
+        - Version conflict
+        - Registration failure
+    """
+    pass
+
+
+class ApprovalWorkflowError(MLOpsException):
+    """
+    Raised when approval workflow operations fail.
+    
+    Examples:
+        - Approval not found
+        - Invalid approval status
+        - Unauthorized approval attempt
+    """
+    pass
+
+
+class DeploymentError(MLOpsException):
+    """
+    Raised when deployment operations fail.
+    
+    Examples:
+        - Deployment creation failure
+        - Health check failure
+        - Rollback failure
+    """
+    pass
+
+
+class ABTestError(MLOpsException):
+    """
+    Raised when A/B testing operations fail.
+    
+    Examples:
+        - Invalid test configuration
+        - Test not found
+        - Statistical analysis failure
+    """
+    pass
+
+
+class AuditLogError(MLOpsException):
+    """
+    Raised when audit logging operations fail.
+    
+    Examples:
+        - Event logging failure
+        - Query failure
+        - Report generation failure
+    """
+    pass
+
+
 # Convenience functions for common error scenarios
 
 def raise_parser_error(
@@ -609,7 +678,13 @@ NeuralException (base)
 ├── FileOperationError
 ├── DependencyError
 ├── ConfigurationError
-└── ExecutionError
+├── ExecutionError
+└── MLOpsException
+    ├── ModelRegistryError
+    ├── ApprovalWorkflowError
+    ├── DeploymentError
+    ├── ABTestError
+    └── AuditLogError
 
 Usage Examples:
 ---------------

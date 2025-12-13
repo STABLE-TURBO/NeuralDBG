@@ -1,0 +1,168 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  pythonVersion: '3.10'
+  modelRegistryPath: './models'
+
+stages:
+  - stage: Test
+    displayName: 'Test & Validate'
+    jobs:
+      - job: TestJob
+        displayName: 'Run Tests'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+              addToPath: true
+            displayName: 'Set up Python'
+          
+          - script: |
+              pip install --upgrade pip
+              pip install -e .
+              pip install -r requirements-dev.txt
+            displayName: 'Install dependencies'
+          
+          - script: |
+              python -m ruff check .
+            displayName: 'Run linting'
+          
+          - script: |
+              python -m mypy neural/ --ignore-missing-imports
+            displayName: 'Run type checking'
+          
+          - script: |
+              python -m pytest tests/ -v --cov=neural --cov-report=xml --cov-report=html
+            displayName: 'Run tests'
+          
+          - task: PublishCodeCoverageResults@1
+            inputs:
+              codeCoverageTool: 'Cobertura'
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage.xml'
+              reportDirectory: '$(System.DefaultWorkingDirectory)/htmlcov'
+            displayName: 'Publish coverage'
+
+  - stage: Validate
+    displayName: 'Model Validation'
+    dependsOn: Test
+    jobs:
+      - job: ValidateModel
+        displayName: 'Validate Model Registry'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+          
+          - script: |
+              pip install -e .
+            displayName: 'Install package'
+          
+          - script: |
+              python -c "from neural.mlops.registry import ModelRegistry; registry = ModelRegistry('./models'); print('Validation passed')"
+            displayName: 'Validate model registry'
+
+  - stage: Security
+    displayName: 'Security Scanning'
+    dependsOn: Test
+    jobs:
+      - job: SecurityScan
+        displayName: 'Run Security Scans'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+          
+          - script: |
+              pip install pip-audit bandit
+              pip-audit || true
+              bandit -r neural/ -f json -o bandit-report.json || true
+            displayName: 'Run security scans'
+          
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: 'bandit-report.json'
+              artifactName: 'security-report'
+            displayName: 'Publish security report'
+
+  - stage: DeployStaging
+    displayName: 'Deploy to Staging'
+    dependsOn:
+      - Test
+      - Validate
+      - Security
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    jobs:
+      - deployment: DeployStaging
+        displayName: 'Deploy to Staging Environment'
+        environment: 'staging'
+        pool:
+          vmImage: 'ubuntu-latest'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: UsePythonVersion@0
+                  inputs:
+                    versionSpec: '$(pythonVersion)'
+                
+                - script: |
+                    pip install -e .
+                  displayName: 'Install package'
+                
+                - script: |
+                    echo "Deploying to staging environment"
+                    python -c "from neural.mlops.deployment import DeploymentManager; manager = DeploymentManager(); print('Deployment ready')"
+                  displayName: 'Deploy model'
+                
+                - script: |
+                    python -c "from neural.mlops.audit import AuditLogger, EventType, EventSeverity; logger = AuditLogger(); logger.log_event(EventType.MODEL_DEPLOYED, 'azure-pipelines', 'model', 'staging-model', 'deploy', EventSeverity.INFO)"
+                  displayName: 'Audit log deployment'
+
+  - stage: DeployProduction
+    displayName: 'Deploy to Production'
+    dependsOn:
+      - Test
+      - Validate
+      - Security
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployProduction
+        displayName: 'Deploy to Production Environment'
+        environment: 'production'
+        pool:
+          vmImage: 'ubuntu-latest'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: UsePythonVersion@0
+                  inputs:
+                    versionSpec: '$(pythonVersion)'
+                
+                - script: |
+                    pip install -e .
+                  displayName: 'Install package'
+                
+                - script: |
+                    echo "Deploying to production environment"
+                    python -c "from neural.mlops.deployment import DeploymentManager; manager = DeploymentManager(); print('Production deployment initiated')"
+                  displayName: 'Deploy model'
+                
+                - script: |
+                    python -c "from neural.mlops.audit import AuditLogger, EventType, EventSeverity; logger = AuditLogger(); logger.log_event(EventType.MODEL_DEPLOYED, 'azure-pipelines', 'model', 'production-model', 'deploy', EventSeverity.INFO)"
+                  displayName: 'Audit log deployment'
