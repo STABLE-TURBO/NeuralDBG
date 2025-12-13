@@ -322,6 +322,22 @@ neural/aquarium/coverage/
 neural/aquarium/src/components/settings/__pycache__/
 neural/aquarium/__pycache__/
 
+# Aquarium Electron IDE
+neural/aquarium/electron/node_modules/
+neural/aquarium/electron/dist/
+neural/aquarium/electron/out/
+neural/aquarium/electron/build/
+neural/aquarium/electron/.electron/
+neural/aquarium/electron/*.asar
+neural/aquarium/electron/config.json
+neural/aquarium/electron/*.log
+neural/aquarium/electron/package-lock.json
+neural/aquarium/electron/yarn.lock
+neural/aquarium/electron/pnpm-lock.yaml
+neural/aquarium/electron/tmp/
+neural/aquarium/electron/temp/
+neural/aquarium/electron/*.tmp
+
 # Release automation artifacts
 release_notes*.md
 release_summary.md

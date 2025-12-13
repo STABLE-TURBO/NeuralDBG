@@ -1,0 +1,121 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Neural DSL Project",
+  "description": "Configuration schema for Neural DSL projects",
+  "type": "object",
+  "required": ["name", "version"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Project name",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "description": "Project version",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Project description"
+    },
+    "author": {
+      "type": "string",
+      "description": "Project author"
+    },
+    "license": {
+      "type": "string",
+      "description": "Project license"
+    },
+    "backend": {
+      "type": "string",
+      "description": "Default ML backend",
+      "enum": ["tensorflow", "pytorch", "onnx"]
+    },
+    "pythonVersion": {
+      "type": "string",
+      "description": "Python version requirement"
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Python package dependencies",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "files": {
+      "type": "array",
+      "description": "Project files",
+      "items": {
+        "type": "string"
+      }
+    },
+    "models": {
+      "type": "array",
+      "description": "Model definitions",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "backend": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "datasets": {
+      "type": "array",
+      "description": "Dataset configurations",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "experiments": {
+      "type": "array",
+      "description": "Experiment configurations",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "dataset": {
+            "type": "string"
+          },
+          "hyperparameters": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Project creation timestamp"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Project last update timestamp"
+    }
+  }
+}

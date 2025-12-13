@@ -1,0 +1,71 @@
+{
+  "name": "neural-aquarium-ide",
+  "version": "0.3.0",
+  "description": "Desktop IDE for Neural DSL with integrated debugger and visual tools",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env NODE_ENV=development electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.neuraldsl.aquarium",
+    "productName": "Neural Aquarium IDE",
+    "directories": {
+      "output": "dist",
+      "buildResources": "resources"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "ipc/**/*",
+      "menu/**/*",
+      "config/**/*",
+      "window/**/*",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.icns",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": ["nsis", "portable"]
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "category": "Development",
+      "target": ["AppImage", "deb", "rpm"]
+    }
+  },
+  "keywords": [
+    "neural",
+    "dsl",
+    "ide",
+    "debugger",
+    "machine-learning",
+    "electron"
+  ],
+  "author": "Neural DSL Team",
+  "license": "MIT",
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "electron-window-state": "^5.0.3",
+    "ws": "^8.13.0",
+    "chokidar": "^3.5.3"
+  },
+  "devDependencies": {
+    "electron": "^25.3.0",
+    "electron-builder": "^24.6.3",
+    "cross-env": "^7.0.3"
+  }
+}
