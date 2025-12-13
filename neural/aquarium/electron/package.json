@@ -64,7 +64,7 @@
     "chokidar": "^3.5.3"
   },
   "devDependencies": {
-    "electron": "^25.3.0",
+    "electron": "^39.2.7",
     "electron-builder": "^24.6.3",
     "cross-env": "^7.0.3"
   }
