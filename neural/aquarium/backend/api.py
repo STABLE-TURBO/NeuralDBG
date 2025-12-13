@@ -6,7 +6,6 @@ the Neural DSL AI Assistant.
 """
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 import logging
 import sys
 import os
@@ -15,12 +14,50 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from neural.ai.ai_assistant import NeuralAIAssistant
 from neural.ai.multi_language import MultiLanguageSupport
+from neural.security import (
+    load_security_config,
+    create_basic_auth,
+    create_jwt_auth,
+    require_auth,
+    apply_security_middleware,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load security configuration
+security_config = load_security_config()
+
 app = Flask(__name__)
-CORS(app)
+
+# Apply security middleware
+apply_security_middleware(
+    app,
+    cors_enabled=security_config.cors_enabled,
+    cors_origins=security_config.cors_origins,
+    cors_methods=security_config.cors_methods,
+    cors_allow_headers=security_config.cors_allow_headers,
+    cors_allow_credentials=security_config.cors_allow_credentials,
+    rate_limit_enabled=security_config.rate_limit_enabled,
+    rate_limit_requests=security_config.rate_limit_requests,
+    rate_limit_window_seconds=security_config.rate_limit_window_seconds,
+    security_headers_enabled=security_config.security_headers_enabled,
+)
+
+# Setup authentication if enabled
+auth_middleware = None
+if security_config.auth_enabled:
+    if security_config.auth_type == 'jwt' and security_config.jwt_secret_key:
+        auth_middleware = create_jwt_auth(
+            security_config.jwt_secret_key,
+            security_config.jwt_algorithm,
+            security_config.jwt_expiration_hours
+        )
+    elif security_config.auth_type == 'basic':
+        auth_middleware = create_basic_auth(
+            security_config.basic_auth_username,
+            security_config.basic_auth_password
+        )
 
 ai_assistant = None
 multi_lang_support = MultiLanguageSupport()

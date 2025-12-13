@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import uuid
+import os
 from datetime import datetime
 from typing import Dict, Set, Optional, Any
 
@@ -20,6 +21,12 @@ except ImportError:
     WebSocketServerProtocol = Any
 
 from neural.exceptions import CollaborationException, AccessControlError
+
+try:
+    from neural.security import load_security_config
+    SECURITY_AVAILABLE = True
+except ImportError:
+    SECURITY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +56,25 @@ class CollaborationServer:
                 "Install with: pip install websockets"
             )
         
+        # Load security configuration
+        if SECURITY_AVAILABLE:
+            self.security_config = load_security_config()
+        else:
+            self.security_config = None
+        
         self.host = host
         self.port = port
         self.clients: Dict[str, WebSocketServerProtocol] = {}
         self.workspace_clients: Dict[str, Set[str]] = {}
         self.client_info: Dict[str, Dict[str, Any]] = {}
         self.running = False
+        
+        # Load allowed users from environment if authentication is enabled
+        self.auth_enabled = False
+        self.auth_token = None
+        if self.security_config and self.security_config.auth_enabled:
+            self.auth_enabled = True
+            self.auth_token = os.environ.get('NEURAL_COLLAB_AUTH_TOKEN')
     
     async def register_client(
         self,
@@ -206,6 +226,16 @@ class CollaborationServer:
                 }))
                 return
             
+            # Verify authentication token if enabled
+            if self.auth_enabled and self.auth_token:
+                provided_token = auth_data.get('auth_token')
+                if provided_token != self.auth_token:
+                    await websocket.send(json.dumps({
+                        'type': 'error',
+                        'message': 'Invalid authentication token'
+                    }))
+                    return
+            
             workspace_id = auth_data.get('workspace_id')
             user_id = auth_data.get('user_id')
             username = auth_data.get('username')
@@ -304,7 +334,24 @@ class CollaborationServer:
         self.running = True
         logger.info(f"Starting collaboration server on {self.host}:{self.port}")
         
-        async with websockets.serve(self.handle_client, self.host, self.port):
+        # Setup SSL context if configured
+        ssl_context = None
+        if SECURITY_AVAILABLE and self.security_config:
+            if self.security_config.ssl_enabled:
+                if self.security_config.ssl_cert_file and self.security_config.ssl_key_file:
+                    import ssl
+                    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                    ssl_context.load_cert_chain(
+                        self.security_config.ssl_cert_file,
+                        self.security_config.ssl_key_file
+                    )
+        
+        async with websockets.serve(
+            self.handle_client,
+            self.host,
+            self.port,
+            ssl=ssl_context
+        ):
             await asyncio.Future()
     
     def start(self):

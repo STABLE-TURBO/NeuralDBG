@@ -21,6 +21,17 @@ except ImportError:
     HAS_BOOTSTRAP = False
     dbc = None
 
+try:
+    from neural.security import (
+        load_security_config,
+        create_basic_auth,
+        create_jwt_auth,
+        apply_security_middleware,
+    )
+    SECURITY_AVAILABLE = True
+except ImportError:
+    SECURITY_AVAILABLE = False
+
 
 def create_app(storage_path: str = "monitoring_data") -> dash.Dash:
     """
@@ -47,6 +58,47 @@ def create_app(storage_path: str = "monitoring_data") -> dash.Dash:
             __name__,
             title="Neural Monitoring Dashboard"
         )
+    
+    # Apply security if available
+    if SECURITY_AVAILABLE:
+        security_config = load_security_config()
+        server = app.server
+        
+        apply_security_middleware(
+            server,
+            cors_enabled=security_config.cors_enabled,
+            cors_origins=security_config.cors_origins,
+            cors_methods=security_config.cors_methods,
+            cors_allow_headers=security_config.cors_allow_headers,
+            cors_allow_credentials=security_config.cors_allow_credentials,
+            rate_limit_enabled=security_config.rate_limit_enabled,
+            rate_limit_requests=security_config.rate_limit_requests,
+            rate_limit_window_seconds=security_config.rate_limit_window_seconds,
+            security_headers_enabled=security_config.security_headers_enabled,
+        )
+        
+        auth_middleware = None
+        if security_config.auth_enabled:
+            if security_config.auth_type == 'jwt' and security_config.jwt_secret_key:
+                auth_middleware = create_jwt_auth(
+                    security_config.jwt_secret_key,
+                    security_config.jwt_algorithm,
+                    security_config.jwt_expiration_hours
+                )
+            elif security_config.auth_type == 'basic':
+                auth_middleware = create_basic_auth(
+                    security_config.basic_auth_username,
+                    security_config.basic_auth_password
+                )
+        
+        if auth_middleware:
+            @server.before_request
+            def check_auth():
+                from flask import request
+                if request.path.startswith('/_dash'):
+                    auth_data = auth_middleware.get_auth_data(request)
+                    if not auth_data or not auth_middleware.check_auth(auth_data):
+                        return auth_middleware.authenticate()
     
     storage_path = Path(storage_path)
     
@@ -434,4 +486,16 @@ def create_alerts_html(alert_summary: dict) -> html.Div:
 
 if __name__ == '__main__':
     app = create_app()
-    app.run_server(debug=True, host='localhost', port=8052)
+    
+    ssl_context = None
+    if SECURITY_AVAILABLE:
+        security_config = load_security_config()
+        if security_config.ssl_enabled and security_config.ssl_cert_file and security_config.ssl_key_file:
+            ssl_context = (security_config.ssl_cert_file, security_config.ssl_key_file)
+    
+    app.run_server(
+        debug=True,
+        host='0.0.0.0',
+        port=8053,
+        ssl_context=ssl_context
+    )

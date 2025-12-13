@@ -363,7 +363,17 @@ class AquariumVisualizationServer:
     def run(self, debug: bool = False):
         print(f"🎨 Neural Visualization Gallery starting on http://{self.host}:{self.port}")
         print(f"📊 Access the gallery at: http://localhost:{self.port}/")
-        self.app.run(host=self.host, port=self.port, debug=debug)
+        
+        ssl_context = None
+        if self.security_config.ssl_enabled and self.security_config.ssl_cert_file and self.security_config.ssl_key_file:
+            ssl_context = (self.security_config.ssl_cert_file, self.security_config.ssl_key_file)
+        
+        self.app.run(
+            host=self.host,
+            port=self.port,
+            debug=debug,
+            ssl_context=ssl_context
+        )
 
 
 def start_server(host: str = '0.0.0.0', port: int = 8052, debug: bool = False):

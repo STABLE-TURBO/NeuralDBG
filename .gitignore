@@ -82,6 +82,16 @@ docs/social/
 *_token.txt
 api_keys.json
 
+# Security configuration files (never commit production configs)
+security_config.yaml
+neural/security/security_config.yaml
+*.pem
+*.crt
+*.cert
+*.key
+ssl_cert/
+ssl_keys/
+
 # Marketing automation workflow artifacts
 devto_url.txt
 medium_url.txt

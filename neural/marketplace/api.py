@@ -9,16 +9,26 @@ from typing import Optional
 
 try:
     from flask import Flask, jsonify, request, send_file
-    from flask_cors import CORS
     FLASK_AVAILABLE = True
 except ImportError:
     Flask = None
-    CORS = None
     FLASK_AVAILABLE = False
 
 from .huggingface_integration import HuggingFaceIntegration
 from .registry import ModelRegistry
 from .search import SemanticSearch
+
+try:
+    from neural.security import (
+        load_security_config,
+        create_basic_auth,
+        create_jwt_auth,
+        require_auth,
+        apply_security_middleware,
+    )
+    SECURITY_AVAILABLE = True
+except ImportError:
+    SECURITY_AVAILABLE = False
 
 
 class MarketplaceAPI:
@@ -55,11 +65,51 @@ class MarketplaceAPI:
             self.hf_available = False
 
         self.app = Flask(__name__)
-        CORS(self.app)
+        
+        # Load and apply security configuration
+        if SECURITY_AVAILABLE:
+            self.security_config = load_security_config()
+            
+            apply_security_middleware(
+                self.app,
+                cors_enabled=self.security_config.cors_enabled,
+                cors_origins=self.security_config.cors_origins,
+                cors_methods=self.security_config.cors_methods,
+                cors_allow_headers=self.security_config.cors_allow_headers,
+                cors_allow_credentials=self.security_config.cors_allow_credentials,
+                rate_limit_enabled=self.security_config.rate_limit_enabled,
+                rate_limit_requests=self.security_config.rate_limit_requests,
+                rate_limit_window_seconds=self.security_config.rate_limit_window_seconds,
+                security_headers_enabled=self.security_config.security_headers_enabled,
+            )
+            
+            # Setup authentication if enabled
+            self.auth_middleware = None
+            if self.security_config.auth_enabled:
+                if self.security_config.auth_type == 'jwt' and self.security_config.jwt_secret_key:
+                    self.auth_middleware = create_jwt_auth(
+                        self.security_config.jwt_secret_key,
+                        self.security_config.jwt_algorithm,
+                        self.security_config.jwt_expiration_hours
+                    )
+                elif self.security_config.auth_type == 'basic':
+                    self.auth_middleware = create_basic_auth(
+                        self.security_config.basic_auth_username,
+                        self.security_config.basic_auth_password
+                    )
+        else:
+            self.security_config = None
+            self.auth_middleware = None
+        
         self._setup_routes()
 
     def _setup_routes(self):
         """Setup API routes."""
+        
+        def _require_auth_if_enabled(f):
+            if SECURITY_AVAILABLE and self.auth_middleware:
+                return require_auth(self.auth_middleware)(f)
+            return f
 
         @self.app.route('/api/models', methods=['GET'])
         def list_models():
@@ -113,6 +163,7 @@ class MarketplaceAPI:
                 return jsonify({"status": "error", "message": str(e)}), 404
 
         @self.app.route('/api/models/upload', methods=['POST'])
+        @_require_auth_if_enabled
         def upload_model():
             """Upload a model."""
             try:
@@ -138,6 +189,7 @@ class MarketplaceAPI:
                 return jsonify({"status": "error", "message": str(e)}), 400
 
         @self.app.route('/api/models/<model_id>', methods=['PUT'])
+        @_require_auth_if_enabled
         def update_model(model_id):
             """Update model metadata."""
             try:
@@ -159,6 +211,7 @@ class MarketplaceAPI:
                 return jsonify({"status": "error", "message": str(e)}), 404
 
         @self.app.route('/api/models/<model_id>', methods=['DELETE'])
+        @_require_auth_if_enabled
         def delete_model(model_id):
             """Delete a model."""
             try:
@@ -373,7 +426,17 @@ class MarketplaceAPI:
         debug : bool
             Debug mode
         """
-        self.app.run(host=host, port=port, debug=debug)
+        ssl_context = None
+        if SECURITY_AVAILABLE and self.security_config and self.security_config.ssl_enabled:
+            if self.security_config.ssl_cert_file and self.security_config.ssl_key_file:
+                ssl_context = (self.security_config.ssl_cert_file, self.security_config.ssl_key_file)
+        
+        self.app.run(
+            host=host,
+            port=port,
+            debug=debug,
+            ssl_context=ssl_context
+        )
 
     def get_app(self):
         """Get Flask app instance.

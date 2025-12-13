@@ -27,6 +27,12 @@ from neural.code_generation.code_generator import generate_code
 from neural.parser.parser import ModelTransformer, create_parser
 from neural.shape_propagation.shape_propagator import ShapePropagator
 from neural.visualization.static_visualizer.visualizer import NeuralVisualizer
+from neural.security import (
+    load_security_config,
+    create_basic_auth,
+    create_jwt_auth,
+    apply_security_middleware,
+)
 
 # ASCII Art for welcome message
 NEURAL_ASCII = r"""
@@ -41,12 +47,55 @@ NEURAL_ASCII = r"""
 # Create a directory for saving models if it doesn't exist
 os.makedirs(os.path.join(os.path.dirname(__file__), 'saved_models'), exist_ok=True)
 
+# Load security configuration
+security_config = load_security_config()
+
 # Initialize the Dash app with the dark theme
 app = Dash(
     __name__,
     external_stylesheets=[themes.DARKLY, dbc.icons.FONT_AWESOME],
     suppress_callback_exceptions=True
 )
+
+# Get Flask server and apply security middleware
+server = app.server
+
+apply_security_middleware(
+    server,
+    cors_enabled=security_config.cors_enabled,
+    cors_origins=security_config.cors_origins,
+    cors_methods=security_config.cors_methods,
+    cors_allow_headers=security_config.cors_allow_headers,
+    cors_allow_credentials=security_config.cors_allow_credentials,
+    rate_limit_enabled=security_config.rate_limit_enabled,
+    rate_limit_requests=security_config.rate_limit_requests,
+    rate_limit_window_seconds=security_config.rate_limit_window_seconds,
+    security_headers_enabled=security_config.security_headers_enabled,
+)
+
+# Setup authentication if enabled
+auth_middleware = None
+if security_config.auth_enabled:
+    if security_config.auth_type == 'jwt' and security_config.jwt_secret_key:
+        auth_middleware = create_jwt_auth(
+            security_config.jwt_secret_key,
+            security_config.jwt_algorithm,
+            security_config.jwt_expiration_hours
+        )
+    elif security_config.auth_type == 'basic':
+        auth_middleware = create_basic_auth(
+            security_config.basic_auth_username,
+            security_config.basic_auth_password
+        )
+
+if auth_middleware:
+    @server.before_request
+    def check_auth():
+        from flask import request
+        if request.path.startswith('/_dash'):
+            auth_data = auth_middleware.get_auth_data(request)
+            if not auth_data or not auth_middleware.check_auth(auth_data):
+                return auth_middleware.authenticate()
 
 # Define all available layer types with their parameters
 LAYER_TYPES = {
