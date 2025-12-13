@@ -56,7 +56,7 @@ except ImportError:
     pysnooper = None
     _HAS_PYSNOOPER = False
 
-def configure_logging(verbose=False):
+def configure_logging(verbose: bool = False) -> None:
     """Configure logging levels based on verbosity."""
     # Set environment variables to suppress debug messages from dependencies
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Suppress TensorFlow messages
@@ -110,7 +110,7 @@ SUPPORTED_DATASETS = {"MNIST", "CIFAR10", "CIFAR100", "ImageNet"}
 @click.option('--no-animations', is_flag=True, help='Disable animations and spinners')
 @click.version_option(version=__version__, prog_name="Neural")
 @click.pass_context
-def cli(ctx, verbose: bool, cpu: bool, no_animations: bool):
+def cli(ctx: click.Context, verbose: bool, cpu: bool, no_animations: bool) -> None:
     """Neural CLI: A compiler-like interface for .neural and .nr files."""
     ctx.ensure_object(dict)
     ctx.obj['VERBOSE'] = verbose
@@ -132,7 +132,7 @@ def cli(ctx, verbose: bool, cpu: bool, no_animations: bool):
 
 @cli.command()
 @click.pass_context
-def help(ctx):
+def help(ctx: click.Context) -> None:
     """Show help for commands."""
     print_help_command(ctx, cli.commands)
 
@@ -602,7 +602,7 @@ def version(ctx):
 
 @cli.group()
 @click.pass_context
-def cloud(ctx):
+def cloud(ctx: click.Context) -> None:
     """Commands for cloud integration."""
     pass
 
@@ -927,7 +927,7 @@ def track_compare(ctx, experiment_ids, base_dir, metrics, output_dir):
 @click.option('--setup-tunnel', is_flag=True, help='Set up an ngrok tunnel for remote access')
 @click.option('--port', default=8051, help='Port for the No-Code interface')
 @click.pass_context
-def cloud_run(ctx, setup_tunnel: bool, port: int):
+def cloud_run(ctx: click.Context, setup_tunnel: bool, port: int) -> None:
     """Run Neural in cloud environments (Kaggle, Colab, etc.)."""
     print_command_header("cloud run")
 
@@ -1125,7 +1125,7 @@ def cloud_connect(ctx, platform: str, interactive: bool, notebook: bool, port: i
 @click.argument('file', type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.option('--name', help='Name for the kernel/notebook')
 @click.pass_context
-def cloud_execute(ctx, platform: str, file: str, name: str):
+def cloud_execute(ctx: click.Context, platform: str, file: str, name: Optional[str]) -> None:
     """Execute a Neural DSL file on a cloud platform."""
     print_command_header(f"cloud execute: {platform}")
 
@@ -1302,7 +1302,7 @@ print(f"Model visualization saved to: {{viz_path}}")
 @click.option('--dashboard', '-d', is_flag=True, help='Start the NeuralDbg dashboard')
 @click.option('--port', default=8050, help='Port for the dashboard server')
 @click.pass_context
-def debug(ctx, file: str, gradients: bool, dead_neurons: bool, anomalies: bool, step: bool, backend: str, dataset: str, dashboard: bool, port: int):
+def debug(ctx: click.Context, file: str, gradients: bool, dead_neurons: bool, anomalies: bool, step: bool, backend: str, dataset: str, dashboard: bool, port: int) -> None:
     """Debug a neural network model with NeuralDbg."""
     print_command_header("debug")
     print_info(f"Debugging {file} with NeuralDbg (backend: {backend})")
@@ -1504,7 +1504,7 @@ def debug(ctx, file: str, gradients: bool, dead_neurons: bool, anomalies: bool, 
 @cli.command(name='no-code')
 @click.option('--port', default=8051, help='Web interface port', type=int)
 @click.pass_context
-def no_code(ctx, port: int):
+def no_code(ctx: click.Context, port: int) -> None:
     """Launch the no-code interface for building models."""
     print_command_header("no-code")
     print_info("Launching the Neural no-code interface...")

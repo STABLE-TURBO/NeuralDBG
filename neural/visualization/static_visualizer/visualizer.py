@@ -4,7 +4,10 @@ It provides the data transformation logic that converts Neural DSL model structu
 The model_to_d3_json method specifically creates the nodes and links structure that D3.js uses
 """
 
+from __future__ import annotations
+
 import json
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import plotly.graph_objects as go
@@ -27,15 +30,15 @@ except ImportError:
 
 
 class NeuralVisualizer:
-    def __init__(self, model_data):
+    def __init__(self, model_data: Dict[str, Any]) -> None:
         self.model_data = model_data
-        self.figures = [] # Store generated visualizations
+        self.figures: List[Any] = [] # Store generated visualizations
 
     ### Converting layers data to json for D3 visualization ########
     # Converts the model structure to a JSON format that's compatible with D3.js (with nodes and links)
     # JSON data is used with Matplotlib to create static images
     # The D3-compatible format is just used as a convenient intermediate representation
-    def model_to_d3_json(self):  # Remove model_data parameter since we have it in self
+    def model_to_d3_json(self) -> Dict[str, List[Dict[str, Any]]]:
         """Convert parsed model data to D3 visualization format"""
         nodes = []
         links = []
@@ -153,7 +156,7 @@ class NeuralVisualizer:
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.close(fig)
 
-    def save_shape_visualization(self, fig, filename):
+    def save_shape_visualization(self, fig: go.Figure, filename: str) -> None:
         """Save the shape visualization to an HTML file.
 
         Args:
@@ -189,3 +192,4 @@ if __name__ == '__main__':
 
     visualizer = NeuralVisualizer(model_data)
     print(visualizer.model_to_d3_json())
+(visualizer.model_to_d3_json())

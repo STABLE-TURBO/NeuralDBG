@@ -546,7 +546,7 @@ def create_layer_card(layer_index, layer_type, layer_params):
         style={"backgroundColor": "#2a2a2a", "border": "1px solid #444"}
     )
 
-def generate_dsl_code(model_data):
+def generate_dsl_code(model_data: Dict[str, Any]) -> str:
     """Generate Neural DSL code from model data"""
     input_shape = model_data.get("input", {}).get("shape", "(None, 28, 28, 1)")
     layers = model_data.get("layers", [])
@@ -580,7 +580,7 @@ def generate_dsl_code(model_data):
 """
     return dsl_code
 
-def get_model_templates():
+def get_model_templates() -> Dict[str, Dict[str, Any]]:
     """Return predefined model templates"""
     templates = {
         "mnist_cnn": {
@@ -695,7 +695,7 @@ def load_template(template_name):
     Output("layer-params", "data"),
     [Input(f"layer-type-{category.lower()}", "value") for category in LAYER_TYPES.keys()]
 )
-def update_layer_params(*layer_types):
+def update_layer_params(*layer_types: Optional[str]) -> List[Dict[str, str]]:
     ctx = callback_context
     if not ctx.triggered:
         return []
@@ -883,7 +883,7 @@ def update_layer_after_edit(params_data, selected_index, layers):
     [State("model-layers", "data")],
     prevent_initial_call=True
 )
-def delete_layer(delete_clicks, layers):
+def delete_layer(delete_clicks: List[Optional[int]], layers: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[dbc.Card]]:
     ctx = callback_context
     if not ctx.triggered:
         return dash.no_update, dash.no_update
@@ -1245,7 +1245,7 @@ def load_model(n_clicks, model_name):
      Input("help-close", "n_clicks")],
     [State("help-modal", "is_open")]
 )
-def toggle_help_modal(open_clicks, close_clicks, is_open):
+def toggle_help_modal(open_clicks: Optional[int], close_clicks: Optional[int], is_open: bool) -> bool:
     ctx = callback_context
     if not ctx.triggered:
         return is_open
@@ -1422,7 +1422,7 @@ def visualize_architecture(layers, input_shape_str):
      State("optimizer-params", "data"),
      State("loss-function", "value")]
 )
-def launch_neuraldbg(n_clicks, layers, input_shape, optimizer_type, optimizer_params, loss_function):
+def launch_neuraldbg(n_clicks: Optional[int], layers: List[Dict[str, Any]], input_shape: str, optimizer_type: str, optimizer_params: List[Dict[str, str]], loss_function: str) -> Any:
     if not n_clicks or not layers:
         return html.Div("Click 'Launch NeuralDbg' to debug your model.")
 
@@ -1464,3 +1464,4 @@ def launch_neuraldbg(n_clicks, layers, input_shape, optimizer_type, optimizer_pa
 
 if __name__ == "__main__":
     app.run_server(debug=True, port=8051)
+

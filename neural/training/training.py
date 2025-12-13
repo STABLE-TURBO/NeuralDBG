@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any, Dict, Union
+
 import tensorflow as tf
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -5,14 +9,14 @@ from torch.utils.tensorboard import SummaryWriter
 from neural.code_generation.code_generator import generate_code
 
 class TensorBoardLogger:
-    def __init__(self, log_dir="runs/neural"):
+    def __init__(self, log_dir: str = "runs/neural") -> None:
         self.writer = SummaryWriter(log_dir)
 
-    def log_metrics(self, metrics, step):
+    def log_metrics(self, metrics: Dict[str, float], step: int) -> None:
         for name, value in metrics.items():
             self.writer.add_scalar(name, value, step)
 
-    def log_model(self, model, step):
+    def log_model(self, model: Union[tf.keras.Model, torch.nn.Module], step: int) -> None:
         if isinstance(model, tf.keras.Model):
             model.summary(print_fn=lambda x: self.writer.add_text("model_summary", x))
         elif isinstance(model, torch.nn.Module):
@@ -20,11 +24,11 @@ class TensorBoardLogger:
 
 # Update ShapePropagator or training logic to log to TensorBoard
 class ShapePropagator:
-    def __init__(self, debug=False):
+    def __init__(self, debug: bool = False) -> None:
         # ... Existing init ...
         self.tensorboard_logger = TensorBoardLogger()
 
-    def propagate(self, input_shape, layer, framework):
+    def propagate(self, input_shape: tuple, layer: Dict[str, Any], framework: str) -> tuple:
         # ... Existing propagate logic ...
         resources = self.monitor_resources()
         self.tensorboard_logger.log_metrics({
@@ -43,7 +47,7 @@ class ShapePropagator:
 @click.argument('file', type=click.Path(exists=True))
 @click.option('--backend', default='tensorflow', help='Target backend: tensorflow or pytorch')
 @click.option('--log-dir', default='runs/neural', help='TensorBoard log directory')
-def train(file, backend, log_dir):
+def train(file: str, backend: str, log_dir: str) -> None:
     """Train a neural network model and log to TensorBoard."""
     from neural.parser.parser import create_parser
     parser_instance = create_parser('network' if os.path.splitext(file)[1].lower() in ['.neural', '.nr'] else 'research')
