@@ -179,6 +179,11 @@ examples/**/test_output.py
 do_install.py
 install.ps1
 install_deps.bat
+_install_deps.ps1
+_run_setup.py
+_setup_env.py
+do_install.bat
+setup.ps1
 
 # Sphinx documentation
 docs/_build/
