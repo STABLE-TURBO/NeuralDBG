@@ -245,6 +245,9 @@ _temp_requirements.txt
 install_dev_deps.py
 temp_dev_requirements.txt
 
+# Temporary package directories
+temp_pkgs/
+
 # Sphinx documentation
 docs/_build/
 docs/_autosummary/
