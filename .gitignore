@@ -242,6 +242,8 @@ SETUP_INSTRUCTIONS.md
 _SETUP_COMPLETE_README.md
 _setup.bat
 _temp_requirements.txt
+install_dev_deps.py
+temp_dev_requirements.txt
 
 # Sphinx documentation
 docs/_build/
