@@ -11,9 +11,9 @@ const config = {
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://neural-dsl.dev',
+  url: 'https://lemniscate-world.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
-  baseUrl: '/',
+  baseUrl: '/Neural/',
 
   // GitHub pages deployment config
   organizationName: 'Lemniscate-world',
@@ -64,7 +64,7 @@ const config = {
       metadata: [
         { name: 'keywords', content: 'neural networks, deep learning, DSL, machine learning, tensorflow, pytorch, AI, debugging' },
         { name: 'description', content: 'Neural DSL: A powerful domain-specific language for defining, training, debugging, and deploying neural networks with cross-framework support.' },
-        { property: 'og:image', content: 'img/neural-social-card.png' },
+        { property: 'og:image', content: 'https://lemniscate-world.github.io/Neural/img/neural-social-card.png' },
       ],
 
       announcementBar: {
