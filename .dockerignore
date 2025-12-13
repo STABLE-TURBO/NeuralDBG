@@ -11,12 +11,16 @@ build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.tox/
+.coverage
+htmlcov/
 
 # Virtual environments
 .venv/
 .venv312/
 venv/
 ENV/
+env/
 
 # IDE
 .vscode/
@@ -24,22 +28,28 @@ ENV/
 *.swp
 *.swo
 *~
+.DS_Store
 
 # Git
 .git/
 .gitignore
+.gitattributes
 
-# Documentation
+# Documentation (keep README)
 docs/
 *.md
 !README.md
+!AGENTS.md
 
 # Tests
 tests/
 pytest.ini
+.pytest_cache/
 
 # CI/CD
 .github/
+.gitlab-ci.yml
+.travis.yml
 
 # Data and outputs
 neural_experiments/
@@ -47,14 +57,74 @@ neural_storage/
 neural_models/
 *.db
 *.log
+*.sqlite
+*.sqlite3
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Docker
-docker-compose.override.yml
+docker-compose*.yml
+Dockerfile
+.dockerignore
 
 # Environment
 .env
-.env.local
+.env.*
+!.env.example
+
+# Build artifacts
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb
+
+# Profiling
+*.prof
+
+# Large model files
+*.h5
+*.hdf5
+*.pb
+*.ckpt
+*.pth
+*.pt
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# Node modules (if any)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Kubernetes and Helm
+k8s/
+helm/
+
+# Scripts
+scripts/
+
+# Website
+website/
+
+# Tools
+tools/
+
+# Pretrained models
+pretrained_models/
+
+# Profiler
+profiler/

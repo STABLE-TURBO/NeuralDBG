@@ -683,49 +683,46 @@ def raise_codegen_error(
 
 
 # Exception hierarchy overview (for documentation):
-
-"""
-Exception Hierarchy:
---------------------
-
-NeuralException (base)
-├── ParserException
-│   ├── DSLSyntaxError
-│   └── DSLValidationError
-├── CodeGenException
-│   ├── UnsupportedLayerError
-│   └── UnsupportedBackendError
-├── ShapeException
-│   ├── ShapeMismatchError
-│   └── InvalidShapeError
-├── InvalidParameterError
-├── HPOException
-│   ├── InvalidHPOConfigError
-│   └── HPOSearchError
-├── TrackingException
-│   ├── ExperimentNotFoundError
-│   └── MetricLoggingError
-├── CloudException
-│   ├── CloudConnectionError
-│   └── CloudExecutionError
-├── VisualizationException
-├── FileOperationError
-├── DependencyError
-├── ConfigurationError
-├── ExecutionError
-├── MLOpsException
-│   ├── ModelRegistryError
-│   ├── ApprovalWorkflowError
-│   ├── DeploymentError
-│   ├── ABTestError
-│   └── AuditLogError
-└── CollaborationException
-    ├── WorkspaceError
-    ├── ConflictError
-    ├── SyncError
-    └── AccessControlError
-
-Usage Examples:
----------------
-See module docstring for detailed examples of each exception type.
-"""
+# Exception Hierarchy:
+# --------------------
+#
+# NeuralException (base)
+# - ParserException
+#   - DSLSyntaxError
+#   - DSLValidationError
+# - CodeGenException
+#   - UnsupportedLayerError
+#   - UnsupportedBackendError
+# - ShapeException
+#   - ShapeMismatchError
+#   - InvalidShapeError
+# - InvalidParameterError
+# - HPOException
+#   - InvalidHPOConfigError
+#   - HPOSearchError
+# - TrackingException
+#   - ExperimentNotFoundError
+#   - MetricLoggingError
+# - CloudException
+#   - CloudConnectionError
+#   - CloudExecutionError
+# - VisualizationException
+# - FileOperationError
+# - DependencyError
+# - ConfigurationError
+# - ExecutionError
+# - MLOpsException
+#   - ModelRegistryError
+#   - ApprovalWorkflowError
+#   - DeploymentError
+#   - ABTestError
+#   - AuditLogError
+# - CollaborationException
+#   - WorkspaceError
+#   - ConflictError
+#   - SyncError
+#   - AccessControlError
+#
+# Usage Examples:
+# ---------------
+# See module docstring for detailed examples of each exception type.

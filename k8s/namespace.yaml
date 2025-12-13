@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-dsl
+  labels:
+    name: neural-dsl
+    app: neural-dsl

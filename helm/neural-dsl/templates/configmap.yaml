@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "neural-dsl.fullname" . }}-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "neural-dsl.labels" . | nindent 4 }}
+data:
+  API_HOST: {{ .Values.api.env.apiHost | quote }}
+  API_PORT: {{ .Values.api.env.apiPort | quote }}
+  API_WORKERS: {{ .Values.api.env.apiWorkers | quote }}
+  REDIS_HOST: "redis"
+  REDIS_PORT: {{ .Values.redis.service.port | quote }}
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: {{ .Values.postgresql.service.port | quote }}
+  POSTGRES_DB: {{ .Values.postgresql.auth.database | quote }}
+  POSTGRES_USER: {{ .Values.postgresql.auth.username | quote }}
+  STORAGE_PATH: "/app/data/storage"
+  EXPERIMENTS_PATH: "/app/data/experiments"
+  MODELS_PATH: "/app/data/models"
+  RATE_LIMIT_ENABLED: {{ .Values.api.env.rateLimitEnabled | quote }}
+  RATE_LIMIT_REQUESTS: {{ .Values.api.env.rateLimitRequests | quote }}
+  RATE_LIMIT_PERIOD: {{ .Values.api.env.rateLimitPeriod | quote }}
+  UPDATE_INTERVAL: {{ .Values.dashboard.env.updateInterval | quote }}
+  DEBUG: {{ .Values.api.env.debug | quote }}
+  CELERY_CONCURRENCY: {{ .Values.worker.env.celeryConcurrency | quote }}
+  CORS_ORIGINS: {{ .Values.api.env.corsOrigins | quote }}
