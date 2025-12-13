@@ -1,20 +1,28 @@
 name: Update Complexity Analysis
+
 on:
   push:
     branches: [main]
+
 jobs:
   analyze:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
+          cache: 'pip'
+
       - name: Install radon
-        run: pip install radon
+        run: python -m pip install radon
+
       - name: Run complexity analysis
-        run: python scripts/complexity.py  # Fix the path by removing the leading slash
+        run: python scripts/complexity.py
+
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"

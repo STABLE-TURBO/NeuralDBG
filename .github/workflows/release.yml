@@ -1,8 +1,10 @@
 name: Create GitHub Release
+
 on:
   push:
     tags:
       - 'v*'
+
 jobs:
   release:
     runs-on: ubuntu-latest

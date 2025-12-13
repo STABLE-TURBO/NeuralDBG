@@ -1,2 +1,22 @@
-- name: Metrics embed
-  uses: lowlighter/metrics@v3.34
+name: Metrics
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"  # Weekly on Sunday at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate metrics
+        uses: lowlighter/metrics@v3.34
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config_timezone: UTC
