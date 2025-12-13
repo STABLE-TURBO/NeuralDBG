@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import copy
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import keras
 import numpy as np
 import optuna
+from optuna.trial import Trial
 import tensorflow as tf
 import torch
 import torch.nn as nn
@@ -20,7 +24,13 @@ from neural.exceptions import (
 )
 
 # Data Loader
-def get_data(dataset_name, input_shape, batch_size, train=True, backend='pytorch'):
+def get_data(
+    dataset_name: str, 
+    input_shape: Tuple[int, ...], 
+    batch_size: int, 
+    train: bool = True, 
+    backend: str = 'pytorch'
+) -> Any:
     datasets = {'MNIST': MNIST, 'CIFAR10': CIFAR10}
     dataset = datasets.get(dataset_name, MNIST)(root='./data', train=train, transform=ToTensor(), download=True)
     if backend == 'pytorch':
@@ -32,14 +42,19 @@ def get_data(dataset_name, input_shape, batch_size, train=True, backend='pytorch
             data = data[..., None]  # [N, H, W] → [N, H, W, 1]
         return tf.data.Dataset.from_tensor_slices((data, targets)).batch(batch_size)
 
-def prod(iterable):
+def prod(iterable: Tuple[int, ...]) -> int:
     result = 1
     for x in iterable:
         result *= x
     return result
 
 # Factory Function
-def create_dynamic_model(model_dict, trial, hpo_params, backend='pytorch'):
+def create_dynamic_model(
+    model_dict: Dict[str, Any], 
+    trial: Trial, 
+    hpo_params: List[Dict[str, Any]], 
+    backend: str = 'pytorch'
+) -> Union['DynamicPTModel', 'DynamicTFModel']:
     resolved_model_dict = copy.deepcopy(model_dict)
     # Removed print statement for cleaner output
 
@@ -95,7 +110,11 @@ def create_dynamic_model(model_dict, trial, hpo_params, backend='pytorch'):
         )
 
 
-def resolve_hpo_params(model_dict, trial, hpo_params):
+def resolve_hpo_params(
+    model_dict: Dict[str, Any], 
+    trial: Trial, 
+    hpo_params: List[Dict[str, Any]]
+) -> Dict[str, Any]:
     import copy
     import logging
     logger = logging.getLogger(__name__)
@@ -103,7 +122,7 @@ def resolve_hpo_params(model_dict, trial, hpo_params):
     logger.setLevel(logging.WARNING)
     resolved_dict = copy.deepcopy(model_dict)
 
-    # logger.debug(f"Original layers: {resolved_dict['layers']}")
+    # logger.debug(f"Original layers: {resolved_dict['layers']}")
     for i, layer in enumerate(resolved_dict['layers']):
         if 'params' in layer and layer['params'] is not None and 'units' in layer['params'] and isinstance(layer['params']['units'], dict) and 'hpo' in layer['params']['units']:
             hpo = layer['params']['units']['hpo']
@@ -142,7 +161,12 @@ def resolve_hpo_params(model_dict, trial, hpo_params):
 
 # Dynamic Models
 class DynamicPTModel(nn.Module):
-    def __init__(self, model_dict, trial, hpo_params):
+    def __init__(
+        self, 
+        model_dict: Dict[str, Any], 
+        trial: Trial, 
+        hpo_params: List[Dict[str, Any]]
+    ) -> None:
         super().__init__()
         self.model_dict = model_dict
         self.layers = nn.ModuleList()
@@ -240,13 +264,18 @@ class DynamicPTModel(nn.Module):
                 raise ValueError(f"Unsupported layer type: {layer['type']}")
         # Removed print statement for cleaner output
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         for layer in self.layers:
             x = layer(x)
         return x
 
 class DynamicTFModel(tf.keras.Model):
-    def __init__(self, model_dict, trial, hpo_params):
+    def __init__(
+        self, 
+        model_dict: Dict[str, Any], 
+        trial: Trial, 
+        hpo_params: List[Dict[str, Any]]
+    ) -> None:
         super().__init__()
         self.layers_list = []
         input_shape = model_dict['input']['shape']
@@ -273,7 +302,7 @@ class DynamicTFModel(tf.keras.Model):
                     params['units'] = units
                 self.layers_list.append(tf.keras.layers.Dense(params['units'], activation='softmax' if params.get('activation') == 'softmax' else None))
 
-    def call(self, inputs):
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
         x = tf.reshape(inputs, [inputs.shape[0], -1])  # Flatten input
         for layer in self.layers_list:
             x = layer(x)
@@ -281,7 +310,15 @@ class DynamicTFModel(tf.keras.Model):
 
 
 # Training Method
-def train_model(model, optimizer, train_loader, val_loader, backend='pytorch', epochs=1, execution_config=None):
+def train_model(
+    model: Union[DynamicPTModel, DynamicTFModel], 
+    optimizer: Any, 
+    train_loader: Any, 
+    val_loader: Any, 
+    backend: str = 'pytorch', 
+    epochs: int = 1, 
+    execution_config: Optional[Dict[str, Any]] = None
+) -> Tuple[float, float, float, float]:
     if backend == 'pytorch':
         device = get_device(execution_config.get("device", "auto") if execution_config else "auto")
         model.to(device)
@@ -319,7 +356,13 @@ def train_model(model, optimizer, train_loader, val_loader, backend='pytorch', e
 
 
 # HPO Objective
-def objective(trial, config, dataset_name='MNIST', backend='pytorch', device='auto'):
+def objective(
+    trial: Trial, 
+    config: str, 
+    dataset_name: str = 'MNIST', 
+    backend: str = 'pytorch', 
+    device: str = 'auto'
+) -> Tuple[float, float, float, float]:
     import torch.optim as optim
     from neural.execution_optimization.execution import get_device
 
@@ -371,7 +414,13 @@ def objective(trial, config, dataset_name='MNIST', backend='pytorch', device='au
 
 
 # Optimize and Return
-def optimize_and_return(config, n_trials=10, dataset_name='MNIST', backend='pytorch', device='auto'):
+def optimize_and_return(
+    config: str, 
+    n_trials: int = 10, 
+    dataset_name: str = 'MNIST', 
+    backend: str = 'pytorch', 
+    device: str = 'auto'
+) -> Dict[str, Union[int, float]]:
     # Set device mode
     import os
     if device.lower() == 'cpu':
@@ -385,7 +434,7 @@ def optimize_and_return(config, n_trials=10, dataset_name='MNIST', backend='pyto
         os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:32'
     study = optuna.create_study(directions=["minimize", "minimize", "maximize", "maximize"])
 
-    def objective_wrapper(trial):
+    def objective_wrapper(trial: Trial) -> Tuple[float, float, float, float]:
         # Get device from outer scope
         nonlocal device
         # Parse the config once per trial

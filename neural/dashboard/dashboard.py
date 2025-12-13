@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import json
 import threading
 import time
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import dash
 import numpy as np
@@ -61,14 +64,14 @@ UPDATE_INTERVAL = config.get("websocket_interval", 1000) # Use default if config
 
 # Store Execution Trace Data and Model Data
 # Use a shared list so TRACE_DATA and trace_data always reference the same object
-_trace_data_list = []
-trace_data = _trace_data_list
-TRACE_DATA = _trace_data_list  # Export for test compatibility - both point to same list
-model_data = None
-backend = 'tensorflow'
-shape_history = []
+_trace_data_list: List[Dict[str, Any]] = []
+trace_data: List[Dict[str, Any]] = _trace_data_list
+TRACE_DATA: List[Dict[str, Any]] = _trace_data_list  # Export for test compatibility - both point to same list
+model_data: Optional[Dict[str, Any]] = None
+backend: str = 'tensorflow'
+shape_history: List[Tuple[str, Tuple[int, ...]]] = []
 
-def get_trace_data():
+def get_trace_data() -> List[Dict[str, Any]]:
     """Get trace data, checking TRACE_DATA first (for test compatibility)."""
     # Check if TRACE_DATA has been reassigned in the module namespace
     import neural.dashboard.dashboard as dashboard_module
@@ -132,8 +135,7 @@ print_dashboard_data()
     [Output("interval_component", "interval")],
     [Input("update_interval", "value")]
 )
-
-def update_interval(new_interval):
+def update_interval(new_interval: int) -> List[int]:
     """Update the interval dynamically based on slider value."""
     return [new_interval]
 
@@ -150,7 +152,7 @@ if socketio is not None:
     [Output("trace_graph", "figure")],
     [Input("interval_component", "n_intervals"), Input("viz_type", "value"), Input("layer_filter", "value")]
 )
-def update_trace_graph(n, viz_type, selected_layers=None):
+def update_trace_graph(n: int, viz_type: str, selected_layers: Optional[List[str]] = None) -> List[go.Figure]:
     """Update execution trace graph with various visualization types."""
     global trace_data
     # Use get_trace_data() to get the current trace data (handles test reassignments)
@@ -327,8 +329,8 @@ def update_flops_memory_chart(n):
     Output("loss_graph", "figure"),
     Input("interval_component", "n_intervals")
 )
-
-def update_loss(n):
+def update_loss(n: int) -> go.Figure:
+    import random
     loss_data = [random.uniform(0.1, 1.0) for _ in range(n)]  # Simulated loss data
     fig = go.Figure(data=[go.Scatter(y=loss_data, mode="lines+markers")])
     fig.update_layout(title="Loss Over Time")
@@ -353,7 +355,7 @@ def update_loss(n):
     Output("architecture_graph", "figure"),
     Input("architecture_selector", "value")
 )
-def update_graph(arch):
+def update_graph(arch: str) -> go.Figure:
     """Update the architecture graph visualization."""
     global model_data, backend, trace_data
 
@@ -602,7 +604,7 @@ def trigger_step_debug(n):
     Output("resource_graph", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_resource_graph(n):
+def update_resource_graph(n: int) -> go.Figure:
     """Visualize CPU/GPU usage, memory, and I/O bottlenecks."""
     try:
         import psutil
@@ -649,7 +651,7 @@ def update_resource_graph(n):
     Output("tensor_flow_graph", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_tensor_flow(n):
+def update_tensor_flow(n: int) -> go.Figure:
     """Visualize tensor flow through the network."""
     global shape_history, model_data, backend
 
