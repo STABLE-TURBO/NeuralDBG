@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.0-dev] - 18-10-2025
+## [0.3.0] - 2025-01-18
 
 ### Added
 - **🤖 AI-Powered Development**: Natural language to DSL conversion system

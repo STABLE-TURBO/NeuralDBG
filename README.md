@@ -353,7 +353,7 @@ In your Kaggle notebook or Google Colab:
 
 ```python
 # Install Neural DSL
-!pip install neural-dsl==0.2.9
+!pip install neural-dsl==0.3.0
 
 # Import the cloud module
 from neural.cloud.cloud_execution import CloudExecutor
@@ -835,3 +835,4 @@ pip install neural-dsl[full]
 ```
 
 If you have questions or want guidance on tightening typing or adding new policy checks, open a discussion or draft PR.
+

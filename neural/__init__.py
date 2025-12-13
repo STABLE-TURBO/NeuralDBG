@@ -12,7 +12,7 @@ is set to None and a warning is emitted. Check module availability before use.
 import warnings  # For emitting optional dependency warnings
 
 # Package metadata - always available
-__version__ = "0.3.0.dev0"  # Current development version
+__version__ = "0.3.0"  # Current stable version
 __author__ = "Lemniscate-SHA-256/SENOUVO Jacques-Charles Gad"  # Package author
 __email__ = "Lemniscate_zero@proton.me"  # Contact email
 

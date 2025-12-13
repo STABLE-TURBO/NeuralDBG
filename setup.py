@@ -70,7 +70,7 @@ API_DEPS = [
 
 setup(
     name="neural-dsl",
-    version="0.3.0.dev0",
+    version="0.3.0",
     packages=find_packages(where="."),
     package_dir={"": "."},
     install_requires=CORE_DEPS,
@@ -119,7 +119,7 @@ setup(
     author="Lemniscate-SHA-256/SENOUVO Jacques-Charles Gad",
     author_email="Lemniscate_zero@proton.me",
     description="A domain-specific language and debugger for neural networks",
-    long_description=open("README.md", encoding="utf-8").read() + "\n\n**Note**: See v0.2.9 release notes for latest fixes and improvements!",
+    long_description=open("README.md", encoding="utf-8").read() + "\n\n**Note**: See v0.3.0 release notes for latest AI integration, deployment features, and automation improvements!",
     long_description_content_type="text/markdown",
     url="https://github.com/Lemniscate-world/Neural",
     classifiers=[
