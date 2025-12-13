@@ -196,9 +196,12 @@ class TensorFlowGenerator(BaseCodeGenerator):
             input_dim = params.get("input_dim", 10000)
             output_dim = params.get("output_dim", 128)
             mask_zero = params.get("mask_zero", False)
+            input_length = params.get("input_length", None)
             code = f"layers.Embedding(input_dim={input_dim}, output_dim={output_dim}"
             if mask_zero:
                 code += f", mask_zero={mask_zero}"
+            if input_length:
+                code += f", input_length={input_length}"
             code += ")"
             return code
         elif layer_type == "GlobalAveragePooling1D":

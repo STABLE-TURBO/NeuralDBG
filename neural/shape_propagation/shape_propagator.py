@@ -602,6 +602,57 @@ class ShapePropagator:
             # Output layer can accept higher dimensional inputs and will flatten internally
             # Unlike Dense layer which expects exactly 2D, Output can be more flexible
 
+        elif layer_type == 'Embedding':
+            # Check if input_dim parameter exists and is positive
+            if 'input_dim' not in params:
+                raise InvalidParameterError(
+                    parameter='input_dim',
+                    value=None,
+                    layer_type='Embedding',
+                    expected='input_dim parameter is required'
+                )
+
+            input_dim = params.get('input_dim')
+            if isinstance(input_dim, dict):
+                if 'value' in input_dim:
+                    input_dim = input_dim['value']
+            if input_dim is not None and isinstance(input_dim, (int, float)) and input_dim <= 0:
+                raise InvalidParameterError(
+                    parameter='input_dim',
+                    value=input_dim,
+                    layer_type='Embedding',
+                    expected='positive integer'
+                )
+
+            # Check if output_dim parameter exists and is positive
+            if 'output_dim' not in params:
+                raise InvalidParameterError(
+                    parameter='output_dim',
+                    value=None,
+                    layer_type='Embedding',
+                    expected='output_dim parameter is required'
+                )
+
+            output_dim = params.get('output_dim')
+            if isinstance(output_dim, dict):
+                if 'value' in output_dim:
+                    output_dim = output_dim['value']
+            if output_dim is not None and isinstance(output_dim, (int, float)) and output_dim <= 0:
+                raise InvalidParameterError(
+                    parameter='output_dim',
+                    value=output_dim,
+                    layer_type='Embedding',
+                    expected='positive integer'
+                )
+
+            # Check if input shape is valid for Embedding layer (2D: batch, sequence)
+            if len(input_shape) > 2:
+                raise ShapeMismatchError(
+                    f"Embedding layer expects 2D input (batch, sequence), got {len(input_shape)}D: {input_shape}",
+                    input_shape=input_shape,
+                    layer_type='Embedding'
+                )
+
 ####################################################################
 ### Shape propagation through 2 Dimensional Convolutional Layers ###
 ####################################################################
@@ -810,6 +861,31 @@ class ShapePropagator:
             return (input_shape[0], units)
         else:
             return (units,)
+
+    def _handle_embedding(self, input_shape, params):
+        print(f"DEBUG: _handle_embedding - input_shape: {input_shape}, params: {params}")
+
+        # Get output_dim parameter with proper handling of dictionary values
+        output_dim = params.get('output_dim', 128)  # Default to 128 if not provided
+
+        # Handle dictionary values in output_dim
+        if isinstance(output_dim, dict):
+            # If it's a dictionary with a 'value' key, use that value
+            if 'value' in output_dim:
+                output_dim = output_dim['value']
+            # Otherwise, use a default value
+            else:
+                print(f"DEBUG: _handle_embedding - output_dim is a dict without 'value' key: {output_dim}, using default")
+                output_dim = 128  # Default value
+
+        print(f"DEBUG: _handle_embedding - output_dim after processing: {output_dim}")
+
+        # Embedding layer transforms input shape (batch, sequence_length) to (batch, sequence_length, output_dim)
+        if len(input_shape) >= 2:
+            return (input_shape[0], input_shape[1], output_dim)
+        else:
+            # If input is 1D (just sequence length), add batch dimension
+            return (input_shape[0], output_dim)
 
     def _handle_globalaveragepooling2d(self, input_shape, params):
         print(f"DEBUG: _handle_globalaveragepooling2d - input_shape: {input_shape}, params: {params}")

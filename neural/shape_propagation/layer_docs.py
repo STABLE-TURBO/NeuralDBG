@@ -115,6 +115,16 @@ LAYER_DOCUMENTATION = {
         },
         'shape_transformation': 'Preserves input shape.'
     },
+    'Embedding': {
+        'description': 'Embedding layer for converting integer indices to dense vectors',
+        'parameters': {
+            'input_dim': 'Size of the vocabulary (number of unique tokens)',
+            'output_dim': 'Dimension of the dense embedding vectors',
+            'input_length': 'Optional. Length of input sequences (for fixed-length sequences)'
+        },
+        'shape_transformation': 'Transforms input shape (batch, sequence_length) to output shape ' +
+                               '(batch, sequence_length, output_dim). Commonly used for text and sequence data.'
+    },
     'BatchNormalization': {
         'description': 'Batch normalization layer',
         'parameters': {

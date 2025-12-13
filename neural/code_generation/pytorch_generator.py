@@ -111,6 +111,24 @@ class PyTorchGenerator(BaseCodeGenerator):
                 layer_code = f"nn.Dropout(p={rate})"
                 layers_code.append(f"self.{layer_name} = {layer_code}")
                 forward_code_body.append(f"x = self.{layer_name}(x)")
+            elif layer_type == "Embedding":
+                num_embeddings = params.get("input_dim", 1000)
+                if isinstance(num_embeddings, dict):
+                    if 'value' in num_embeddings:
+                        num_embeddings = num_embeddings['value']
+                    else:
+                        logger.warning(f"Dictionary parameter without 'value' key: {num_embeddings}, using default")
+                        num_embeddings = 1000
+                embedding_dim = params.get("output_dim", 128)
+                if isinstance(embedding_dim, dict):
+                    if 'value' in embedding_dim:
+                        embedding_dim = embedding_dim['value']
+                    else:
+                        logger.warning(f"Dictionary parameter without 'value' key: {embedding_dim}, using default")
+                        embedding_dim = 128
+                layer_code = f"nn.Embedding(num_embeddings={num_embeddings}, embedding_dim={embedding_dim})"
+                layers_code.append(f"self.{layer_name} = {layer_code}")
+                forward_code_body.append(f"x = self.{layer_name}(x)")
             elif layer_type == "Output":
                 in_features = self.current_input_shape[-1]
                 if isinstance(in_features, dict):
@@ -373,6 +391,22 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 logger.warning(f"Dictionary parameter without 'value' key: {rate}, using default")
                 rate = 0.5
         return f"nn.Dropout(p={rate})"
+    elif layer_type == "Embedding":
+        num_embeddings = params.get("input_dim", 1000)
+        if isinstance(num_embeddings, dict):
+            if 'value' in num_embeddings:
+                num_embeddings = num_embeddings['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {num_embeddings}, using default")
+                num_embeddings = 1000
+        embedding_dim = params.get("output_dim", 128)
+        if isinstance(embedding_dim, dict):
+            if 'value' in embedding_dim:
+                embedding_dim = embedding_dim['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {embedding_dim}, using default")
+                embedding_dim = 128
+        return f"nn.Embedding(num_embeddings={num_embeddings}, embedding_dim={embedding_dim})"
     elif layer_type == "Output":
         if input_shape:
             dims = []
