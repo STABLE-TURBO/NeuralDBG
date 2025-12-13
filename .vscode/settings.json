@@ -8,5 +8,9 @@
     "python.analysis.typeCheckingMode": "basic",
     "r.lsp.promptToInstall": false,
     "cursorpyright.analysis.autoImportCompletions": true,
-    "cursorpyright.analysis.typeCheckingMode": "basic"
+    "cursorpyright.analysis.typeCheckingMode": "basic",
+    "sonarlint.connectedMode.project": {
+        "connectionId": "stable-turbo",
+        "projectKey": "STABLE-TURBO_Neural"
+    }
 }
