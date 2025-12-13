@@ -100,7 +100,7 @@ profiling_data = {
     'backend_comparison': {},
 }
 
-def update_profiling_data(new_profiling_data):
+def update_profiling_data(new_profiling_data: Optional[Dict[str, Any]]) -> None:
     global profiling_data
     if new_profiling_data:
         profiling_data.update(new_profiling_data)
@@ -114,7 +114,7 @@ def get_trace_data() -> List[Dict[str, Any]]:
     return trace_data
 
 # Function to print data for debugging
-def print_dashboard_data():
+def print_dashboard_data() -> None:
     global trace_data, model_data
     print("\n=== DASHBOARD DATA ===")
     print(f"Model data: {model_data is not None}")
@@ -128,7 +128,11 @@ def print_dashboard_data():
     print("=====================\n")
 
 # Function to update dashboard data
-def update_dashboard_data(new_model_data=None, new_trace_data=None, new_backend=None):
+def update_dashboard_data(
+    new_model_data: Optional[Dict[str, Any]] = None,
+    new_trace_data: Optional[List[Dict[str, Any]]] = None,
+    new_backend: Optional[str] = None
+) -> None:
     """Update the dashboard data with new data from the CLI."""
     global model_data, trace_data, backend, shape_history, _trace_data_list
 
@@ -337,7 +341,7 @@ def update_trace_graph(n: int, viz_type: str, selected_layers: Optional[List[str
     Output("flops_memory_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_flops_memory_chart(n):
+def update_flops_memory_chart(n: int) -> List[go.Figure]:
     """Update FLOPs and memory usage visualization."""
     if not trace_data:
         return go.Figure()
@@ -553,7 +557,7 @@ def update_graph(arch: str) -> go.Figure:
     Output("gradient_flow_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_gradient_chart(n):
+def update_gradient_chart(n: int) -> go.Figure:
     """Visualizes gradient flow per layer."""
     global trace_data
 
@@ -575,7 +579,7 @@ def update_gradient_chart(n):
     Output("dead_neuron_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_dead_neurons(n):
+def update_dead_neurons(n: int) -> go.Figure:
     """Displays percentage of dead neurons per layer."""
     global trace_data
 
@@ -597,7 +601,7 @@ def update_dead_neurons(n):
     Output("anomaly_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_anomaly_chart(n):
+def update_anomaly_chart(n: int) -> go.Figure:
     """Visualizes unusual activations per layer."""
     global trace_data
 
@@ -623,7 +627,7 @@ def update_anomaly_chart(n):
     Output("step_debug_output", "children"),
     Input("step_debug_button", "n_clicks")
 )
-def trigger_step_debug(n):
+def trigger_step_debug(n: Optional[int]) -> str:
     """Manually pauses execution at a layer."""
     if n:
         requests.get("http://localhost:5001/trigger_step_debug")
@@ -809,7 +813,7 @@ app.layout = html.Div([
     [Input("generate-viz-button", "n_clicks")],
     [State("progress-store", "children")]
 )
-def update_network_visualization(n_clicks, _):
+def update_network_visualization(n_clicks: int, _: Optional[str]) -> Tuple[go.Figure, str]:
     """Generate a visualization of the neural network architecture."""
     global model_data, backend, shape_history
 
@@ -959,7 +963,7 @@ def update_network_visualization(n_clicks, _):
      Output("progress-details", "children")],
     [Input("progress-store", "children")]
 )
-def update_progress_display(progress_json):
+def update_progress_display(progress_json: Optional[str]) -> Tuple[Dict[str, str], str, str]:
     if not progress_json:
         raise PreventUpdate
 
@@ -981,7 +985,7 @@ def update_progress_display(progress_json):
     Output("computation-timeline", "figure"),
     [Input("interval_component", "n_intervals")]
 )
-def update_computation_timeline(n_intervals):
+def update_computation_timeline(n_intervals: int) -> go.Figure:
     """Create a Gantt chart showing layer execution times."""
     global trace_data
 
@@ -1065,7 +1069,7 @@ def update_computation_timeline(n_intervals):
     Output("layer_profiling_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_layer_profiling(n):
+def update_layer_profiling(n: int) -> go.Figure:
     global profiling_data
     if PROFILING_AVAILABLE and profiling_data.get('layer_stats'):
         return create_layer_profiling_view(profiling_data['layer_stats'])
@@ -1075,7 +1079,7 @@ def update_layer_profiling(n):
     Output("execution_timeline_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_execution_timeline_chart(n):
+def update_execution_timeline_chart(n: int) -> go.Figure:
     global profiling_data
     if PROFILING_AVAILABLE and profiling_data.get('execution_history'):
         return create_execution_timeline(profiling_data['execution_history'])
@@ -1085,7 +1089,7 @@ def update_execution_timeline_chart(n):
     Output("memory_profiling_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_memory_profiling(n):
+def update_memory_profiling(n: int) -> go.Figure:
     global profiling_data
     if PROFILING_AVAILABLE and profiling_data.get('memory_snapshots'):
         return create_memory_profiling_view(profiling_data['memory_snapshots'])
@@ -1095,7 +1099,7 @@ def update_memory_profiling(n):
     Output("memory_leak_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_memory_leak(n):
+def update_memory_leak(n: int) -> go.Figure:
     global profiling_data
     if PROFILING_AVAILABLE and profiling_data.get('memory_leak_summary'):
         return create_memory_leak_view(profiling_data['memory_leak_summary'])
@@ -1105,7 +1109,7 @@ def update_memory_leak(n):
     Output("bottleneck_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_bottleneck_chart(n):
+def update_bottleneck_chart(n: int) -> go.Figure:
     global profiling_data
     if PROFILING_AVAILABLE and profiling_data.get('bottlenecks'):
         return create_bottleneck_view(profiling_data['bottlenecks'])
@@ -1115,7 +1119,7 @@ def update_bottleneck_chart(n):
     Output("recommendations_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_recommendations_chart(n):
+def update_recommendations_chart(n: int) -> go.Figure:
     global profiling_data
     if PROFILING_AVAILABLE and profiling_data.get('recommendations'):
         return create_recommendations_view(profiling_data['recommendations'])
@@ -1125,7 +1129,7 @@ def update_recommendations_chart(n):
     Output("gpu_utilization_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_gpu_utilization_chart(n):
+def update_gpu_utilization_chart(n: int) -> go.Figure:
     global profiling_data
     if PROFILING_AVAILABLE and profiling_data.get('gpu_metrics'):
         return create_gpu_utilization_view(profiling_data['gpu_metrics'])
@@ -1135,7 +1139,7 @@ def update_gpu_utilization_chart(n):
     Output("backend_comparison_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_backend_comparison_chart(n):
+def update_backend_comparison_chart(n: int) -> go.Figure:
     global profiling_data
     if PROFILING_AVAILABLE and profiling_data.get('backend_comparison'):
         return create_comparative_profiling_view(profiling_data['backend_comparison'])
@@ -1145,7 +1149,7 @@ def update_backend_comparison_chart(n):
     Output("distributed_profiling_chart", "figure"),
     Input("interval_component", "n_intervals")
 )
-def update_distributed_profiling_chart(n):
+def update_distributed_profiling_chart(n: int) -> go.Figure:
     global profiling_data
     if PROFILING_AVAILABLE and profiling_data.get('distributed_metrics'):
         return create_distributed_profiling_view(profiling_data['distributed_metrics'])
@@ -1153,120 +1157,4 @@ def update_distributed_profiling_chart(n):
 
 if __name__ == "__main__":
     app.run_server(debug=False, use_reloader=False)
-yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        height=500
-    )
 
-    # Return the figure and final progress state
-    return fig, json.dumps({"progress": 100, "details": "Default visualization complete"})
-
-# Update progress bar
-@app.callback(
-    [Output("progress-bar", "style"),
-     Output("progress-text", "children"),
-     Output("progress-details", "children")],
-    [Input("progress-store", "children")]
-)
-def update_progress_display(progress_json):
-    if not progress_json:
-        raise PreventUpdate
-
-    progress_data = json.loads(progress_json)
-    progress = progress_data.get("progress", 0)
-    details = progress_data.get("details", "")
-
-    # Update progress bar style
-    bar_style = {
-        "width": f"{progress}%",
-        "backgroundColor": "#4CAF50",
-        "height": "30px"
-    }
-
-    return bar_style, f"{progress:.1f}%", details
-
-# Add computation timeline
-@app.callback(
-    Output("computation-timeline", "figure"),
-    [Input("interval_component", "n_intervals")]
-)
-def update_computation_timeline(n_intervals):
-    """Create a Gantt chart showing layer execution times."""
-    global trace_data
-
-    # Print debug information
-    print(f"Updating computation timeline with trace_data: {len(trace_data) if trace_data else 0} entries")
-
-    # Create a figure
-    fig = go.Figure()
-
-    if trace_data and len(trace_data) > 0:
-        # Extract layer names and execution times
-        layers = [entry.get("layer", "Unknown") for entry in trace_data]
-        execution_times = [entry.get("execution_time", 0) for entry in trace_data]
-
-        # Calculate cumulative times for Gantt chart
-        start_times = [0]
-        for i in range(1, len(execution_times)):
-            start_times.append(start_times[i-1] + execution_times[i-1])
-
-        # Create Gantt chart
-        for i, layer in enumerate(layers):
-            fig.add_trace(go.Bar(
-                x=[execution_times[i]],
-                y=[layer],
-                orientation='h',
-                base=start_times[i],
-                marker=dict(color='rgb(55, 83, 109)'),
-                name=layer
-            ))
-
-        fig.update_layout(
-            title="Layer Execution Timeline",
-            xaxis_title="Time (s)",
-            yaxis_title="Layer",
-            height=400,
-            showlegend=False
-        )
-    else:
-        # Use default data if no trace data is available
-        layer_data = [
-            {"layer": "Input", "execution_time": 0.1},
-            {"layer": "Conv2D", "execution_time": 0.8},
-            {"layer": "MaxPooling2D", "execution_time": 0.3},
-            {"layer": "Flatten", "execution_time": 0.1},
-            {"layer": "Dense", "execution_time": 0.5},
-            {"layer": "Output", "execution_time": 0.2}
-        ]
-
-        # Extract layer names and execution times
-        layers = [entry["layer"] for entry in layer_data]
-        execution_times = [entry["execution_time"] for entry in layer_data]
-
-        # Calculate cumulative times for Gantt chart
-        start_times = [0]
-        for i in range(1, len(execution_times)):
-            start_times.append(start_times[i-1] + execution_times[i-1])
-
-        # Create Gantt chart
-        for i, layer in enumerate(layers):
-            fig.add_trace(go.Bar(
-                x=[execution_times[i]],
-                y=[layer],
-                orientation='h',
-                base=start_times[i],
-                marker=dict(color='rgb(55, 83, 109)'),
-                name=layer
-            ))
-
-        fig.update_layout(
-            title="Layer Execution Timeline (Default Data)",
-            xaxis_title="Time (s)",
-            yaxis_title="Layer",
-            height=400,
-            showlegend=False
-        )
-
-    return fig
-
-if __name__ == "__main__":
-    app.run_server(debug=False, use_reloader=False)
