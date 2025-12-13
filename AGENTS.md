@@ -18,9 +18,10 @@ pip install -r requirements-dev.txt     # Install development dependencies (reco
 - **Visualization**: matplotlib, graphviz, plotly, networkx (charts and diagrams)
 - **Dashboard**: dash, flask (NeuralDbg interface)
 - **Cloud**: pygithub, selenium (cloud integrations)
+- **Integrations**: requests, boto3, google-cloud, azure (ML platform connectors)
 - **Dev**: pytest, ruff, pylint, mypy, pre-commit (development tools)
 
-Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[automl]"`, or `pip install -e ".[distributed]"`
+Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[automl]"`, `pip install -e ".[integrations]"`, or `pip install -e ".[distributed]"`
 
 ## Commands
 - **Build**: N/A (pure Python, no build step)
@@ -43,6 +44,7 @@ Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[a
 - `neural/no_code/` - No-code web interface
 - `neural/hpo/` - Hyperparameter optimization (Optuna integration)
 - `neural/automl/` - AutoML and Neural Architecture Search (NAS)
+- `neural/integrations/` - ML platform connectors (Databricks, SageMaker, Vertex AI, Azure ML, Paperspace, Run:AI)
 
 ## Code Style
 - Follow PEP 8, 100-char line length (Ruff configured)

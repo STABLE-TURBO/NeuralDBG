@@ -34,6 +34,15 @@ CLOUD_DEPS = [
     "requests>=2.28.0",
 ]
 
+INTEGRATION_DEPS = [
+    "requests>=2.28.0",
+    "boto3>=1.26.0",
+    "google-cloud-aiplatform>=1.25.0",
+    "google-cloud-storage>=2.10.0",
+    "azure-ai-ml>=1.8.0",
+    "azure-identity>=1.13.0",
+]
+
 VISUALIZATION_DEPS = [
     "matplotlib<3.10",
     "graphviz>=0.20",
@@ -109,6 +118,7 @@ setup(
         "distributed": DISTRIBUTED_DEPS,
         "cloud": CLOUD_DEPS,
         "monitoring": MONITORING_DEPS,
+        "integrations": INTEGRATION_DEPS,
         "visualization": VISUALIZATION_DEPS,
         "dashboard": DASHBOARD_DEPS,
         "backends": BACKEND_DEPS,
@@ -133,6 +143,7 @@ setup(
             + DISTRIBUTED_DEPS
             + CLOUD_DEPS
             + MONITORING_DEPS
+            + INTEGRATION_DEPS
             + VISUALIZATION_DEPS
             + DASHBOARD_DEPS
             + BACKEND_DEPS
