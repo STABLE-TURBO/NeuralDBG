@@ -10,6 +10,11 @@ import plotly.graph_objects as go
 from lark import Token, Transformer, Tree
 from lark.exceptions import UnexpectedCharacters, UnexpectedToken, VisitError
 
+# Type aliases for clarity
+ParsedValue = Union[str, int, float, bool, None, Dict[str, Any], List[Any], Tuple[Any, ...]]
+LayerConfig = Dict[str, Any]
+NetworkConfig = Dict[str, Any]
+
 from .error_handling import ErrorHandler, NeuralParserError, ParserError
 from .learning_rate_schedules import ExponentialDecaySchedule
 from .validation import (
@@ -37,7 +42,7 @@ logging.basicConfig(
     format='%(levelname)s: %(message)s'  # Include severity in output
 )
 
-def log_by_severity(severity, message):
+def log_by_severity(severity: Severity, message: str) -> None:
     """Log a message based on its severity level."""
     if severity == Severity.DEBUG:
         logger.debug(message)
@@ -565,7 +570,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         pass
     return p
 
-def safe_parse(parser, text):
+def safe_parse(parser: lark.Lark, text: str) -> Dict[str, Any]:
     """
     Safely parse text using the provided parser, handling common parsing errors.
 
@@ -630,9 +635,9 @@ network_parser = create_parser('network')
 layer_parser = create_parser('layer')
 research_parser = create_parser('research')
 
-def split_params(s):
-    parts = []
-    current = []
+def split_params(s: str) -> List[str]:
+    parts: List[str] = []
+    current: List[str] = []
     depth = 0
     for c in s:
         if c == '(':
@@ -661,7 +666,7 @@ class NeuralParser:
         self.parser = network_parser
         self.transformer = ModelTransformer()
 
-    def parse(self, code: str):
+    def parse(self, code: str) -> NetworkConfig:
         """
         Parse a Neural DSL network definition.
 
@@ -692,12 +697,12 @@ class ModelTransformer(lark.Transformer):
     converts it into the appropriate Python data structure (dictionaries, lists, etc.)
     that can be used to construct the actual neural network model.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.variables = {}
-        self.macros = {}
-        self.current_macro = None
-        self.layer_type_map = {
+        self.variables: Dict[str, Any] = {}
+        self.macros: Dict[str, Any] = {}
+        self.current_macro: Optional[str] = None
+        self.layer_type_map: Dict[str, str] = {
             'DENSE': 'dense',
             'CONV2D': 'conv2d',
             'CONV1D': 'conv1d',
@@ -736,9 +741,9 @@ class ModelTransformer(lark.Transformer):
             'GLOBALAVERAGEPOOLING2D': 'global_average_pooling2d',
             'GLOBALAVERAGEPOOLING1D': 'global_average_pooling1d',
         }
-        self.hpo_params = []
+        self.hpo_params: List[Dict[str, Any]] = []
 
-    def raise_validation_error(self, msg, item=None, severity=Severity.ERROR):
+    def raise_validation_error(self, msg: str, item: Any = None, severity: Severity = Severity.ERROR) -> Optional[Dict[str, Any]]:
         """
         Raise a validation error with line and column information from the parse tree node.
 
@@ -772,13 +777,13 @@ class ModelTransformer(lark.Transformer):
             raise DSLValidationError(msg, severity, line, col)
         return {"warning": msg, "line": line, "column": col}  # Return for warnings
 
-    def _shift_if_token(self, items):
+    def _shift_if_token(self, items: List[Any]) -> List[Any]:
         """If the first element is a Token (layer name), drop it and return the remainder."""
         if items and isinstance(items[0], Token):
             return items[1:]
         return items
 
-    def _validate_input_dimensions(self, dimensions):
+    def _validate_input_dimensions(self, dimensions: Union[int, List[Any], Tuple[Any, ...]]) -> None:
         """
         Validate that input dimensions are positive integers.
         
@@ -801,19 +806,19 @@ class ModelTransformer(lark.Transformer):
                 severity=Severity.ERROR
             )
 
-    def _validate_optimizer(self, optimizer_name, item=None):
+    def _validate_optimizer(self, optimizer_name: str, item: Any = None) -> None:
         """Validate optimizer is supported."""
         valid_optimizers = ["sgd", "adam", "rmsprop", "adagrad", "adamw", "nadam"]
         if isinstance(optimizer_name, str) and optimizer_name.lower() not in valid_optimizers:
             self.raise_validation_error(f"Invalid optimizer: {optimizer_name}", item)
 
-    def _validate_loss_function(self, loss_name, item=None):
+    def _validate_loss_function(self, loss_name: str, item: Any = None) -> None:
         """Validate loss function is supported."""
         valid_losses = ["mse", "cross_entropy", "binary_cross_entropy", "mae", "categorical_cross_entropy", "sparse_categorical_cross_entropy", "categorical_crossentropy"]
         if isinstance(loss_name, str) and loss_name.lower() not in valid_losses:
             self.raise_validation_error(f"Invalid loss function: {loss_name}", item)
 
-    def _extract_layer_def(self, layer_item):
+    def _extract_layer_def(self, layer_item: Any) -> Optional[LayerConfig]:
         if layer_item is None:
             return None
 
@@ -974,7 +979,7 @@ class ModelTransformer(lark.Transformer):
                 sub_layers.append(item)
         return sub_layers
 
-    def basic_layer(self, items):
+    def basic_layer(self, items: List[Any]) -> LayerConfig:
         layer_type_node = items[0]
         layer_type = layer_type_node.children[0].value.upper()
         params_node = items[1] if len(items) > 1 else None
@@ -1068,8 +1073,8 @@ class ModelTransformer(lark.Transformer):
         return self._extract_value(items[0])
     def advanced_layer(self, items):
         return self._extract_value(items[0])
-    def layers(self, items):
-        expanded_layers = []
+    def layers(self, items: List[Any]) -> List[LayerConfig]:
+        expanded_layers: List[LayerConfig] = []
         for item in items:
             if isinstance(item, list):
                 expanded_layers.extend(item)
@@ -1099,7 +1104,7 @@ class ModelTransformer(lark.Transformer):
             # Fallback for unexpected number of items
             return items[0] if items else None
 
-    def input_layer(self, items):
+    def input_layer(self, items: List[Any]) -> Union[LayerConfig, Dict[str, LayerConfig]]:
         # Support single shape, multiple shapes, or named input map
         if items:
             first_val = self._extract_value(items[0])
@@ -1130,17 +1135,17 @@ class ModelTransformer(lark.Transformer):
             i += 2
         return result
 
-    def flatten(self, items):
+    def flatten(self, items: List[Any]) -> LayerConfig:
         # Support both alias rule call (items[0] is Token) and basic_layer call
         items = self._shift_if_token(items)
         params = self._extract_value(items[0]) if items else None
         return {'type': 'Flatten', 'params': params}
 
-    def dropout(self, items):
+    def dropout(self, items: List[Any]) -> LayerConfig:
         # Support both alias rule call (items[0] is Token) and basic_layer call
         items = self._shift_if_token(items)
         param_style = self._extract_value(items[0]) if items else None
-        params = {}
+        params: Dict[str, Any] = {}
 
         if isinstance(param_style, list):
             merged_params = {}
@@ -1180,8 +1185,8 @@ class ModelTransformer(lark.Transformer):
 
         return {'type': 'Dropout', 'params': params, 'sublayers': []}  # Added sublayers for consistency
 
-    def output(self, items):
-        params = {}
+    def output(self, items: List[Any]) -> LayerConfig:
+        params: Dict[str, Any] = {}
         if items and items[0] is not None:
             param_node = items[0]
             param_values = self._extract_value(param_node)
@@ -1237,10 +1242,10 @@ class ModelTransformer(lark.Transformer):
         params = self._extract_value(items[0])
         return {'type': 'execution_config', 'params': params}
 
-    def dense(self, items):
+    def dense(self, items: List[Any]) -> LayerConfig:
         # Support both alias rule call (items[0] is Token) and basic_layer call
         items = self._shift_if_token(items)
-        params = {}
+        params: Dict[str, Any] = {}
         # If called with no parameters, allow empty Dense() and return params=None
         if not items or items[0] is None:
             return {'type': 'Dense', 'params': None, 'sublayers': []}
@@ -1383,7 +1388,7 @@ class ModelTransformer(lark.Transformer):
 
         return {'type': 'Conv1D', 'params': params}
 
-    def conv2d(self, items):
+    def conv2d(self, items: List[Any]) -> LayerConfig:
         # Support both alias rule call (items[0] is Token) and basic_layer call
         items = self._shift_if_token(items)
         param_style = items[0] if items else None
@@ -1653,17 +1658,17 @@ class ModelTransformer(lark.Transformer):
 
     ## Training And Configurations ##
 
-    def training_config(self, items):
+    def training_config(self, items: List[Any]) -> Dict[str, Any]:
         params = self._extract_value(items[0]) if items else {}
         return {'type': 'training_config', 'params': params}
 
-    def execution_config(self, items):
+    def execution_config(self, items: List[Any]) -> Dict[str, Any]:
         """Process execution_config block."""
         params = self._extract_value(items[0]) if items else {'device': 'auto'}
         return params  # Return flat dict directly, no 'type' or 'params' wrapper
 
-    def training_params(self, items):
-        params = {}
+    def training_params(self, items: List[Any]) -> Dict[str, Any]:
+        params: Dict[str, Any] = {}
         for item in items:
             if isinstance(item, Tree):
                 result = self._extract_value(item)
@@ -1719,7 +1724,7 @@ class ModelTransformer(lark.Transformer):
         else:
             self.raise_validation_error(f"Invalid batch_size value: {value}", items[0])
 
-    def optimizer(self, items):
+    def optimizer(self, items: List[Any]) -> Dict[str, Any]:
         """Process optimizer configuration.
         items: [optimizer_name, param_style1?]
         Accepts list/dict forms and merges into a flat params dict.
@@ -1727,7 +1732,7 @@ class ModelTransformer(lark.Transformer):
         optimizer_type = str(items[0]).strip('"')
         self._validate_optimizer(optimizer_type, items[0])
         
-        params = {}
+        params: Dict[str, Any] = {}
 
         # Merge parameters if provided (items[1] may be dict or list)
         if len(items) > 1 and items[1] is not None:
@@ -1965,11 +1970,11 @@ class ModelTransformer(lark.Transformer):
                     self.raise_validation_error(f"MaxPooling1D {key} must be a positive integer, got {val}", items[0])
         return {'type': 'MaxPooling1D', 'params': params}
 
-    def maxpooling2d(self, items):
+    def maxpooling2d(self, items: List[Any]) -> LayerConfig:
         # Support both alias rule call (items[0] is Token) and basic_layer call
         items = self._shift_if_token(items)
         param_style = self._extract_value(items[0]) if items else None
-        params = {}
+        params: Dict[str, Any] = {}
         if isinstance(param_style, list):
             ordered_params = [p for p in param_style if not isinstance(p, dict)]
             if ordered_params:
@@ -2108,11 +2113,11 @@ class ModelTransformer(lark.Transformer):
         return self._extract_value(items[0])
 
 
-    def batch_norm(self, items):
+    def batch_norm(self, items: List[Any]) -> LayerConfig:
         # Support both alias rule call (items[0] is Token) and basic_layer call
         items = self._shift_if_token(items)
         raw_params = self._extract_value(items[0]) if items and items[0] is not None else None
-        params = None  # Default to None for empty parameters
+        params: Optional[Dict[str, Any]] = None  # Default to None for empty parameters
 
         if raw_params:
             params = {}  # Initialize params dict only if we have parameters
@@ -2168,10 +2173,10 @@ class ModelTransformer(lark.Transformer):
     ############
 
 
-    def lstm(self, items):
+    def lstm(self, items: List[Any]) -> LayerConfig:
         # Support both alias rule call (items[0] is Token) and basic_layer call
         items = self._shift_if_token(items)
-        params = {}
+        params: Dict[str, Any] = {}
         if items and items[0] is not None:
             param_node = items[0]  # From param_style1
             param_values = self._extract_value(param_node)
@@ -2755,7 +2760,7 @@ class ModelTransformer(lark.Transformer):
     ## Network ##
 
 
-    def network(self, items):
+    def network(self, items: List[Any]) -> NetworkConfig:
         """
         Process a network rule and build a complete network configuration.
 
@@ -2940,7 +2945,7 @@ class ModelTransformer(lark.Transformer):
 
         return network_config
 
-    def _extract_value(self, item):
+    def _extract_value(self, item: Any) -> ParsedValue:
         """
         Extract a Python value from a parse tree node.
 
@@ -3547,7 +3552,7 @@ class ModelTransformer(lark.Transformer):
 
     ## HPO ##
 
-    def _track_hpo(self, layer_type, param_name, hpo_data, node):
+    def _track_hpo(self, layer_type: str, param_name: str, hpo_data: Dict[str, Any], node: Any) -> None:
         """
         Track hyperparameter optimization (HPO) parameters found during parsing.
 
@@ -3586,7 +3591,7 @@ class ModelTransformer(lark.Transformer):
 
 
 
-    def parse_network_with_hpo(self, config):
+    def parse_network_with_hpo(self, config: str) -> Tuple[NetworkConfig, List[Dict[str, Any]]]:
         """
         Parse a Neural DSL network configuration with hyperparameter optimization (HPO) support.
 
@@ -3767,14 +3772,14 @@ class ModelTransformer(lark.Transformer):
             log_by_severity(Severity.ERROR, f"Unexpected error: {str(e)}")
             raise
 
-    def _parse_hpo_value(self, value):
+    def _parse_hpo_value(self, value: str) -> Union[int, float, str]:
         """Parse a single HPO value while retaining original string if numeric."""
         try:
             return float(value) if '.' in value or 'e' in value.lower() else int(value)
         except ValueError:
             return value  # Return as string if not a number
 
-    def _parse_hpo(self, hpo_str, item):
+    def _parse_hpo(self, hpo_str: str, item: Any) -> Dict[str, Any]:
         """
         Parse hyperparameter optimization (HPO) expressions and retain original string values.
 
@@ -3939,9 +3944,9 @@ class ModelTransformer(lark.Transformer):
     def hpo_with_params(self, items):
         return [self._extract_value(item) for item in items]
 
-    def hpo_choice(self, items):
-        values = []
-        value_types = set()
+    def hpo_choice(self, items: List[Any]) -> Dict[str, Any]:
+        values: List[Any] = []
+        value_types: set[str] = set()
 
         for item in items:
             value = self._extract_value(item)
@@ -3970,7 +3975,7 @@ class ModelTransformer(lark.Transformer):
 
         return {"type": "categorical", "values": values}
 
-    def hpo_range(self, items):
+    def hpo_range(self, items: List[Any]) -> Dict[str, Any]:
         start = self._extract_value(items[0])
         end = self._extract_value(items[1])
         step = self._extract_value(items[2]) if len(items) > 2 else False
@@ -3985,7 +3990,7 @@ class ModelTransformer(lark.Transformer):
 
         return {"type": "range", "start": start, "end": end, "step": step}
 
-    def hpo_log_range(self, items):
+    def hpo_log_range(self, items: List[Any]) -> Dict[str, Any]:
         min_val = self._extract_value(items[0])
         max_val = self._extract_value(items[1])
 
@@ -4003,7 +4008,7 @@ class ModelTransformer(lark.Transformer):
 
     ######
 
-    def parse_network(self, config: str, framework: str = 'auto'):
+    def parse_network(self, config: str, framework: str = 'auto') -> NetworkConfig:
         """
         Parse a Neural DSL network configuration into a structured model representation.
 
@@ -4098,7 +4103,7 @@ class ModelTransformer(lark.Transformer):
             log_by_severity(Severity.ERROR, f"Error parsing network: {str(e)}")
             raise
 
-    def _detect_framework(self, model):
+    def _detect_framework(self, model: NetworkConfig) -> str:
         """
         Detect the appropriate framework for a model based on its layer parameters.
 
