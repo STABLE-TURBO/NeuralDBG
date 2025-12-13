@@ -1,0 +1,110 @@
+.network-designer {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - 80px);
+  background: #1a1a1a;
+}
+
+.designer-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.designer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #282828;
+  border-bottom: 2px solid #333;
+}
+
+.toolbar-btn {
+  padding: 8px 16px;
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-btn:hover {
+  background: #444;
+  border-color: #00bfff;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.node-count {
+  color: #888;
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.react-flow-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__edge {
+  stroke: #00bfff;
+  stroke-width: 2;
+}
+
+.react-flow__edge:hover {
+  stroke: #00ffff;
+}
+
+.react-flow__edge.selected {
+  stroke: #ff00ff;
+}
+
+.react-flow__handle {
+  width: 12px;
+  height: 12px;
+  background: #00bfff;
+  border: 2px solid #1a1a1a;
+}
+
+.react-flow__handle:hover {
+  background: #00ffff;
+}
+
+.react-flow__controls {
+  background: #282828;
+  border: 1px solid #444;
+}
+
+.react-flow__controls-button {
+  background: #333;
+  border-bottom: 1px solid #444;
+  color: #fff;
+}
+
+.react-flow__controls-button:hover {
+  background: #444;
+}
+
+.react-flow__minimap {
+  background: #282828;
+  border: 1px solid #444;
+}
+
+.react-flow__attribution {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 8px;
+  font-size: 10px;
+}

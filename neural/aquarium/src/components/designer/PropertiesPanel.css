@@ -1,0 +1,159 @@
+.properties-panel {
+  background: #282828;
+  border-left: 2px solid #333;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 320px;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 16px;
+  border-bottom: 2px solid #333;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #000;
+}
+
+.panel-icon {
+  font-size: 24px;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.panel-body.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-body.empty p {
+  color: #888;
+  font-style: italic;
+}
+
+.layer-info {
+  margin-bottom: 24px;
+  padding: 12px;
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  color: #aaa;
+  font-weight: 500;
+}
+
+.info-value {
+  color: #00bfff;
+  font-family: monospace;
+}
+
+.parameters-section {
+  margin-bottom: 24px;
+}
+
+.parameters-section h4 {
+  margin: 0 0 12px 0;
+  color: #fff;
+  font-size: 16px;
+}
+
+.no-params {
+  color: #888;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.parameters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.parameter-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.param-label {
+  color: #aaa;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.param-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  font-family: monospace;
+}
+
+.param-input:focus {
+  outline: none;
+  border-color: #00bfff;
+}
+
+.layer-description {
+  padding: 12px;
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+
+.layer-description h4 {
+  margin: 0 0 8px 0;
+  color: #fff;
+  font-size: 14px;
+}
+
+.layer-description p {
+  margin: 0;
+  color: #bbb;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.panel-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.panel-body::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.panel-body::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+
+.panel-body::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

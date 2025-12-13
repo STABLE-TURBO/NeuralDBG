@@ -251,3 +251,12 @@ website/yarn-error.log*
 # Aquarium Backend
 neural/aquarium/backend/.env
 neural/aquarium/backend/temp/
+
+# Neural Aquarium (React/Node.js frontend)
+neural/aquarium/node_modules/
+neural/aquarium/dist/
+neural/aquarium/build/
+neural/aquarium/.vite/
+neural/aquarium/package-lock.json
+neural/aquarium/yarn.lock
+neural/aquarium/pnpm-lock.yaml

@@ -1,8 +1,85 @@
 # Neural Aquarium
 
-Aquarium is the backend bridge for Neural DSL, providing a comprehensive API for DSL parsing, shape propagation, code generation, and training job management.
+A comprehensive suite for Neural DSL, providing both a visual network designer and backend API bridge for DSL parsing, shape propagation, code generation, and training job management.
 
-## Overview
+## Visual Network Designer
+
+A modern, interactive visual network designer with drag-and-drop layer palette, real-time connection validation, and bi-directional sync with DSL code.
+
+### Features
+
+#### 🎨 Drag-and-Drop Layer Palette
+- Layers organized by category (Convolutional, Pooling, Core, Recurrent, Attention, etc.)
+- Search functionality to quickly find layers
+- Color-coded layers by category
+- Visual icons for each layer type
+
+#### 🖼️ Interactive Canvas
+- React Flow-based visual editor
+- Drag layers from palette onto canvas
+- Connect layers by dragging between handles
+- Pan and zoom controls
+- Mini-map for navigation
+- Auto-layout feature
+
+#### 📊 Layer Node Components
+- Display layer type and category
+- Show layer parameters (up to 3 visible, expandable)
+- Real-time output shape propagation
+- Color-coded borders by category
+- Hover effects and selection states
+
+#### ✅ Connection Validation
+- Prevents incompatible layer connections
+- Cycle detection
+- Shape compatibility checking
+- Visual feedback on invalid connections
+- Prevents duplicate connections
+
+#### 🔄 Bi-directional DSL Sync
+- Real-time DSL code generation from visual design
+- Parse DSL code to visual representation
+- Monaco editor for code editing
+- Instant synchronization between views
+
+#### ⚙️ Properties Panel
+- Edit selected layer parameters
+- Specialized inputs for different parameter types
+- Category and output shape display
+- Layer description and documentation
+
+### Installation
+
+```bash
+cd neural/aquarium
+npm install
+```
+
+### Development
+
+```bash
+npm run dev
+```
+
+Opens on http://localhost:3000
+
+### Build
+
+```bash
+npm run build
+```
+
+### Usage
+
+1. **Add Layers**: Drag layers from the left palette onto the canvas, or click to add at random position
+2. **Connect Layers**: Drag from a layer's bottom handle to another layer's top handle
+3. **Edit Properties**: Click a layer to select it and edit parameters in the right panel
+4. **View Code**: Click "Show Code" to see the generated Neural DSL code
+5. **Edit Code**: Make changes in the code editor and see them reflected in the visual design
+6. **Auto Layout**: Click "Auto Layout" to organize layers vertically
+7. **Clear Canvas**: Click "Clear" to start fresh
+
+## Backend API Bridge
 
 The Aquarium backend bridge exposes the core Neural DSL functionality through a modern REST API with WebSocket support, enabling:
 
@@ -12,9 +89,9 @@ The Aquarium backend bridge exposes the core Neural DSL functionality through a 
 - **Training Management**: Run and monitor training jobs in isolated processes
 - **Real-time Updates**: WebSocket support for live job monitoring
 
-## Quick Start
+### Quick Start
 
-### Installation
+#### Installation
 
 Install with API dependencies:
 
@@ -22,7 +99,7 @@ Install with API dependencies:
 pip install -e ".[api]"
 ```
 
-### Start the Server
+#### Start the Server
 
 ```bash
 python -m neural.aquarium.backend.run
@@ -34,7 +111,7 @@ Or with custom configuration:
 python -m neural.aquarium.backend.cli serve --host 0.0.0.0 --port 8080
 ```
 
-### Use the Client Library
+#### Use the Client Library
 
 ```python
 from neural.aquarium.backend.client import create_client
@@ -63,6 +140,26 @@ print(result["code"])
 
 ## Architecture
 
+### Frontend Architecture
+```
+src/
+├── components/
+│   └── designer/
+│       ├── NetworkDesigner.tsx     # Main designer component
+│       ├── LayerNode.tsx           # Custom node component
+│       ├── LayerPalette.tsx        # Layer selection sidebar
+│       ├── PropertiesPanel.tsx     # Layer properties editor
+│       └── CodeEditor.tsx          # DSL code editor
+├── data/
+│   └── layerDefinitions.ts         # Layer metadata and defaults
+├── types/
+│   └── index.ts                    # TypeScript type definitions
+└── utils/
+    ├── dslParser.ts                # DSL <-> Node conversion
+    └── connectionValidator.ts      # Connection validation logic
+```
+
+### Backend Architecture
 ```
 neural/aquarium/backend/
 ├── server.py              # FastAPI application
@@ -80,6 +177,20 @@ neural/aquarium/backend/
 ├── Dockerfile            # Docker configuration
 └── README.md             # Documentation
 ```
+
+## Technologies
+
+### Frontend
+- **React 18** - UI framework
+- **ReactFlow 11** - Visual graph editor
+- **Monaco Editor** - Code editor (VSCode engine)
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+
+### Backend
+- **FastAPI** - Modern web framework
+- **WebSockets** - Real-time communication
+- **Python 3.8+** - Backend language
 
 ## API Reference
 
@@ -108,6 +219,43 @@ See [backend/README.md](backend/README.md) for complete API documentation.
 - Performance estimation (FLOPs, memory)
 - Issue detection
 - Optimization suggestions
+
+## Layer Categories
+
+- **Convolutional**: Conv1D, Conv2D, Conv3D, SeparableConv2D, etc.
+- **Pooling**: MaxPooling, AveragePooling, GlobalPooling variants
+- **Core**: Dense, Flatten, Reshape, Permute, Lambda
+- **Recurrent**: LSTM, GRU, SimpleRNN, Bidirectional
+- **Attention**: MultiHeadAttention, Attention
+- **Normalization**: BatchNormalization, LayerNormalization, GroupNormalization
+- **Regularization**: Dropout, SpatialDropout, GaussianNoise
+- **Activation**: ReLU, LeakyReLU, Softmax, Sigmoid, Tanh
+- **Embedding**: Embedding
+
+## Connection Rules
+
+The designer enforces several validation rules:
+- No cycles allowed
+- Each layer (except merge layers) can have only one input
+- Flattening layers cannot connect to 2D layers
+- Recurrent layers require compatible input shapes
+- Shape compatibility is validated in real-time
+
+## Shape Propagation
+
+Output shapes are automatically calculated and displayed:
+- Input shape defined in Input node
+- Shapes propagate through the network
+- Visible in each layer node
+- Used for connection validation
+
+## Code Synchronization
+
+Changes in either view are immediately reflected:
+- **Visual → Code**: Adding/removing/editing layers updates DSL
+- **Code → Visual**: Parsing DSL creates/updates visual nodes
+- Topological sorting ensures correct layer order
+- Parameter values synchronized automatically
 
 ## Usage Examples
 
