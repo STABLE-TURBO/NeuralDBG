@@ -1528,7 +1528,6 @@ def no_code(ctx: click.Context, port: int) -> None:
     except KeyboardInterrupt:
         print_info("Server stopped by user")
 
-<<<<<<< HEAD
 @cli.command()
 @click.argument('model_path', type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.option('--method', '-m', default='shap', help='Explanation method', type=click.Choice(['shap', 'lime', 'saliency', 'attention', 'feature_importance', 'counterfactual', 'all'], case_sensitive=False))
@@ -1776,6 +1775,383 @@ try:
     cli.add_command(monitor)
 except ImportError:
     pass
+
+@cli.group()
+@click.pass_context
+def marketplace(ctx):
+    """Commands for model marketplace operations."""
+    pass
+
+@marketplace.command('search')
+@click.argument('query', required=False)
+@click.option('--author', help='Filter by author')
+@click.option('--tags', help='Filter by tags (comma-separated)')
+@click.option('--license', help='Filter by license')
+@click.option('--limit', default=10, type=int, help='Maximum number of results')
+@click.pass_context
+def marketplace_search(ctx, query, author, tags, license, limit):
+    """Search for models in the marketplace."""
+    print_command_header("marketplace search")
+
+    try:
+        from neural.marketplace import ModelRegistry, SemanticSearch
+
+        with Spinner("Initializing marketplace") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            registry = ModelRegistry()
+            search = SemanticSearch(registry)
+
+        # Build filters
+        filters = {}
+        if author:
+            filters['author'] = author
+        if tags:
+            filters['tags'] = [t.strip() for t in tags.split(',')]
+        if license:
+            filters['license'] = license
+
+        # Search
+        if query:
+            with Spinner(f"Searching for '{query}'") as spinner:
+                if ctx.obj.get('NO_ANIMATIONS'):
+                    spinner.stop()
+                results = search.search(query, limit=limit, filters=filters)
+
+            print_success(f"Found {len(results)} models")
+            print(f"\n{Colors.CYAN}Search Results:{Colors.ENDC}\n")
+
+            for i, (model_id, similarity, model) in enumerate(results, 1):
+                print(f"{Colors.BOLD}{i}. {model['name']}{Colors.ENDC} by {model['author']}")
+                print(f"   ID: {model_id}")
+                print(f"   Similarity: {similarity:.2f}")
+                print(f"   Description: {model['description'][:80]}...")
+                print(f"   Tags: {', '.join(model.get('tags', []))}")
+                print(f"   Downloads: {model.get('downloads', 0)} | License: {model.get('license', 'MIT')}")
+                print()
+        else:
+            # List all models with filters
+            with Spinner("Loading models") as spinner:
+                if ctx.obj.get('NO_ANIMATIONS'):
+                    spinner.stop()
+                models = registry.list_models(
+                    author=author,
+                    tags=filters.get('tags'),
+                    limit=limit
+                )
+
+            # Apply license filter manually
+            if license:
+                models = [m for m in models if m.get('license') == license]
+
+            print_success(f"Found {len(models)} models")
+            print(f"\n{Colors.CYAN}Models:{Colors.ENDC}\n")
+
+            for i, model in enumerate(models, 1):
+                print(f"{Colors.BOLD}{i}. {model['name']}{Colors.ENDC} by {model['author']}")
+                print(f"   ID: {model['id']}")
+                print(f"   Description: {model['description'][:80]}...")
+                print(f"   Tags: {', '.join(model.get('tags', []))}")
+                print(f"   Downloads: {model.get('downloads', 0)} | License: {model.get('license', 'MIT')}")
+                print()
+
+    except Exception as e:
+        print_error(f"Search failed: {str(e)}")
+        sys.exit(1)
+
+@marketplace.command('download')
+@click.argument('model_id')
+@click.option('--output', '-o', default='.', help='Output directory')
+@click.pass_context
+def marketplace_download(ctx, model_id, output):
+    """Download a model from the marketplace."""
+    print_command_header("marketplace download")
+    print_info(f"Downloading model: {model_id}")
+
+    try:
+        from neural.marketplace import ModelRegistry
+
+        with Spinner("Initializing marketplace") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            registry = ModelRegistry()
+
+        with Spinner("Downloading model") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            file_path = registry.download_model(model_id, output)
+
+        print_success(f"Model downloaded successfully!")
+        print(f"\n{Colors.CYAN}Download Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}File:{Colors.ENDC}     {file_path}")
+        print(f"  {Colors.BOLD}Location:{Colors.ENDC} {os.path.abspath(output)}")
+
+    except (ValueError, FileNotFoundError) as e:
+        print_error(f"Download failed: {str(e)}")
+        sys.exit(1)
+
+@marketplace.command('publish')
+@click.argument('model_path', type=click.Path(exists=True))
+@click.option('--name', required=True, help='Model name')
+@click.option('--author', required=True, help='Author name')
+@click.option('--description', default='', help='Model description')
+@click.option('--license', default='MIT', help='License (MIT, Apache-2.0, GPL-3.0, etc.)')
+@click.option('--tags', help='Tags (comma-separated)')
+@click.option('--version', default='1.0.0', help='Model version')
+@click.pass_context
+def marketplace_publish(ctx, model_path, name, author, description, license, tags, version):
+    """Publish a model to the marketplace."""
+    print_command_header("marketplace publish")
+    print_info(f"Publishing model: {name}")
+
+    try:
+        from neural.marketplace import ModelRegistry
+
+        with Spinner("Initializing marketplace") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            registry = ModelRegistry()
+
+        tags_list = [t.strip() for t in tags.split(',') if t.strip()] if tags else []
+
+        with Spinner("Uploading model") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            model_id = registry.upload_model(
+                name=name,
+                author=author,
+                model_path=model_path,
+                description=description,
+                license=license,
+                tags=tags_list,
+                version=version
+            )
+
+        print_success(f"Model published successfully!")
+        print(f"\n{Colors.CYAN}Publication Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}Model ID:{Colors.ENDC}  {model_id}")
+        print(f"  {Colors.BOLD}Name:{Colors.ENDC}      {name}")
+        print(f"  {Colors.BOLD}Author:{Colors.ENDC}    {author}")
+        print(f"  {Colors.BOLD}Version:{Colors.ENDC}   {version}")
+        print(f"  {Colors.BOLD}License:{Colors.ENDC}   {license}")
+        if tags_list:
+            print(f"  {Colors.BOLD}Tags:{Colors.ENDC}      {', '.join(tags_list)}")
+
+    except (FileNotFoundError, Exception) as e:
+        print_error(f"Publication failed: {str(e)}")
+        sys.exit(1)
+
+@marketplace.command('info')
+@click.argument('model_id')
+@click.pass_context
+def marketplace_info(ctx, model_id):
+    """Get information about a model."""
+    print_command_header("marketplace info")
+
+    try:
+        from neural.marketplace import ModelRegistry
+
+        with Spinner("Initializing marketplace") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            registry = ModelRegistry()
+
+        model_info = registry.get_model_info(model_id)
+        stats = registry.get_usage_stats(model_id)
+
+        print(f"\n{Colors.CYAN}Model Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}ID:{Colors.ENDC}          {model_info['id']}")
+        print(f"  {Colors.BOLD}Name:{Colors.ENDC}        {model_info['name']}")
+        print(f"  {Colors.BOLD}Author:{Colors.ENDC}      {model_info['author']}")
+        print(f"  {Colors.BOLD}Version:{Colors.ENDC}     {model_info.get('version', '1.0.0')}")
+        print(f"  {Colors.BOLD}License:{Colors.ENDC}     {model_info.get('license', 'MIT')}")
+        print(f"  {Colors.BOLD}Framework:{Colors.ENDC}   {model_info.get('framework', 'neural-dsl')}")
+
+        print(f"\n{Colors.CYAN}Description:{Colors.ENDC}")
+        print(f"  {model_info.get('description', 'No description available')}")
+
+        if model_info.get('tags'):
+            print(f"\n{Colors.CYAN}Tags:{Colors.ENDC}")
+            print(f"  {', '.join(model_info['tags'])}")
+
+        print(f"\n{Colors.CYAN}Statistics:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}Downloads:{Colors.ENDC}  {stats.get('downloads', 0)}")
+        print(f"  {Colors.BOLD}Views:{Colors.ENDC}      {stats.get('views', 0)}")
+
+        print(f"\n{Colors.CYAN}Dates:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}Uploaded:{Colors.ENDC}   {model_info['uploaded_at']}")
+        print(f"  {Colors.BOLD}Updated:{Colors.ENDC}    {model_info['updated_at']}")
+
+    except ValueError as e:
+        print_error(f"Model not found: {str(e)}")
+        sys.exit(1)
+
+@marketplace.command('list')
+@click.option('--author', help='Filter by author')
+@click.option('--tags', help='Filter by tags (comma-separated)')
+@click.option('--sort-by', default='uploaded_at', type=click.Choice(['uploaded_at', 'downloads', 'name']), help='Sort by field')
+@click.option('--limit', default=20, type=int, help='Maximum number of results')
+@click.pass_context
+def marketplace_list(ctx, author, tags, sort_by, limit):
+    """List all models in the marketplace."""
+    print_command_header("marketplace list")
+
+    try:
+        from neural.marketplace import ModelRegistry
+
+        with Spinner("Loading models") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            registry = ModelRegistry()
+
+        tags_list = [t.strip() for t in tags.split(',') if t.strip()] if tags else None
+
+        models = registry.list_models(
+            author=author,
+            tags=tags_list,
+            sort_by=sort_by,
+            limit=limit
+        )
+
+        print_success(f"Found {len(models)} models")
+        print(f"\n{Colors.CYAN}Models:{Colors.ENDC}\n")
+
+        for i, model in enumerate(models, 1):
+            print(f"{Colors.BOLD}{i}. {model['name']}{Colors.ENDC} by {model['author']}")
+            print(f"   ID: {model['id']}")
+            print(f"   Version: {model.get('version', '1.0.0')} | License: {model.get('license', 'MIT')}")
+            print(f"   Downloads: {model.get('downloads', 0)}")
+            if model.get('tags'):
+                print(f"   Tags: {', '.join(model['tags'][:5])}")
+            print()
+
+    except Exception as e:
+        print_error(f"Failed to list models: {str(e)}")
+        sys.exit(1)
+
+@marketplace.command('web')
+@click.option('--port', default=8052, type=int, help='Web interface port')
+@click.option('--host', default='localhost', help='Host address')
+@click.pass_context
+def marketplace_web(ctx, port, host):
+    """Launch the marketplace web interface."""
+    print_command_header("marketplace web")
+    print_info("Launching the Neural Marketplace web interface...")
+
+    try:
+        from neural.marketplace.web_ui import MarketplaceUI
+
+        with Spinner("Initializing marketplace") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            ui = MarketplaceUI()
+
+        print_success("Marketplace ready!")
+        print(f"\n{Colors.CYAN}Server Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}URL:{Colors.ENDC}         http://{host}:{port}/marketplace")
+        print(f"  {Colors.BOLD}Interface:{Colors.ENDC}   Neural Marketplace")
+        print(f"\n{Colors.YELLOW}Press Ctrl+C to stop the server{Colors.ENDC}")
+
+        ui.run(host=host, port=port, debug=False)
+
+    except ImportError as e:
+        print_error(f"Failed to launch marketplace: {str(e)}")
+        print_info("Install required dependencies: pip install dash dash-bootstrap-components")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print_info("\nServer stopped by user")
+
+@marketplace.command('hub-upload')
+@click.argument('model_path', type=click.Path(exists=True))
+@click.argument('repo_id')
+@click.option('--name', required=True, help='Model name')
+@click.option('--description', default='', help='Model description')
+@click.option('--license', default='mit', help='License')
+@click.option('--tags', help='Tags (comma-separated)')
+@click.option('--private', is_flag=True, help='Create private repository')
+@click.pass_context
+def marketplace_hub_upload(ctx, model_path, repo_id, name, description, license, tags, private):
+    """Upload a model to HuggingFace Hub."""
+    print_command_header("marketplace hub-upload")
+    print_info(f"Uploading model to HuggingFace Hub: {repo_id}")
+
+    try:
+        from neural.marketplace import HuggingFaceIntegration
+
+        with Spinner("Initializing HuggingFace integration") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            hf = HuggingFaceIntegration()
+
+        tags_list = [t.strip() for t in tags.split(',') if t.strip()] if tags else []
+
+        with Spinner("Uploading to HuggingFace Hub") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            result = hf.upload_to_hub(
+                model_path=model_path,
+                repo_id=repo_id,
+                model_name=name,
+                description=description,
+                license=license,
+                tags=tags_list,
+                private=private
+            )
+
+        print_success(f"Model uploaded to HuggingFace Hub!")
+        print(f"\n{Colors.CYAN}Upload Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}Repository:{Colors.ENDC} {result['repo_id']}")
+        print(f"  {Colors.BOLD}URL:{Colors.ENDC}        {result['url']}")
+
+    except ImportError:
+        print_error("HuggingFace Hub integration not available")
+        print_info("Install huggingface_hub: pip install huggingface_hub")
+        sys.exit(1)
+    except Exception as e:
+        print_error(f"Upload failed: {str(e)}")
+        sys.exit(1)
+
+@marketplace.command('hub-download')
+@click.argument('repo_id')
+@click.argument('filename')
+@click.option('--output', '-o', default='.', help='Output directory')
+@click.option('--revision', default='main', help='Git revision')
+@click.pass_context
+def marketplace_hub_download(ctx, repo_id, filename, output, revision):
+    """Download a model from HuggingFace Hub."""
+    print_command_header("marketplace hub-download")
+    print_info(f"Downloading from HuggingFace Hub: {repo_id}/{filename}")
+
+    try:
+        from neural.marketplace import HuggingFaceIntegration
+
+        with Spinner("Initializing HuggingFace integration") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            hf = HuggingFaceIntegration()
+
+        with Spinner("Downloading from HuggingFace Hub") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            file_path = hf.download_from_hub(
+                repo_id=repo_id,
+                filename=filename,
+                output_dir=output,
+                revision=revision
+            )
+
+        print_success(f"Model downloaded successfully!")
+        print(f"\n{Colors.CYAN}Download Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}File:{Colors.ENDC}     {file_path}")
+        print(f"  {Colors.BOLD}Location:{Colors.ENDC} {os.path.abspath(output)}")
+
+    except ImportError:
+        print_error("HuggingFace Hub integration not available")
+        print_info("Install huggingface_hub: pip install huggingface_hub")
+        sys.exit(1)
+    except Exception as e:
+        print_error(f"Download failed: {str(e)}")
+        sys.exit(1)
 
 if __name__ == '__main__':
     cli()

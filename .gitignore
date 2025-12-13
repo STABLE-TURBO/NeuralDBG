@@ -175,6 +175,11 @@ monitoring_data_*/
 *.monitoring.db
 monitoring_logs/
 
+# Marketplace registry
+neural_marketplace_registry/
+demo_registry/
+downloaded_models/
+
 # Examples generated artifacts
 examples/**/*_tensorflow.py
 examples/**/*_pytorch.py
