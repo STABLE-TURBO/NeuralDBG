@@ -266,6 +266,35 @@ class TensorFlowGenerator(BaseCodeGenerator):
             units = params.get("units", 10)
             activation = params.get("activation", "softmax")
             return f"layers.Dense(units={units}, activation='{activation}')"
+        elif layer_type == "PositionalEncoding":
+            max_len = params.get("max_len", 5000)
+            encoding_type = params.get("encoding_type", "sinusoidal")
+            if encoding_type == "sinusoidal":
+                code = [
+                    "# Sinusoidal Positional Encoding",
+                    "import numpy as np",
+                    f"def get_positional_encoding(seq_len, d_model, max_len={max_len}):",
+                    "    position = np.arange(seq_len)[:, np.newaxis]",
+                    "    div_term = np.exp(np.arange(0, d_model, 2) * -(np.log(10000.0) / d_model))",
+                    "    pos_encoding = np.zeros((seq_len, d_model))",
+                    "    pos_encoding[:, 0::2] = np.sin(position * div_term)",
+                    "    pos_encoding[:, 1::2] = np.cos(position * div_term)",
+                    "    return tf.constant(pos_encoding, dtype=tf.float32)",
+                    "seq_len = tf.shape(x)[1]",
+                    "d_model = tf.shape(x)[2]",
+                    "pos_encoding = get_positional_encoding(seq_len, d_model)",
+                    "x = x + pos_encoding"
+                ]
+                return "\n".join(code)
+            else:
+                code = [
+                    "# Learnable Positional Encoding",
+                    f"pos_embedding = layers.Embedding(input_dim={max_len}, output_dim=tf.shape(x)[2])",
+                    "seq_len = tf.shape(x)[1]",
+                    "positions = tf.range(start=0, limit=seq_len, delta=1)",
+                    "x = x + pos_embedding(positions)"
+                ]
+                return "\n".join(code)
         else:
             warnings.warn(f"Unsupported layer type '{layer_type}' for tensorflow. Skipping.", UserWarning)
             return None

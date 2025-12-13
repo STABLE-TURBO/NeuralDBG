@@ -188,6 +188,22 @@ def handle_add(input_shapes: List[Tuple[int, ...]],
     # Return the first shape (they should all be the same)
     return input_shapes[0]
 
+def handle_positional_encoding(input_shape: Tuple[int, ...],
+                               params: Dict[str, Any]) -> Tuple[int, ...]:
+    """Handle PositionalEncoding layer shape propagation.
+
+    Args:
+        input_shape: Input tensor shape
+        params: Layer parameters
+
+    Returns:
+        Output tensor shape (same as input)
+    """
+    # PositionalEncoding adds positional information but doesn't change shape
+    # Expected input: (batch, seq_len, d_model)
+    # Output: (batch, seq_len, d_model)
+    return input_shape
+
 def handle_global_average_pooling1d(input_shape: Tuple[int, ...],
                                    params: Dict[str, Any]) -> Tuple[int, ...]:
     """Handle GlobalAveragePooling1D layer shape propagation.

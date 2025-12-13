@@ -157,6 +157,17 @@ LAYER_DOCUMENTATION = {
         'description': 'Layer that adds a list of inputs',
         'parameters': {},
         'shape_transformation': 'All inputs must have the same shape, which is preserved in the output.'
+    },
+    'PositionalEncoding': {
+        'description': 'Positional encoding layer for transformer models',
+        'parameters': {
+            'max_len': 'Maximum sequence length (default: 5000)',
+            'encoding_type': 'Type of encoding: "sinusoidal" or "learnable" (default: "sinusoidal")'
+        },
+        'shape_transformation': 'Preserves input shape. Adds positional information to input embeddings. ' +
+                               'Expected input: (batch, seq_len, d_model). Output: (batch, seq_len, d_model). ' +
+                               'Sinusoidal encoding uses fixed sine/cosine waves based on position and dimension. ' +
+                               'Learnable encoding uses trainable position embeddings.'
     }
 }
 

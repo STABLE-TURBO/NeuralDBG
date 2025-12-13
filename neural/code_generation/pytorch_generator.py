@@ -15,7 +15,7 @@ class PyTorchGenerator(BaseCodeGenerator):
         optimizer_config = self.model_data.get('optimizer', {'type': 'Adam'})
         optimizer_type = optimizer_config['type'] if isinstance(optimizer_config, dict) else optimizer_config
         
-        code = "import torch\nimport torch.nn as nn\nimport torch.optim as optim\nimport torchvision.transforms as transforms\n"
+        code = "import torch\nimport torch.nn as nn\nimport torch.optim as optim\nimport torchvision.transforms as transforms\nimport math\n"
         code += "from torchvision import datasets\n"
         code += "from torch.utils.data import DataLoader\n"
         code += "from neural.tracking.experiment_tracker import ExperimentManager\n\n"
@@ -24,6 +24,36 @@ class PyTorchGenerator(BaseCodeGenerator):
         code += "experiment_manager = ExperimentManager()\n"
         code += "experiment = experiment_manager.create_experiment()\n"
         code += "experiment.log_hyperparameters({'optimizer': '" + optimizer_type + "', 'backend': 'pytorch'})\n\n"
+        
+        needs_positional_encoding = any(layer.get('type') == 'PositionalEncoding' for layer in expanded_layers)
+        if needs_positional_encoding:
+            code += "# Sinusoidal Positional Encoding\n"
+            code += "class SinusoidalPositionalEncoding(nn.Module):\n"
+            code += "    def __init__(self, max_len=5000):\n"
+            code += "        super(SinusoidalPositionalEncoding, self).__init__()\n"
+            code += "        self.max_len = max_len\n\n"
+            code += "    def forward(self, x):\n"
+            code += "        batch_size, seq_len, d_model = x.size()\n"
+            code += "        position = torch.arange(seq_len, dtype=torch.float32, device=x.device).unsqueeze(1)\n"
+            code += "        div_term = torch.exp(torch.arange(0, d_model, 2, dtype=torch.float32, device=x.device) * -(math.log(10000.0) / d_model))\n"
+            code += "        pos_encoding = torch.zeros(seq_len, d_model, device=x.device)\n"
+            code += "        pos_encoding[:, 0::2] = torch.sin(position * div_term)\n"
+            code += "        pos_encoding[:, 1::2] = torch.cos(position * div_term)\n"
+            code += "        return x + pos_encoding.unsqueeze(0)\n\n"
+            code += "# Learnable Positional Encoding\n"
+            code += "class LearnablePositionalEncoding(nn.Module):\n"
+            code += "    def __init__(self, max_len=5000, d_model=512):\n"
+            code += "        super(LearnablePositionalEncoding, self).__init__()\n"
+            code += "        self.max_len = max_len\n"
+            code += "        self.d_model = d_model\n"
+            code += "        self.pos_embedding = None\n\n"
+            code += "    def forward(self, x):\n"
+            code += "        batch_size, seq_len, d_model = x.size()\n"
+            code += "        if self.pos_embedding is None or self.pos_embedding.size(0) != self.max_len or self.pos_embedding.size(1) != d_model:\n"
+            code += "            self.pos_embedding = nn.Parameter(torch.randn(self.max_len, d_model, device=x.device))\n"
+            code += "        positions = self.pos_embedding[:seq_len, :].unsqueeze(0)\n"
+            code += "        return x + positions\n\n"
+        
         code += "# Neural network model definition\n"
         code += "class NeuralNetworkModel(nn.Module):\n"
         code += f"{self.indent}def __init__(self):\n"
@@ -598,6 +628,27 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
         return "nn.AdaptiveMaxPool2d(1)"
     elif layer_type == "GlobalMaxPooling3D":
         return "nn.AdaptiveMaxPool3d(1)"
+    elif layer_type == "PositionalEncoding":
+        max_len = params.get("max_len", 5000)
+        if isinstance(max_len, dict):
+            if 'value' in max_len:
+                max_len = max_len['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {max_len}, using default")
+                max_len = 5000
+        
+        encoding_type = params.get("encoding_type", "sinusoidal")
+        if isinstance(encoding_type, dict):
+            if 'value' in encoding_type:
+                encoding_type = encoding_type['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {encoding_type}, using default")
+                encoding_type = "sinusoidal"
+        
+        if encoding_type == "sinusoidal":
+            return f"SinusoidalPositionalEncoding(max_len={max_len})"
+        else:
+            return f"LearnablePositionalEncoding(max_len={max_len})"
     else:
         warnings.warn(f"Unsupported layer type '{layer_type}' for pytorch. Skipping.", UserWarning)
         return None

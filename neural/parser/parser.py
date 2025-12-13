@@ -192,9 +192,11 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         RESIDUALCONNECTION: "residualconnection"i
         GLOBALAVERAGEPOOLING2D: "globalaveragepooling2d"i
         GLOBALAVERAGEPOOLING1D: "globalaveragepooling1d"i
+        MULTIHEADATTENTION: "multiheadattention"i
+        POSITIONALENCODING: "positionalencoding"i
 
         // Layer type tokens (case-insensitive)
-        LAYER_TYPE.2: "dense"i | "conv2d"i | "conv1d"i | "conv3d"i | "dropout"i | "flatten"i | "lstm"i | "gru"i | "simplernndropoutwrapper"i | "simplernn"i | "output"i| "transformer"i | "transformerencoder"i | "transformerdecoder"i | "conv2dtranspose"i | "maxpooling2d"i | "maxpooling1d"i | "maxpooling3d"i | "batchnormalization"i | "gaussiannoise"i | "instancenormalization"i | "groupnormalization"i | "activation"i | "add"i | "subtract"i | "multiply"i | "average"i | "maximum"i | "concatenate"i | "dot"i | "timedistributed"i | "residualconnection"i | "globalaveragepooling2d"i | "globalaveragepooling1d"i
+        LAYER_TYPE.2: "dense"i | "conv2d"i | "conv1d"i | "conv3d"i | "dropout"i | "flatten"i | "lstm"i | "gru"i | "simplernndropoutwrapper"i | "simplernn"i | "output"i| "transformer"i | "transformerencoder"i | "transformerdecoder"i | "conv2dtranspose"i | "maxpooling2d"i | "maxpooling1d"i | "maxpooling3d"i | "batchnormalization"i | "gaussiannoise"i | "instancenormalization"i | "groupnormalization"i | "activation"i | "add"i | "subtract"i | "multiply"i | "average"i | "maximum"i | "concatenate"i | "dot"i | "timedistributed"i | "residualconnection"i | "globalaveragepooling2d"i | "globalaveragepooling1d"i | "multiheadattention"i | "positionalencoding"i
 
         // Basic tokens
         NAME: /[a-zA-Z_][a-zA-Z0-9_]*/
@@ -211,7 +213,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         // Layer name patterns
         CUSTOM_LAYER.1: /[A-Z][a-zA-Z0-9]*((Layer|RNN)s?|Transformer|Encoder|Decoder|Regularizer|Initializer|Constraint|$)/  // Requires ending with common layer component suffixes to avoid matching basic layer types
 
-        MACRO_NAME: /^(?!.*Layer$)(?!ResidualConnection|Dot|Average|Maximum|Multiply|Add|Concatenate|substract|TimeDistributed|Activation|GroupNormalization|InstanceNormalization|LayerNormalization|GaussianNoise|TransformerEncoder|TransformerDecoder|MultiHeadAttention|BatchNormalization|Dropout|Flatten|Output|Conv2DTranspose|LSTM|GRU|SimpleRNN|LSTMCell|GRUCell|Dense|Conv1D|Conv2D|Conv3D|MaxPooling1D|MaxPooling2D|MaxPooling3D)[A-Z][a-zA-Z0-9]*/
+        MACRO_NAME: /^(?!.*Layer$)(?!ResidualConnection|Dot|Average|Maximum|Multiply|Add|Concatenate|substract|TimeDistributed|Activation|GroupNormalization|InstanceNormalization|LayerNormalization|GaussianNoise|TransformerEncoder|TransformerDecoder|MultiHeadAttention|BatchNormalization|Dropout|Flatten|Output|Conv2DTranspose|LSTM|GRU|SimpleRNN|LSTMCell|GRUCell|Dense|Conv1D|Conv2D|Conv3D|MaxPooling1D|MaxPooling2D|MaxPooling3D|PositionalEncoding)[A-Z][a-zA-Z0-9]*/
 
         // Comments and whitespace
         COMMENT: /#[^\n]*/
@@ -508,7 +510,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         macro_ref: MACRO_NAME "(" [param_style1] ")" [layer_block]
 
         basic_layer: layer_type "(" [param_style1] ")" [device_spec] [layer_block]
-        layer_type: DENSE | CONV2D | CONV1D | CONV3D | DROPOUT | FLATTEN | LSTM | GRU | SIMPLE_RNN_DROPOUT_WRAPPER | SIMPLERNN | OUTPUT | TRANSFORMER | TRANSFORMER_ENCODER | TRANSFORMER_DECODER | CONV2DTRANSPOSE | LSTMCELL | GRUCELL | MAXPOOLING1D | MAXPOOLING2D | MAXPOOLING3D | BATCHNORMALIZATION | GAUSSIANNOISE | LAYERNORMALIZATION | INSTANCENORMALIZATION | GROUPNORMALIZATION | ACTIVATION | ADD | SUBSTRACT | MULTIPLY | AVERAGE | MAXIMUM | CONCATENATE | DOT | TIMEDISTRIBUTED | RESIDUALCONNECTION | GLOBALAVERAGEPOOLING2D | GLOBALAVERAGEPOOLING1D | OUTPUT
+        layer_type: DENSE | CONV2D | CONV1D | CONV3D | DROPOUT | FLATTEN | LSTM | GRU | SIMPLE_RNN_DROPOUT_WRAPPER | SIMPLERNN | OUTPUT | TRANSFORMER | TRANSFORMER_ENCODER | TRANSFORMER_DECODER | CONV2DTRANSPOSE | LSTMCELL | GRUCELL | MAXPOOLING1D | MAXPOOLING2D | MAXPOOLING3D | BATCHNORMALIZATION | GAUSSIANNOISE | LAYERNORMALIZATION | INSTANCENORMALIZATION | GROUPNORMALIZATION | ACTIVATION | ADD | SUBSTRACT | MULTIPLY | AVERAGE | MAXIMUM | CONCATENATE | DOT | TIMEDISTRIBUTED | RESIDUALCONNECTION | GLOBALAVERAGEPOOLING2D | GLOBALAVERAGEPOOLING1D | MULTIHEADATTENTION | POSITIONALENCODING | OUTPUT
         ?param_style1:  hpo_param | params
         hpo_param: hpo_expr | hpo_with_params
         params: param ("," param)*
@@ -743,6 +745,8 @@ class ModelTransformer(lark.Transformer):
             'RESIDUALCONNECTION': 'residual',
             'GLOBALAVERAGEPOOLING2D': 'global_average_pooling2d',
             'GLOBALAVERAGEPOOLING1D': 'global_average_pooling1d',
+            'MULTIHEADATTENTION': 'multiheadattention',
+            'POSITIONALENCODING': 'positional_encoding',
         }
         self.hpo_params: List[Dict[str, Any]] = []
 
@@ -2173,6 +2177,18 @@ class ModelTransformer(lark.Transformer):
                 self.raise_validation_error("Invalid parameters for GroupNormalization", items[0])
         return {'type': 'GroupNormalization', 'params': params}
 
+    def positional_encoding(self, items):
+        from . import layer_handlers as lh
+        items = self._shift_if_token(items)
+        raw_params = self._extract_value(items[0]) if items and items[0] is not None else None
+        params = lh.process_positionalencoding_params(
+            raw_params,
+            self.raise_validation_error,
+            self._track_hpo,
+            items[0] if items else None
+        )
+        return {'type': 'PositionalEncoding', 'params': params}
+
     ############
 
 
@@ -3540,6 +3556,9 @@ class ModelTransformer(lark.Transformer):
 
     def group_normalization(self, items):
         return {'type': 'GroupNormalization', 'params': self._extract_value(items[0])}
+
+    def positional_encoding(self, items):
+        return {'type': 'PositionalEncoding', 'params': self._extract_value(items[0])}
 
     def spatial_dropout1d(self, items):
         return {'type': 'SpatialDropout1D', 'params': self._extract_value(items[0])}

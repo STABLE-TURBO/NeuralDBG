@@ -364,3 +364,72 @@ def process_maxpooling2d_params(param_values: Any, raise_error_fn, track_hpo_fn,
             track_hpo_fn('MaxPooling2D', param_name, param_value, node)
     
     return params
+
+
+def process_positionalencoding_params(param_values: Any, raise_error_fn, track_hpo_fn, node) -> Dict[str, Any]:
+    """Process PositionalEncoding layer parameters.
+    
+    Args:
+        param_values: Raw parameter values from parsing
+        raise_error_fn: Function to raise validation errors
+        track_hpo_fn: Function to track HPO parameters
+        node: Parse tree node for error reporting
+        
+    Returns:
+        Dictionary of processed parameters
+    """
+    ordered_params = []
+    named_params = {}
+    
+    if isinstance(param_values, list):
+        for val in param_values:
+            if isinstance(val, dict):
+                if 'hpo' in val and len(named_params) == 0 and len(ordered_params) == 0:
+                    named_params['max_len'] = val
+                else:
+                    named_params.update(val)
+            else:
+                ordered_params.append(val)
+    elif isinstance(param_values, dict):
+        named_params = param_values
+    elif param_values is not None:
+        ordered_params.append(param_values)
+    
+    # Map positional parameters: max_len, encoding_type
+    params = {}
+    if len(ordered_params) >= 1:
+        params['max_len'] = ordered_params[0]
+    if len(ordered_params) >= 2:
+        params['encoding_type'] = ordered_params[1]
+    
+    if len(ordered_params) > 2:
+        raise_error_fn("PositionalEncoding layer accepts at most two positional arguments (max_len, encoding_type)", node)
+    
+    params.update(named_params)
+    
+    # Set defaults
+    if 'max_len' not in params:
+        params['max_len'] = 5000
+    if 'encoding_type' not in params:
+        params['encoding_type'] = 'sinusoidal'
+    
+    # Validate max_len
+    max_len = params['max_len']
+    if isinstance(max_len, dict) and 'hpo' in max_len:
+        track_hpo_fn('PositionalEncoding', 'max_len', max_len, node)
+    elif not isinstance(max_len, (int, float)) or max_len <= 0:
+        raise_error_fn(f"PositionalEncoding max_len must be a positive integer, got {max_len}", node)
+    
+    # Validate encoding_type
+    encoding_type = params['encoding_type']
+    if isinstance(encoding_type, dict) and 'hpo' in encoding_type:
+        track_hpo_fn('PositionalEncoding', 'encoding_type', encoding_type, node)
+    elif encoding_type not in ['sinusoidal', 'learnable']:
+        raise_error_fn(f"PositionalEncoding encoding_type must be 'sinusoidal' or 'learnable', got {encoding_type}", node)
+    
+    # Track all HPO parameters
+    for param_name, param_value in params.items():
+        if isinstance(param_value, dict) and 'hpo' in param_value:
+            track_hpo_fn('PositionalEncoding', param_name, param_value, node)
+    
+    return params

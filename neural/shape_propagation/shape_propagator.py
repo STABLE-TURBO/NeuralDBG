@@ -22,6 +22,7 @@ from .layer_handlers import (
     handle_global_average_pooling1d,
     handle_lstm,
     handle_permute,
+    handle_positional_encoding,
     handle_reshape,
     handle_zero_padding2d,
 )
@@ -412,6 +413,8 @@ class ShapePropagator:
                 output_shape = handle_global_average_pooling1d(input_shape, params)
             elif layer_type == 'MultiHeadAttention':
                 output_shape = self._handle_multiheadattention(input_shape, params)
+            elif layer_type == 'PositionalEncoding':
+                output_shape = handle_positional_encoding(input_shape, params)
             else:
                 # Fall back to default handler
                 output_shape = self._handle_default(input_shape, params)
