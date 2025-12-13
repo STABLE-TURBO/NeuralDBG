@@ -4,13 +4,11 @@ Automated Release Script
 Handles version bumping, changelog updates, GitHub releases, and PyPI publishing.
 """
 
-import os
+from pathlib import Path
 import re
 import subprocess
 import sys
-from datetime import datetime
-from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 
 class ReleaseAutomation:
@@ -49,7 +47,7 @@ class ReleaseAutomation:
                 match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', content)
                 if match:
                     return match.group(1)
-        except:
+        except Exception:
             pass
         return "0.3.0-dev"
     
@@ -100,7 +98,7 @@ class ReleaseAutomation:
         # Check if gh CLI is available
         try:
             subprocess.run(["gh", "--version"], check=True, capture_output=True)
-        except:
+        except Exception:
             print("⚠ GitHub CLI (gh) not found. Install from https://cli.github.com/")
             print(f"  Would create release: {tag}")
             return
@@ -128,12 +126,34 @@ class ReleaseAutomation:
         except subprocess.CalledProcessError as e:
             print(f"✗ Failed to create GitHub release: {e}")
     
-    def build_and_publish_pypi(self, test: bool = False):
-        """Build and publish to PyPI."""
+    def build_and_publish_pypi(self, test: bool = False, use_trusted_publishing: bool = True):
+        """
+        Build and publish to PyPI.
+        
+        Args:
+            test: Publish to TestPyPI instead of PyPI
+            use_trusted_publishing: Use OIDC trusted publishing (requires GitHub Actions)
+        """
         print("Building package...")
+        
+        # Clean old builds
+        import shutil
+        dist_dir = self.repo_root / "dist"
+        if dist_dir.exists():
+            shutil.rmtree(dist_dir)
         
         # Build
         subprocess.run([sys.executable, "-m", "build"], check=True, cwd=self.repo_root)
+        
+        # Verify package
+        print("Verifying package...")
+        subprocess.run([sys.executable, "-m", "twine", "check", "dist/*"], 
+                      check=True, cwd=self.repo_root)
+        
+        if use_trusted_publishing:
+            print("⚠ Using trusted publishing - this should be run in GitHub Actions")
+            print("  Skipping upload (use GitHub Actions automated_release workflow)")
+            return
         
         if test:
             # Upload to TestPyPI
@@ -153,79 +173,87 @@ class ReleaseAutomation:
             ], check=True, cwd=self.repo_root)
             print("✓ Uploaded to PyPI")
     
-    def run_tests(self) -> bool:
-        """Run test suite."""
-        print("Running tests...")
-        try:
-            result = subprocess.run(
-                [sys.executable, "-m", "pytest", "tests/", "-v"],
-                cwd=self.repo_root,
-                capture_output=True,
-                text=True
-            )
-            
-            if result.returncode == 0:
-                print("✓ All tests passed")
-                return True
-            else:
-                print("✗ Some tests failed")
-                print(result.stdout)
-                print(result.stderr)
-                return False
-        except Exception as e:
-            print(f"✗ Error running tests: {e}")
-            return False
-    
-    def generate_release_notes(self) -> str:
-        """Generate release notes from changelog."""
-        from .blog_generator import BlogGenerator
-        
-        generator = BlogGenerator(version=self.version)
-        return generator.generate_github_release_notes()
+
     
     def full_release(self, version_type: str = "patch", skip_tests: bool = False, 
-                     draft: bool = False, test_pypi: bool = False):
+                     skip_lint: bool = False, draft: bool = False, test_pypi: bool = False,
+                     use_trusted_publishing: bool = False):
         """Run full release process."""
         print("=" * 70)
         print("Neural DSL Release Automation")
         print("=" * 70)
         
-        # 1. Run tests
+        # 1. Run pre-release validation
+        print("\n=== Pre-Release Validation ===\n")
+        
+        if not skip_lint:
+            if not self.run_linting():
+                response = input("Linting failed. Continue anyway? [y/N]: ")
+                if response.lower() != 'y':
+                    print("\n✗ Release aborted.")
+                    return False
+            
+            self.run_type_checking()  # Non-blocking
+        
         if not skip_tests:
             if not self.run_tests():
                 print("\n✗ Tests failed. Aborting release.")
                 return False
         
         # 2. Bump version
+        print("\n=== Version Update ===\n")
         new_version = self.bump_version(version_type)
         self.version = new_version
         
-        # 3. Generate release notes
-        print("\nGenerating release notes...")
-        release_notes = self.generate_release_notes()
+        # 3. Update README badges
+        print("\nUpdating README badges...")
+        self.update_readme_badges(new_version)
         
-        # 4. Create GitHub release
-        print("\nCreating GitHub release...")
+        # 4. Generate release notes
+        print("\n=== Release Notes ===\n")
+        release_notes = self.generate_release_notes()
+        print(release_notes[:500] + "..." if len(release_notes) > 500 else release_notes)
+        
+        # 5. Create GitHub release
+        print("\n=== GitHub Release ===\n")
         self.create_github_release(new_version, release_notes, draft=draft)
         
-        # 5. Build and publish to PyPI
-        print("\nPublishing to PyPI...")
+        # 6. Build and publish to PyPI
+        print("\n=== PyPI Publishing ===\n")
         try:
-            self.build_and_publish_pypi(test=test_pypi)
+            self.build_and_publish_pypi(test=test_pypi, 
+                                       use_trusted_publishing=use_trusted_publishing)
         except Exception as e:
             print(f"⚠ PyPI publishing failed: {e}")
-            print("  You can publish manually later with: twine upload dist/*")
+            print("  You can publish manually later with:")
+            print("    python -m build")
+            print("    python -m twine upload dist/*")
         
-        # 6. Generate blog posts
-        print("\nGenerating blog posts...")
-        from .blog_generator import BlogGenerator
-        generator = BlogGenerator(version=new_version)
-        generator.save_blog_posts()
+        # 7. Generate blog posts
+        print("\n=== Blog Generation ===\n")
+        try:
+            from .blog_generator import BlogGenerator
+            generator = BlogGenerator(version=new_version)
+            generator.save_blog_posts()
+        except Exception as e:
+            print(f"⚠ Blog generation failed: {e}")
         
         print("\n" + "=" * 70)
         print("✅ Release complete!")
         print(f"Version: {new_version}")
         print("=" * 70)
+        print("\nNext steps:")
+        print("  1. Review the GitHub release at:")
+        print(f"     https://github.com/Lemniscate-world/Neural/releases/tag/v{new_version}")
+        if use_trusted_publishing:
+            print("  2. PyPI publishing will be handled by GitHub Actions")
+        else:
+            print("  2. Verify PyPI package at:")
+            if test_pypi:
+                print(f"     https://test.pypi.org/project/neural-dsl/{new_version}/")
+            else:
+                print(f"     https://pypi.org/project/neural-dsl/{new_version}/")
+        print("  3. Announce the release on Discord and Twitter")
         
         return True
 

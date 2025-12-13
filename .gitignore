@@ -303,3 +303,9 @@ neural/aquarium/coverage/
 .aquarium/
 neural/aquarium/src/components/settings/__pycache__/
 neural/aquarium/__pycache__/
+
+# Release automation artifacts
+release_notes*.md
+release_summary.md
+test_report.md
+examples_validation_report.md
