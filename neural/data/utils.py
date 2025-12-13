@@ -109,9 +109,9 @@ def validate_and_version_dataset(
             import numpy as np
             
             if str(dataset_path).endswith('.npy'):
-                data = np.load(dataset_path)
+                data = np.load(dataset_path, allow_pickle=False)
             elif str(dataset_path).endswith('.npz'):
-                data = np.load(dataset_path)['data']
+                data = np.load(dataset_path, allow_pickle=False)['data']
             else:
                 try:
                     import pandas as pd
