@@ -2,7 +2,7 @@
 // `@type` JSDoc annotations allow editor autocompletion and type checking
 // (when paired with `@docusaurus/module-type-aliases`)
 
-import {themes as prismThemes} from 'prism-react-renderer';
+import { themes as prismThemes } from 'prism-react-renderer';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -40,18 +40,7 @@ const config = {
           showLastUpdateTime: true,
           showLastUpdateAuthor: true,
         },
-        blog: {
-          showReadingTime: true,
-          blogTitle: 'Neural DSL Blog',
-          blogDescription: 'Latest updates, tutorials, and insights from the Neural DSL community',
-          postsPerPage: 10,
-          blogSidebarTitle: 'All posts',
-          blogSidebarCount: 'ALL',
-          feedOptions: {
-            type: 'all',
-            copyright: `Copyright © ${new Date().getFullYear()} Neural DSL Team.`,
-          },
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -73,12 +62,11 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       metadata: [
-        {name: 'keywords', content: 'neural networks, deep learning, DSL, machine learning, tensorflow, pytorch, AI, debugging'},
-        {name: 'description', content: 'Neural DSL: A powerful domain-specific language for defining, training, debugging, and deploying neural networks with cross-framework support.'},
-        {property: 'og:image', content: 'img/neural-social-card.png'},
-        {property: 'twitter:card', content: 'summary_large_image'},
+        { name: 'keywords', content: 'neural networks, deep learning, DSL, machine learning, tensorflow, pytorch, AI, debugging' },
+        { name: 'description', content: 'Neural DSL: A powerful domain-specific language for defining, training, debugging, and deploying neural networks with cross-framework support.' },
+        { property: 'og:image', content: 'img/neural-social-card.png' },
       ],
-      
+
       announcementBar: {
         id: 'announcement-1',
         content:
@@ -101,11 +89,10 @@ const config = {
             position: 'left',
             label: 'Docs',
           },
-          {to: '/playground', label: 'Playground', position: 'left'},
-          {to: '/showcase', label: 'Showcase', position: 'left'},
-          {to: '/pricing', label: 'Pricing', position: 'left'},
-          {to: '/comparison', label: 'Compare', position: 'left'},
-          {to: '/blog', label: 'Blog', position: 'left'},
+          { to: '/playground', label: 'Playground', position: 'left' },
+          { to: '/showcase', label: 'Showcase', position: 'left' },
+          { to: '/pricing', label: 'Pricing', position: 'left' },
+          { to: '/comparison', label: 'Compare', position: 'left' },
           {
             href: 'https://github.com/Lemniscate-world/Neural',
             label: 'GitHub',
@@ -147,10 +134,6 @@ const config = {
                 href: 'https://discord.gg/KFku4KvS',
               },
               {
-                label: 'Twitter',
-                href: 'https://x.com/NLang4438',
-              },
-              {
                 label: 'GitHub Discussions',
                 href: 'https://github.com/Lemniscate-world/Neural/discussions',
               },
@@ -160,16 +143,8 @@ const config = {
             title: 'More',
             items: [
               {
-                label: 'Blog',
-                to: '/blog',
-              },
-              {
                 label: 'GitHub',
                 href: 'https://github.com/Lemniscate-world/Neural',
-              },
-              {
-                label: 'Product Hunt',
-                href: 'https://www.producthunt.com/posts/neural-2',
               },
             ],
           },

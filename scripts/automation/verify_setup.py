@@ -50,11 +50,9 @@ def main():
     # Check Automation Scripts
     print("🔄 Automation Scripts:")
     print("-" * 70)
-    all_checks.append(check_file_exists("scripts/automation/blog_generator.py", "Blog Generator"))
     all_checks.append(check_file_exists("scripts/automation/release_automation.py", "Release Automation"))
     all_checks.append(check_file_exists("scripts/automation/example_validator.py", "Example Validator"))
     all_checks.append(check_file_exists("scripts/automation/test_automation.py", "Test Automation"))
-    all_checks.append(check_file_exists("scripts/automation/social_media_generator.py", "Social Media Generator"))
     all_checks.append(check_file_exists("scripts/automation/master_automation.py", "Master Automation"))
     print()
     
