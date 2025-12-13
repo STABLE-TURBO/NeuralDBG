@@ -19,7 +19,9 @@ jobs:
         with:
           python-version: "3.11"
           cache: 'pip'
-          cache-dependency-path: 'setup.py'
+          cache-dependency-path: |
+            setup.py
+            requirements*.txt
 
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
@@ -53,14 +55,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-          cache-dependency-path: 'setup.py'
+          cache-dependency-path: |
+            setup.py
+            requirements*.txt
 
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
 
       - name: Install project and dependencies
         run: |
-          python -m pip install -e .
+          python -m pip install -e ".[backends,visualization,dashboard]"
           python -m pip install pytest pytest-cov
 
       - name: Run unit tests with coverage
@@ -74,8 +78,7 @@ jobs:
           flags: unit-tests,python-${{ matrix.python-version }},${{ matrix.os }}
           name: unit-${{ matrix.os }}-py${{ matrix.python-version }}
           fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   integration-tests:
     name: Integration Tests (Python ${{ matrix.python-version }}, ${{ matrix.os }})
@@ -95,14 +98,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-          cache-dependency-path: 'setup.py'
+          cache-dependency-path: |
+            setup.py
+            requirements*.txt
 
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
 
       - name: Install project and dependencies
         run: |
-          python -m pip install -e .
+          python -m pip install -e ".[backends,visualization,dashboard]"
           python -m pip install pytest pytest-cov
 
       - name: Run integration tests with coverage
@@ -116,8 +121,7 @@ jobs:
           flags: integration-tests,python-${{ matrix.python-version }},${{ matrix.os }}
           name: integration-${{ matrix.os }}-py${{ matrix.python-version }}
           fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   e2e-tests:
     name: E2E Tests (Python ${{ matrix.python-version }}, ${{ matrix.os }})
@@ -137,14 +141,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-          cache-dependency-path: 'setup.py'
+          cache-dependency-path: |
+            setup.py
+            requirements*.txt
 
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
 
       - name: Install project and dependencies
         run: |
-          python -m pip install -e .
+          python -m pip install -e ".[backends,visualization,dashboard]"
           python -m pip install pytest pytest-cov
 
       - name: Run e2e tests with coverage
@@ -158,8 +164,7 @@ jobs:
           flags: e2e-tests,python-${{ matrix.python-version }},${{ matrix.os }}
           name: e2e-${{ matrix.os }}-py${{ matrix.python-version }}
           fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   supply-chain-audit:
     name: Supply Chain Audit
@@ -173,14 +178,16 @@ jobs:
         with:
           python-version: "3.11"
           cache: 'pip'
-          cache-dependency-path: 'setup.py'
+          cache-dependency-path: |
+            setup.py
+            requirements*.txt
 
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
 
       - name: Install project and tools
         run: |
-          python -m pip install -e .
+          python -m pip install -e ".[backends,visualization,dashboard]"
           python -m pip install ruff mypy pip-audit pytest bandit[toml] safety
 
       - name: Ruff (lint)
