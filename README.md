@@ -149,6 +149,8 @@ See [docs/deployment.md](docs/deployment.md) for more details on deployment opti
 
 ## Installation
 
+### For End Users
+
 ```bash
 pip install neural-dsl[full]
 ```
@@ -159,19 +161,32 @@ The `[full]` extra installs TensorFlow, PyTorch, ONNX, and all optional features
 pip install neural-dsl              # core DSL parsing only (~20 MB)
 pip install neural-dsl[backends]    # add TensorFlow/PyTorch/ONNX
 pip install neural-dsl[hpo]         # hyperparameter optimization with Optuna
+pip install neural-dsl[automl]      # automated ML and NAS
 pip install neural-dsl[dashboard]   # NeuralDbg interface
+pip install neural-dsl[visualization] # charts and diagrams
+pip install neural-dsl[cloud]       # cloud integrations
+pip install neural-dsl[integrations] # ML platform connectors
 ```
 
-For development:
+### For Development
 
 ```bash
 git clone https://github.com/Lemniscate-world/Neural.git
 cd Neural
 python -m venv .venv
-.\.venv\Scripts\Activate   # Windows
-# or source .venv/bin/activate  # Linux/macOS
+
+# Activate virtual environment
+.\.venv\Scripts\Activate              # Windows
+# source .venv/bin/activate           # Linux/macOS
+
+# Install development dependencies (includes core package in editable mode)
 pip install -r requirements-dev.txt
+
+# Optional: Set up pre-commit hooks
+pre-commit install
 ```
+
+For more detailed installation instructions including profiles, troubleshooting, and platform-specific notes, see [INSTALL.md](INSTALL.md).
 
 ## Getting Started
 
@@ -268,9 +283,18 @@ To get started:
 git clone https://github.com/YOUR_USERNAME/Neural.git
 cd Neural
 python -m venv .venv
-.\.venv\Scripts\Activate  # Windows
+
+# Activate virtual environment
+.\.venv\Scripts\Activate              # Windows
+# source .venv/bin/activate           # Linux/macOS
+
+# Install development dependencies
 pip install -r requirements-dev.txt
+
+# Set up pre-commit hooks
 pre-commit install
+
+# Run tests
 pytest tests/ -v
 ```
 

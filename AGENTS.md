@@ -2,11 +2,19 @@
 
 ## Setup
 ```bash
-python -m venv .venv                    # Create venv (convention: .venv or venv)
-.\.venv\Scripts\Activate                # Windows activation
-pip install -e .                        # Install core dependencies only
-pip install -e ".[full]"                # Install with all optional dependencies
-pip install -r requirements-dev.txt     # Install development dependencies (recommended)
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+.\.venv\Scripts\Activate                # Windows
+# source .venv/bin/activate             # Linux/macOS
+
+# Install in editable mode
+pip install -e .                        # Core dependencies only
+pip install -e ".[full]"                # With all optional dependencies
+
+# For development (includes editable install + dev tools)
+pip install -r requirements-dev.txt     # Recommended for contributors
 ```
 
 ## Dependency Groups
