@@ -6,6 +6,7 @@ Neural DSL now has comprehensive automation for:
 - ✅ **Blog Post Generation** - Auto-generate posts from CHANGELOG
 - ✅ **GitHub Releases** - Automated version bumping and releases
 - ✅ **PyPI Publishing** - Automated package publishing
+- ✅ **Post-Release Automation** - Version updates, discussions, deployments, notifications
 - ✅ **Example Validation** - Validate all examples automatically
 - ✅ **Test Automation** - Run tests and generate reports
 - ✅ **Social Media Posts** - Generate posts for Twitter, LinkedIn
@@ -176,6 +177,22 @@ python scripts/automation/social_media_generator.py
 4. Upload artifacts (kept for 30 days)
 
 **No manual action needed** - runs automatically!
+
+### Post-Release Automation (`.github/workflows/post_release_automation.yml`)
+
+**Triggers:**
+- Automatic: After release is published
+- Manual: Via workflow dispatch
+
+**Actions:**
+1. Update version to next dev version (e.g., 0.3.0 → 0.3.1.dev0)
+2. Create GitHub Discussion announcement
+3. Update documentation links
+4. Trigger Netlify/Vercel deployments
+5. Send Discord notification
+6. Create planning issue for next release
+
+**See:** [POST_RELEASE_AUTOMATION_QUICK_REF.md](POST_RELEASE_AUTOMATION_QUICK_REF.md) for details
 
 ## Typical Workflow
 
