@@ -1,388 +1,296 @@
 # Neural Experiment Tracking
 
-Comprehensive experiment tracking system for Neural DSL with artifact versioning, automatic visualizations, and backend integrations.
+Comprehensive experiment tracking system for Neural with Aquarium dashboard, metrics visualization, and external platform integrations.
 
 ## Features
 
-### 1. **Experiment Tracking**
-- Track hyperparameters, metrics, and artifacts
-- Automatic metric logging and persistence
-- Support for multiple experiment runs
-- Status tracking (created, running, completed, failed)
+### Core Tracking
+- **Experiment Management**: Track experiments with hyperparameters, metrics, and artifacts
+- **Metric Logging**: Log metrics at each training step with automatic persistence
+- **Artifact Storage**: Store models, figures, and other artifacts
+- **Hyperparameter Tracking**: Record and compare hyperparameters across experiments
 
-### 2. **Artifact Versioning**
-- Automatic versioning of all logged artifacts
-- SHA-256 checksums for artifact integrity
-- Version history tracking
-- Easy retrieval of specific artifact versions
+### Aquarium Dashboard
+- **Interactive UI**: Web-based dashboard for viewing and comparing experiments
+- **Training Curves**: Visualize metrics over time with interactive charts
+- **Experiment Comparison**: Side-by-side comparison of multiple experiments
+- **Export Integration**: Export to MLflow, Weights & Biases, or TensorBoard
 
-### 3. **Automatic Metric Visualization**
-- Auto-generated plots every N steps
-- Individual and combined metric plots
-- Metric correlation matrices
-- Distribution histograms
-- Configurable via `auto_visualize` parameter
+### Visualization
+- **Training Curves**: Plot metrics over time
+- **Smoothed Curves**: Apply moving average for clearer trends
+- **Distribution Plots**: View metric distributions
+- **Correlation Matrix**: Analyze metric correlations
+- **Heatmaps**: Visualize metrics across experiments
 
-### 4. **Backend Integrations**
-- **MLflow**: Full integration with MLflow tracking
-- **Weights & Biases**: Native W&B support
-- **TensorBoard**: TensorBoard logging support
-- Easy switching between backends
-
-### 5. **Experiment Comparison UI**
-- Interactive web interface for comparing experiments
-- Side-by-side metric comparisons
-- Hyperparameter comparison tables
-- Best metrics visualization
-- Export comparison reports
+### Export Integrations
+- **MLflow**: Export experiments to MLflow tracking server
+- **Weights & Biases**: Sync experiments to W&B projects
+- **TensorBoard**: Generate TensorBoard logs from experiments
 
 ## Quick Start
 
-### Basic Usage
+### Basic Tracking
 
 ```python
 from neural.tracking import ExperimentTracker
 
-# Create a tracker
-tracker = ExperimentTracker(
-    experiment_name="my_experiment",
-    auto_visualize=True  # Enable automatic visualizations
-)
+# Create an experiment
+tracker = ExperimentTracker(experiment_name="my_experiment")
 
 # Log hyperparameters
 tracker.log_hyperparameters({
-    'learning_rate': 0.01,
-    'batch_size': 32,
-    'optimizer': 'adam'
+    "learning_rate": 0.001,
+    "batch_size": 32,
+    "epochs": 100
 })
 
-# Log metrics during training
+# Training loop
 for epoch in range(100):
     # ... training code ...
+    
+    # Log metrics
     tracker.log_metrics({
-        'train_loss': train_loss,
-        'val_loss': val_loss,
-        'accuracy': accuracy
+        "loss": loss,
+        "accuracy": accuracy,
+        "val_loss": val_loss,
+        "val_accuracy": val_accuracy
     }, step=epoch)
 
 # Log artifacts
-tracker.log_artifact("model.h5")
-tracker.log_figure(matplotlib_figure, "training_curve.png")
+tracker.log_model("model.h5", framework="tensorflow")
+tracker.log_figure(plt.gcf(), "training_curves.png")
 
-# Finish experiment
-tracker.finish()
+# Set status
+tracker.set_status("completed")
+
+# Save summary
+tracker.save_experiment_summary()
 ```
 
-### Artifact Versioning
+### Launch Aquarium Dashboard
 
 ```python
-tracker = ExperimentTracker(experiment_name="versioned_experiment")
+from neural.tracking import launch_aquarium
 
-# Log multiple versions of the same artifact
-for checkpoint in range(5):
-    # ... training ...
-    tracker.log_model("checkpoint.pt", framework="pytorch", version=True)
+# Launch on default port (8053)
+launch_aquarium()
 
-# List all versions
-versions = tracker.list_artifact_versions("checkpoint.pt")
-for v in versions:
-    print(f"Version {v.version}: {v.checksum}")
-
-# Get specific version
-latest = tracker.get_artifact_version("checkpoint.pt", version=-1)
-v2 = tracker.get_artifact_version("checkpoint.pt", version=2)
+# Or customize
+launch_aquarium(
+    base_dir="./my_experiments",
+    port=8080,
+    host="0.0.0.0",
+    debug=True
+)
 ```
 
-### Backend Integration
+Or from command line:
+```bash
+python -m neural.tracking.aquarium_app --port 8053 --base-dir neural_experiments
+```
 
-#### MLflow
+### Export to External Platforms
 
 ```python
-tracker = ExperimentTracker(
-    experiment_name="mlflow_experiment",
-    backend="mlflow"
+from neural.tracking import ExperimentManager
+from neural.tracking.export_manager import ExportManager
+
+manager = ExperimentManager(base_dir="neural_experiments")
+exporter = ExportManager(manager)
+
+# Export to MLflow
+results = exporter.export_to_mlflow(
+    experiment_ids=["exp123", "exp456"],
+    tracking_uri="http://localhost:5000"
 )
 
-# All metrics/artifacts are automatically logged to MLflow
-tracker.log_hyperparameters({'lr': 0.01})
-tracker.log_metrics({'loss': 0.5}, step=1)
-```
-
-#### Weights & Biases
-
-```python
-tracker = ExperimentTracker(
-    experiment_name="wandb_experiment",
-    backend="wandb"
+# Export to Weights & Biases
+results = exporter.export_to_wandb(
+    experiment_ids=["exp123"],
+    project_name="my-project",
+    tags=["production", "v1.0"]
 )
 
-# Automatically synced with W&B
-tracker.log_hyperparameters({'lr': 0.01})
-tracker.log_metrics({'loss': 0.5}, step=1)
-```
-
-#### TensorBoard
-
-```python
-tracker = ExperimentTracker(
-    experiment_name="tensorboard_experiment",
-    backend="tensorboard"
+# Export to TensorBoard
+results = exporter.export_to_tensorboard(
+    experiment_ids=["exp123", "exp456"],
+    log_dir="runs/my_experiments"
 )
-
-# Logged to TensorBoard
-tracker.log_metrics({'loss': 0.5}, step=1)
 ```
 
-### Experiment Comparison
-
-#### Using ExperimentManager
+### Compare Experiments
 
 ```python
 from neural.tracking import ExperimentManager
 
-manager = ExperimentManager()
-
-# Create multiple experiments
-exp1 = manager.create_experiment("experiment_1")
-exp2 = manager.create_experiment("experiment_2")
-
-# ... run experiments ...
-
-# Compare experiments
-plots = manager.compare_experiments([exp1.experiment_id, exp2.experiment_id])
-
-# Export comparison
-manager.export_comparison([exp1.experiment_id, exp2.experiment_id])
-```
-
-#### Using Comparison UI
-
-Launch the interactive comparison UI:
-
-```bash
-# Command line
-python neural/tracking/comparison_ui.py --port 8052
-
-# Or in Python
-from neural.tracking import launch_comparison_ui
-launch_comparison_ui(port=8052)
-```
-
-The UI provides:
-- 📊 **Metrics Comparison**: Interactive plots comparing metrics across experiments
-- ⚙️ **Hyperparameters**: Side-by-side hyperparameter comparison
-- 📈 **Best Metrics**: Bar charts showing best achieved values
-- 📋 **Summary**: Overview cards for each experiment
-
-### Advanced Features
-
-#### Custom Visualizations
-
-```python
-from neural.tracking import MetricVisualizer
-
-# Create custom visualizations
-plots = MetricVisualizer.create_metric_plots(
-    metrics_history,
-    figsize=(15, 10)
-)
-
-dist_plots = MetricVisualizer.create_distribution_plots(
-    metrics_history
-)
-```
-
-#### Manual Visualization Generation
-
-```python
-tracker = ExperimentTracker(
-    experiment_name="manual_viz",
-    auto_visualize=False  # Disable automatic visualization
-)
-
-# ... training ...
-
-# Generate all visualizations manually
-saved_plots = tracker.generate_visualizations()
-print(f"Generated plots: {list(saved_plots.keys())}")
-```
-
-#### Experiment Queries
-
-```python
-manager = ExperimentManager()
+manager = ExperimentManager(base_dir="neural_experiments")
 
 # List all experiments
 experiments = manager.list_experiments()
 for exp in experiments:
-    print(f"{exp['experiment_name']} - {exp['status']}")
+    print(f"{exp['experiment_name']}: {exp['status']}")
 
 # Get specific experiment
-tracker = manager.get_experiment(experiment_id)
+exp = manager.get_experiment("exp123")
+print(f"Best accuracy: {exp.get_best_metric('accuracy', mode='max')}")
 
-# Get best metric
-best_acc, step = tracker.get_best_metric('accuracy', mode='max')
-print(f"Best accuracy: {best_acc} at step {step}")
+# Compare experiments
+plots = manager.compare_experiments(
+    experiment_ids=["exp123", "exp456"],
+    metric_names=["accuracy", "loss"]
+)
+```
 
-# Get all metrics for a specific metric name
-losses = tracker.get_metrics('train_loss')
+### Advanced Visualization
+
+```python
+from neural.tracking import ExperimentManager
+from neural.tracking.metrics_visualizer import MetricsVisualizerComponent
+
+manager = ExperimentManager()
+exp = manager.get_experiment("exp123")
+
+visualizer = MetricsVisualizerComponent(exp)
+
+# Create training curves
+fig = visualizer.create_training_curves()
+fig.show()
+
+# Create smoothed curves
+fig = visualizer.create_smoothed_curves(window_size=10)
+fig.show()
+
+# Create distribution plot
+fig = visualizer.create_distribution_plot("accuracy")
+fig.show()
+
+# Create correlation matrix
+fig = visualizer.create_correlation_matrix()
+fig.show()
 ```
 
 ## Architecture
 
 ```
 neural/tracking/
-├── experiment_tracker.py       # Main tracking classes
-│   ├── ExperimentTracker      # Individual experiment tracking
-│   ├── ExperimentManager      # Manage multiple experiments
-│   ├── ExperimentComparisonUI # Web UI for comparison
-│   ├── ArtifactVersion        # Versioned artifact representation
-│   └── MetricVisualizer       # Automatic visualization generation
-├── integrations.py            # Backend integrations
-│   ├── MLflowIntegration
-│   ├── WandbIntegration
-│   └── TensorBoardIntegration
-├── comparison_ui.py           # Standalone UI launcher
-└── README.md                  # This file
+├── experiment_tracker.py      # Core tracking classes
+├── integrations.py           # External platform integrations
+├── aquarium_app.py           # Main Aquarium dashboard
+├── comparison_component.py   # Experiment comparison UI
+├── metrics_visualizer.py     # Advanced visualization
+├── export_manager.py         # Export management
+└── comparison_ui.py          # Legacy comparison UI
 ```
 
-## Storage Structure
+## Storage Format
+
+Experiments are stored in the following structure:
 
 ```
 neural_experiments/
-└── experiment_name_12345678/
-    ├── metadata.json          # Experiment metadata
-    ├── hyperparameters.json   # Logged hyperparameters
-    ├── metrics.json           # All logged metrics
-    ├── artifacts.json         # Artifact metadata
-    ├── summary.json           # Experiment summary
-    ├── artifacts/             # Current artifacts
-    ├── plots/                 # Generated visualizations
-    │   ├── auto_*.png        # Auto-generated plots
-    │   ├── all_metrics_*.png
-    │   └── metric_*.png
-    └── versions/              # Versioned artifacts
-        └── model.pt/
-            ├── v1_model.pt
-            ├── v2_model.pt
-            └── v3_model.pt
+└── experiment_name_expid123/
+    ├── metadata.json           # Experiment metadata
+    ├── hyperparameters.json    # Hyperparameters
+    ├── metrics.json            # Metrics history
+    ├── artifacts.json          # Artifact metadata
+    ├── summary.json            # Experiment summary
+    ├── artifacts/              # Artifact files
+    │   ├── model.h5
+    │   └── data.csv
+    └── plots/                  # Generated plots
+        └── training_curves.png
 ```
+
+## Integration Details
+
+### MLflow
+- Logs hyperparameters as params
+- Logs metrics with step information
+- Uploads artifacts to MLflow artifact store
+- Creates runs under specified experiment
+
+### Weights & Biases
+- Logs hyperparameters to run config
+- Logs metrics with optional step
+- Creates W&B artifacts for files
+- Supports image logging
+
+### TensorBoard
+- Logs hyperparameters as text and hparams
+- Logs metrics as scalars
+- Supports image and text artifacts
+- Creates structured log directories
 
 ## API Reference
 
 ### ExperimentTracker
 
-```python
-tracker = ExperimentTracker(
-    experiment_name: str = None,
-    base_dir: str = "neural_experiments",
-    auto_visualize: bool = True,
-    backend: Optional[str] = None  # 'mlflow', 'wandb', 'tensorboard'
-)
-```
+Main class for tracking a single experiment.
 
 **Methods:**
-- `log_hyperparameters(hyperparameters: Dict)`: Log hyperparameters
+- `log_hyperparameters(params: Dict)`: Log hyperparameters
 - `log_metrics(metrics: Dict, step: int)`: Log metrics at a step
-- `log_artifact(path: str, name: str, version: bool)`: Log an artifact
-- `log_model(path: str, framework: str, version: bool)`: Log a model
-- `log_figure(figure: plt.Figure, name: str)`: Log a matplotlib figure
+- `log_artifact(path: str, name: str)`: Log an artifact file
+- `log_model(path: str, framework: str)`: Log a model file
+- `log_figure(fig: Figure, name: str)`: Log a matplotlib figure
+- `set_status(status: str)`: Set experiment status
 - `get_metrics(metric_name: str)`: Get metric history
-- `get_best_metric(metric_name: str, mode: str)`: Get best metric value
-- `get_artifact_version(name: str, version: int)`: Get artifact version
-- `list_artifact_versions(name: str)`: List all versions
-- `generate_visualizations()`: Generate all visualizations
-- `finish()`: Complete the experiment
+- `get_best_metric(metric: str, mode: str)`: Get best metric value
+- `plot_metrics(metrics: List[str])`: Plot training curves
+- `save_experiment_summary()`: Save experiment summary
 
 ### ExperimentManager
 
-```python
-manager = ExperimentManager(base_dir: str = "neural_experiments")
-```
+Manager for multiple experiments.
 
 **Methods:**
-- `create_experiment(name: str, auto_visualize: bool, backend: str)`: Create new experiment
-- `get_experiment(experiment_id: str)`: Load existing experiment
+- `create_experiment(name: str)`: Create new experiment
+- `get_experiment(id: str)`: Get experiment by ID
 - `list_experiments()`: List all experiments
-- `delete_experiment(experiment_id: str)`: Delete an experiment
+- `delete_experiment(id: str)`: Delete an experiment
 - `compare_experiments(ids: List[str], metrics: List[str])`: Compare experiments
-- `export_comparison(ids: List[str], output_dir: str)`: Export comparison
 
-### ExperimentComparisonUI
+### ExportManager
 
-```python
-ui = ExperimentComparisonUI(manager: ExperimentManager, port: int = 8052)
-ui.run(debug: bool = False, host: str = "127.0.0.1")
-```
+Manager for exporting to external platforms.
 
-## Examples
-
-See `examples/experiment_tracking_example.py` for comprehensive examples:
-
-```bash
-python examples/experiment_tracking_example.py
-```
-
-This runs demonstrations of:
-1. Basic experiment tracking
-2. Artifact versioning
-3. Backend integration
-4. Experiment comparison
-5. Automatic visualizations
+**Methods:**
+- `export_to_mlflow(ids: List[str], uri: str)`: Export to MLflow
+- `export_to_wandb(ids: List[str], project: str)`: Export to W&B
+- `export_to_tensorboard(ids: List[str], logdir: str)`: Export to TensorBoard
+- `export_batch(ids: List[str], platforms: List[str])`: Export to multiple platforms
 
 ## Requirements
 
 **Core:**
 - numpy
 - matplotlib
+- pyyaml
 
-**UI (optional):**
+**Dashboard:**
 - dash
 - dash-bootstrap-components
 - plotly
 
-**Backends (optional):**
+**Integrations (optional):**
 - mlflow (for MLflow integration)
-- wandb (for Weights & Biases)
-- tensorboard (for TensorBoard)
+- wandb (for Weights & Biases integration)
+- tensorboard (for TensorBoard integration)
 
-Install with:
+## Examples
+
+See `examples/tracking_example.py` for complete usage examples.
+
+## Command Line Usage
+
 ```bash
-pip install -e ".[full]"  # All features
+# Launch Aquarium dashboard
+python -m neural.tracking.aquarium_app --port 8053
+
+# Launch comparison UI
+python -m neural.tracking.comparison_ui --port 8052
+
+# With custom directory
+python -m neural.tracking.aquarium_app --base-dir ./my_experiments --port 8080
 ```
-
-## Tips
-
-1. **Auto-visualization frequency**: Set frequency by checking step count in `_auto_visualize_metrics`
-2. **Storage space**: Versioning creates copies; clean old versions periodically
-3. **Backend choice**: 
-   - MLflow: Best for local/team tracking
-   - W&B: Best for cloud/collaboration
-   - TensorBoard: Best for TensorFlow workflows
-4. **Comparison UI**: Works best with 2-5 experiments at a time
-5. **Metrics naming**: Use consistent names across experiments for better comparison
-
-## Troubleshooting
-
-**Issue: Dash not installed**
-```bash
-pip install dash dash-bootstrap-components plotly
-```
-
-**Issue: Backend integration fails**
-```bash
-# For MLflow
-pip install mlflow
-
-# For Weights & Biases  
-pip install wandb
-wandb login
-
-# For TensorBoard
-pip install tensorboard
-```
-
-**Issue: Comparison UI shows no experiments**
-- Check `base_dir` contains experiment folders
-- Verify experiments have metadata.json files
-- Try refreshing the experiments list in UI

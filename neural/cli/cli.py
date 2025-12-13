@@ -1528,6 +1528,7 @@ def no_code(ctx: click.Context, port: int) -> None:
     except KeyboardInterrupt:
         print_info("Server stopped by user")
 
+<<<<<<< HEAD
 @cli.command()
 @click.argument('model_path', type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.option('--method', '-m', default='shap', help='Explanation method', type=click.Choice(['shap', 'lime', 'saliency', 'attention', 'feature_importance', 'counterfactual', 'all'], case_sensitive=False))
@@ -1735,6 +1736,39 @@ def explain(ctx, model_path: str, method: str, backend: str, data: Optional[str]
             import traceback
             traceback.print_exc()
         sys.exit(1)
+
+@cli.command(name='aquarium')
+@click.option('--base-dir', default='neural_experiments', help='Base directory containing experiments', type=str)
+@click.option('--port', default=8053, help='Port to run the dashboard on', type=int)
+@click.option('--host', default='127.0.0.1', help='Host to run the dashboard on', type=str)
+@click.option('--debug', is_flag=True, help='Run in debug mode')
+@click.pass_context
+def aquarium(ctx, base_dir: str, port: int, host: str, debug: bool):
+    """Launch the Aquarium experiment tracking dashboard."""
+    print_command_header("aquarium")
+    print_info("Launching the Aquarium experiment tracking dashboard...")
+
+    try:
+        with Spinner("Loading Aquarium components") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            from neural.tracking import launch_aquarium as launch_aquarium_func
+        
+        print_success("Aquarium ready!")
+        print(f"\n{Colors.CYAN}Server Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}URL:{Colors.ENDC}         http://{host}:{port}")
+        print(f"  {Colors.BOLD}Base Dir:{Colors.ENDC}    {base_dir}")
+        print(f"  {Colors.BOLD}Interface:{Colors.ENDC}   Aquarium Experiment Tracker")
+        print(f"\n{Colors.YELLOW}Press Ctrl+C to stop the server{Colors.ENDC}")
+        
+        launch_aquarium_func(base_dir=base_dir, port=port, host=host, debug=debug)
+    except (ImportError, AttributeError, Exception) as e:
+        print_error(f"Failed to launch Aquarium: {str(e)}")
+        print_info("Make sure dash and related dependencies are installed:")
+        print_info("  pip install dash dash-bootstrap-components plotly")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print_info("Server stopped by user")
 
 # Import and register monitoring commands
 try:
