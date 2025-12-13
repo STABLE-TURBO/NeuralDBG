@@ -1,6 +1,7 @@
 # setup.py
 from setuptools import find_packages, setup
 
+
 # Core dependencies required for basic DSL functionality
 CORE_DEPS = [
     "click>=8.1.3",
@@ -202,7 +203,11 @@ setup(
     author="Lemniscate-SHA-256/SENOUVO Jacques-Charles Gad",
     author_email="Lemniscate_zero@proton.me",
     description="A domain-specific language and debugger for neural networks",
-    long_description=open("README.md", encoding="utf-8").read() + "\n\n**Note**: See v0.3.0 release notes for latest AI integration, deployment features, and automation improvements!",
+    long_description=(
+        open("README.md", encoding="utf-8").read()
+        + "\n\n**Note**: See v0.3.0 release notes for latest AI integration, "
+        "deployment features, and automation improvements!"
+    ),
     long_description_content_type="text/markdown",
     url="https://github.com/Lemniscate-world/Neural",
     classifiers=[
