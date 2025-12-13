@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ../../..
+      dockerfile: neural/aquarium/backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - NEURAL_HOST=0.0.0.0
+      - NEURAL_PORT=8000
+      - NEURAL_LOG_LEVEL=INFO
+    volumes:
+      - ./:/app/neural/aquarium/backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s

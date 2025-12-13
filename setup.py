@@ -67,6 +67,10 @@ ML_EXTRAS_DEPS = [
 
 API_DEPS = [
     "fastapi>=0.68",
+    "uvicorn[standard]>=0.15",
+    "pydantic>=1.8",
+    "python-multipart>=0.0.5",
+    "websockets>=10.0",
 ]
 
 setup(

@@ -224,3 +224,7 @@ website/build/
 website/npm-debug.log*
 website/yarn-debug.log*
 website/yarn-error.log*
+
+# Aquarium Backend
+neural/aquarium/backend/.env
+neural/aquarium/backend/temp/
