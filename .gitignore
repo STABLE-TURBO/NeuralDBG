@@ -309,3 +309,9 @@ release_notes*.md
 release_summary.md
 test_report.md
 examples_validation_report.md
+
+# Profiling reports
+*_profiling_report.json
+profiling_report.json
+profile_*.json
+*.pstats
