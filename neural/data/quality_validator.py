@@ -7,6 +7,16 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 
 class QualityRule:
+    """
+    Represents a data quality validation rule.
+    
+    Attributes:
+        name: Rule name
+        rule_type: Type of rule (completeness, uniqueness, etc)
+        validator: Callable validating the data
+        threshold: Optional numeric threshold
+        description: Rule description
+    """
     def __init__(
         self,
         name: str,
@@ -53,6 +63,15 @@ class QualityRule:
 
 
 class ValidationResult:
+    """
+    Result of a quality rule validation.
+    
+    Attributes:
+        rule_name: Name of the applied rule
+        passed: Whether validation passed
+        message: Result message
+        details: Additional details
+    """
     def __init__(
         self,
         rule_name: str,
@@ -77,6 +96,9 @@ class ValidationResult:
 
 
 class DataQualityValidator:
+    """
+    Validates data quality against a set of rules.
+    """
     def __init__(self, base_dir: Union[str, Path] = ".neural_data"):
         self.base_dir = Path(base_dir)
         self.rules_dir = self.base_dir / "quality_rules"
@@ -104,19 +126,19 @@ class DataQualityValidator:
             QualityRule(
                 name="no_missing_values",
                 rule_type="completeness",
-                validator=lambda data: not self._has_missing_values(data),
+                validator=self._validate_completeness,
                 description="Check that data has no missing values",
             ),
             QualityRule(
                 name="no_duplicates",
                 rule_type="uniqueness",
-                validator=lambda data: not self._has_duplicates(data),
+                validator=self._validate_uniqueness,
                 description="Check that data has no duplicate rows",
             ),
             QualityRule(
                 name="valid_shape",
                 rule_type="consistency",
-                validator=lambda data: self._has_valid_shape(data),
+                validator=self._validate_shape,
                 description="Check that data has a valid shape",
             ),
         ]
@@ -124,6 +146,18 @@ class DataQualityValidator:
         for rule in builtin_rules:
             if rule.name not in self.rules:
                 self.rules[rule.name] = rule
+
+    def _validate_completeness(self, data: Any) -> bool:
+        """Validate that data has no missing values."""
+        return not self._has_missing_values(data)
+    
+    def _validate_uniqueness(self, data: Any) -> bool:
+        """Validate that data has no duplicates."""
+        return not self._has_duplicates(data)
+    
+    def _validate_shape(self, data: Any) -> bool:
+        """Validate that data has a valid shape."""
+        return self._has_valid_shape(data)
 
     def _has_missing_values(self, data: Any) -> bool:
         try:

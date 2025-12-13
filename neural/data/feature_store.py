@@ -7,6 +7,15 @@ from typing import Any, Dict, List, Optional, Union
 
 
 class Feature:
+    """
+    Represents a single feature in the feature store.
+    
+    Attributes:
+        name: Feature name
+        dtype: Data type of the feature
+        description: Optional description
+        metadata: Optional metadata dictionary
+    """
     def __init__(
         self,
         name: str,
@@ -44,6 +53,14 @@ class Feature:
 
 
 class FeatureGroup:
+    """
+    Represents a logical grouping of features.
+    
+    Attributes:
+        name: Group name
+        features: List of Feature objects
+        description: Optional description
+    """
     def __init__(
         self,
         name: str,
@@ -95,6 +112,11 @@ class FeatureGroup:
 
 
 class FeatureStore:
+    """
+    Manages feature groups and features storage.
+    
+    Handles serialization and persistence of feature metadata.
+    """
     def __init__(self, base_dir: Union[str, Path] = ".neural_data"):
         self.base_dir = Path(base_dir)
         self.features_dir = self.base_dir / "features"
@@ -145,16 +167,22 @@ class FeatureStore:
     def add_feature(
         self,
         group_name: str,
-        feature_name: str,
-        dtype: str,
-        description: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        feature: Feature
     ) -> Feature:
+        """
+        Add a feature to a group.
+        
+        Args:
+            group_name: Name of the feature group
+            feature: The Feature object to add
+            
+        Returns:
+            The added Feature object
+        """
         group = self.get_feature_group(group_name)
         if not group:
             raise ValueError(f"Feature group not found: {group_name}")
         
-        feature = Feature(feature_name, dtype, description, metadata)
         group.add_feature(feature)
         self._save_feature_group(group)
         return feature

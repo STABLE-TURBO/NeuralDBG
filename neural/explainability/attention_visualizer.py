@@ -3,8 +3,8 @@ Attention visualization for transformer models.
 """
 
 from typing import Any, Dict, List, Optional, Tuple
-import numpy as np
 import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class AttentionVisualizer:
         self.model = model
         self.backend = backend.lower()
         
-        logger.info(f"Initialized AttentionVisualizer for {backend} model")
+        logger.info("Initialized AttentionVisualizer for %s model", backend)
     
     def extract_attention_weights(
         self,
@@ -57,7 +57,7 @@ class AttentionVisualizer:
         else:
             raise ValueError(f"Backend {self.backend} not supported for attention visualization")
         
-        logger.info(f"Extracted attention weights from {len(attention_weights)} layers")
+        logger.info("Extracted attention weights from %d layers", len(attention_weights))
         
         return attention_weights
     
@@ -94,7 +94,7 @@ class AttentionVisualizer:
                     attention_weights[layer_name] = outputs.numpy()
                     
             except Exception as e:
-                logger.warning(f"Could not extract attention from layer {layer_name}: {e}")
+                logger.warning("Could not extract attention from layer %s: %s", layer_name, e)
         
         return attention_weights
     
@@ -115,7 +115,7 @@ class AttentionVisualizer:
         attention_outputs = {}
         
         def attention_hook(name):
-            def hook(module, input, output):
+            def hook(module, input_tensor, output):
                 if isinstance(output, tuple) and len(output) > 1:
                     attention_outputs[name] = output[1].detach().cpu().numpy()
                 elif hasattr(output, 'attention_weights'):
@@ -176,15 +176,15 @@ class AttentionVisualizer:
             'visualizations': {}
         }
         
-        for layer_name, weights in attention_weights.items():
+        for name, weights in attention_weights.items():
             viz = self._create_attention_heatmap(
                 weights,
                 head_index=head_index,
                 tokens=tokens,
-                title=f"Attention: {layer_name}",
+                title=f"Attention: {name}",
                 output_path=output_path
             )
-            results['visualizations'][layer_name] = viz
+            results['visualizations'][name] = viz
         
         return results
     
@@ -233,7 +233,7 @@ class AttentionVisualizer:
             
             if output_path:
                 plt.savefig(output_path, bbox_inches='tight', dpi=150)
-                logger.info(f"Saved attention heatmap to {output_path}")
+                logger.info("Saved attention heatmap to %s", output_path)
             
             return fig
             
@@ -294,7 +294,7 @@ class AttentionVisualizer:
             
             if output_path:
                 plt.savefig(output_path, bbox_inches='tight', dpi=150)
-                logger.info(f"Saved attention heads plot to {output_path}")
+                logger.info("Saved attention heads plot to %s", output_path)
             
             return fig
             
