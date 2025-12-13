@@ -14,6 +14,9 @@ tests/hpo/data/MNIST/
 data/cifar-10-python.tar.gz
 data/cifar-10-batches-py/
 
+# Attention examples data
+examples/attention_examples/data/
+
 # Next.js build output and cache
 .next/
 
@@ -179,6 +182,18 @@ logs/
 *.neural.lock
 comparison_plots/
 
+# Collaboration workspaces
+neural_workspaces/
+.neural_sync/
+
+# Attention visualization outputs
+attention_outputs/
+demo_outputs_*/
+**/attention_outputs/
+**/demo_outputs_*/
+attention_interactive.html
+demo_interactive.html
+
 # Monitoring data and artifacts
 monitoring_data/
 monitoring_data_*/
@@ -234,8 +249,16 @@ setup.ps1
 _install.bat
 _install_packages.py
 _setup_env.ps1
+_setup_venv.bat
 SETUP_INSTRUCTIONS.md
 _SETUP_COMPLETE_README.md
+_setup.bat
+_temp_requirements.txt
+install_dev_deps.py
+temp_dev_requirements.txt
+
+# Temporary package directories
+temp_pkgs/
 
 # Sphinx documentation
 docs/_build/
@@ -294,7 +317,6 @@ neural/aquarium/backend/temp/
 # Neural Aquarium (React/Node.js frontend)
 neural/aquarium/node_modules/
 neural/aquarium/dist/
-neural/aquarium/build/
 neural/aquarium/.vite/
 neural/aquarium/package-lock.json
 neural/aquarium/yarn.lock
@@ -309,10 +331,54 @@ neural/aquarium/yarn-debug.log*
 neural/aquarium/yarn-error.log*
 neural/aquarium/coverage/
 
+# Electron Builder / Aquarium packaging
+neural/aquarium/build/dist/
+neural/aquarium/build/*.dmg
+neural/aquarium/build/*.pkg
+neural/aquarium/build/*.app
+neural/aquarium/build/*.exe
+neural/aquarium/build/*.msi
+neural/aquarium/build/*.deb
+neural/aquarium/build/*.rpm
+neural/aquarium/build/*.AppImage
+neural/aquarium/build/*.snap
+neural/aquarium/build/*.zip
+neural/aquarium/build/*.tar.gz
+neural/aquarium/build/icon.iconset/
+neural/aquarium/build/placeholder.png
+neural/aquarium/build/*.pfx
+neural/aquarium/build/*.p12
+neural/aquarium/build/*.cer
+neural/aquarium/build/*.pem
+neural/aquarium/build/certificate.*
+neural/aquarium/electron/node_modules/
+
 # Aquarium IDE configuration and user data
 .aquarium/
 neural/aquarium/src/components/settings/__pycache__/
 neural/aquarium/__pycache__/
+
+# Aquarium Electron IDE
+neural/aquarium/electron/node_modules/
+neural/aquarium/electron/dist/
+neural/aquarium/electron/out/
+neural/aquarium/electron/build/
+neural/aquarium/electron/.electron/
+neural/aquarium/electron/*.asar
+neural/aquarium/electron/config.json
+neural/aquarium/electron/*.log
+neural/aquarium/electron/package-lock.json
+neural/aquarium/electron/yarn.lock
+neural/aquarium/electron/pnpm-lock.yaml
+neural/aquarium/electron/tmp/
+neural/aquarium/electron/temp/
+neural/aquarium/electron/*.tmp
+
+# Plugin system user directories and caches
+.neural_aquarium/
+neural/aquarium/src/plugins/examples/npm_plugin_example/node_modules/
+neural/aquarium/src/plugins/examples/npm_plugin_example/dist/
+neural/aquarium/src/plugins/__pycache__/
 
 # Release automation artifacts
 release_notes*.md
@@ -336,3 +402,15 @@ example_ab_tests/
 example_deployments/
 example_audit_logs/
 example_audit_trail.json
+
+# Team management and multi-tenancy
+neural_organizations/
+team_dashboard.json
+*.billing.json
+
+# Cost optimization artifacts
+budget_data/
+carbon_data/
+test_budget_data/
+pricing.json
+*.cost.json

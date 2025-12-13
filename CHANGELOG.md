@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **TransformerDecoder Layer**: Fully implemented transformer decoder layer with cross-attention support
+  - Self-attention with optional causal masking for autoregressive decoding
+  - Cross-attention mechanism for encoder-decoder architectures
+  - Support for TensorFlow, PyTorch, and ONNX backends
+  - Proper shape propagation for encoder-decoder models
+  - Comprehensive documentation and examples
+  - Parameters: `num_heads`, `d_model`, `ff_dim`, `dropout`, `use_causal_mask`
+  - Example models: Seq2Seq Transformer, Machine Translation NMT
+  - Integration with existing TransformerEncoder for full encoder-decoder stacks
+
 ## [0.3.0] - 2025-01-18
 
 ### Added

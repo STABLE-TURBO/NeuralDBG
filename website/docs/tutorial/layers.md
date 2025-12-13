@@ -48,6 +48,21 @@ GRU(units=32, return_sequences=True)
 SimpleRNN(units=16)
 ```
 
+### Transformer Layers
+
+```yaml
+# Transformer Encoder
+TransformerEncoder(num_heads=8, d_model=512, ff_dim=2048, dropout=0.1)
+
+# Transformer Decoder with cross-attention
+# Supports causal masking for autoregressive decoding
+TransformerDecoder(num_heads=8, d_model=512, ff_dim=2048, dropout=0.1, use_causal_mask=true)
+
+# Stacked transformer blocks
+TransformerEncoder(num_heads=8, ff_dim=512) * 6
+TransformerDecoder(num_heads=8, ff_dim=512) * 6
+```
+
 ### Pooling Layers
 
 ```yaml
@@ -142,6 +157,29 @@ network SequenceRNN {
     LSTM(32)
     Dense(64, "relu")
     Output(1, "sigmoid")
+}
+```
+
+### Transformer Encoder-Decoder for Sequence-to-Sequence
+
+```yaml
+network Seq2SeqTransformer {
+  input: (None, 100, 512)
+  
+  layers:
+    # Encoder stack
+    TransformerEncoder(num_heads=8, d_model=512, ff_dim=2048, dropout=0.1)
+    TransformerEncoder(num_heads=8, d_model=512, ff_dim=2048, dropout=0.1)
+    
+    # Decoder stack with cross-attention
+    TransformerDecoder(num_heads=8, d_model=512, ff_dim=2048, dropout=0.1, use_causal_mask=true)
+    TransformerDecoder(num_heads=8, d_model=512, ff_dim=2048, dropout=0.1, use_causal_mask=true)
+    
+    # Output projection
+    Dense(10000, "softmax")
+    
+  optimizer: Adam(learning_rate=0.0001)
+  loss: sparse_categorical_crossentropy
 }
 ```
 

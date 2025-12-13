@@ -53,6 +53,7 @@ Example Usage:
 
 from typing import Optional, Any, Dict
 from enum import Enum
+from dataclasses import dataclass
 
 
 class Severity(Enum):
@@ -99,6 +100,15 @@ class NeuralException(Exception):
         return self._format_message()
 
 
+@dataclass
+class ErrorLocation:
+    """Holds location information for parsing errors."""
+    line: Optional[int] = None
+    column: Optional[int] = None
+    code_snippet: Optional[str] = None
+    suggestion: Optional[str] = None
+
+
 class ParserException(NeuralException):
     """
     Base exception for all parsing-related errors.
@@ -107,32 +117,23 @@ class ParserException(NeuralException):
     or malformed input.
     
     Attributes:
-        line: Line number where error occurred (1-indexed)
-        column: Column number where error occurred (1-indexed)
-        code_snippet: Optional code snippet showing the error location
-        suggestion: Optional suggestion for fixing the error
+        location: Error location details
     """
     
     def __init__(
         self,
         message: str,
-        line: Optional[int] = None,
-        column: Optional[int] = None,
-        code_snippet: Optional[str] = None,
-        suggestion: Optional[str] = None,
+        location: Optional[ErrorLocation] = None,
         severity: Severity = Severity.ERROR,
         context: Optional[Dict[str, Any]] = None
     ):
-        self.line = line
-        self.column = column
-        self.code_snippet = code_snippet
-        self.suggestion = suggestion
+        self.location = location or ErrorLocation()
         
         context = context or {}
-        if line is not None:
-            context['line'] = line
-        if column is not None:
-            context['column'] = column
+        if self.location.line is not None:
+            context['line'] = self.location.line
+        if self.location.column is not None:
+            context['column'] = self.location.column
         
         super().__init__(message, severity, context)
     
@@ -140,20 +141,20 @@ class ParserException(NeuralException):
         """Format parser error with location information."""
         parts = [f"[{self.severity.name}]"]
         
-        if self.line is not None and self.column is not None:
-            parts.append(f"Line {self.line}, Column {self.column}:")
-        elif self.line is not None:
-            parts.append(f"Line {self.line}:")
+        if self.location.line is not None and self.location.column is not None:
+            parts.append(f"Line {self.location.line}, Column {self.location.column}:")
+        elif self.location.line is not None:
+            parts.append(f"Line {self.location.line}:")
         
         parts.append(self.message)
         
         msg = " ".join(parts)
         
-        if self.code_snippet:
-            msg += f"\n\n{self.code_snippet}"
+        if self.location.code_snippet:
+            msg += f"\n\n{self.location.code_snippet}"
         
-        if self.suggestion:
-            msg += f"\n\n💡 Suggestion: {self.suggestion}"
+        if self.location.suggestion:
+            msg += f"\n\n💡 Suggestion: {self.location.suggestion}"
         
         return msg
 
@@ -167,7 +168,6 @@ class DSLSyntaxError(ParserException):
         - Invalid token sequences
         - Malformed layer definitions
     """
-    pass
 
 
 class DSLValidationError(ParserException):
@@ -179,7 +179,6 @@ class DSLValidationError(ParserException):
         - Incompatible layer configurations
         - Missing required parameters
     """
-    pass
 
 
 class CodeGenException(NeuralException):
@@ -303,7 +302,6 @@ class ShapeMismatchError(ShapeException):
         - Kernel size exceeding input dimensions
         - Incompatible shapes in concatenation/addition operations
     """
-    pass
 
 
 class InvalidShapeError(ShapeException):
@@ -315,7 +313,6 @@ class InvalidShapeError(ShapeException):
         - Empty shapes
         - Invalid shape format
     """
-    pass
 
 
 class InvalidParameterError(NeuralException):
@@ -362,7 +359,6 @@ class HPOException(NeuralException):
     
     Raised during HPO configuration, search, or optimization.
     """
-    pass
 
 
 class InvalidHPOConfigError(HPOException):
@@ -374,7 +370,6 @@ class InvalidHPOConfigError(HPOException):
         - Incompatible HPO strategy
         - Missing required HPO parameters
     """
-    pass
 
 
 class HPOSearchError(HPOException):
@@ -386,7 +381,6 @@ class HPOSearchError(HPOException):
         - No valid trials found
         - Optimization failure
     """
-    pass
 
 
 class TrackingException(NeuralException):
@@ -395,7 +389,6 @@ class TrackingException(NeuralException):
     
     Raised when logging experiments, metrics, or artifacts fails.
     """
-    pass
 
 
 class ExperimentNotFoundError(TrackingException):
@@ -423,7 +416,6 @@ class MetricLoggingError(TrackingException):
         - Backend unavailable
         - Serialization errors
     """
-    pass
 
 
 class CloudException(NeuralException):
@@ -432,7 +424,6 @@ class CloudException(NeuralException):
     
     Raised when executing models on cloud platforms (SageMaker, etc.).
     """
-    pass
 
 
 class CloudConnectionError(CloudException):
@@ -444,7 +435,6 @@ class CloudConnectionError(CloudException):
         - Network timeout
         - Invalid credentials
     """
-    pass
 
 
 class CloudExecutionError(CloudException):
@@ -456,7 +446,6 @@ class CloudExecutionError(CloudException):
         - Execution timeout
         - Runtime errors on cloud platform
     """
-    pass
 
 
 class VisualizationException(NeuralException):
@@ -465,7 +454,6 @@ class VisualizationException(NeuralException):
     
     Raised when generating visualizations, graphs, or dashboards fails.
     """
-    pass
 
 
 class FileOperationError(NeuralException):
@@ -535,7 +523,6 @@ class ConfigurationError(NeuralException):
         - Invalid configuration values
         - Configuration conflicts
     """
-    pass
 
 
 class ExecutionError(NeuralException):
@@ -547,7 +534,6 @@ class ExecutionError(NeuralException):
         - Inference failures
         - Device errors (GPU/CPU)
     """
-    pass
 
 
 class MLOpsException(NeuralException):
@@ -556,7 +542,6 @@ class MLOpsException(NeuralException):
     
     Raised during model registry, deployment, A/B testing, or audit operations.
     """
-    pass
 
 
 class ModelRegistryError(MLOpsException):
@@ -568,7 +553,6 @@ class ModelRegistryError(MLOpsException):
         - Version conflict
         - Registration failure
     """
-    pass
 
 
 class ApprovalWorkflowError(MLOpsException):
@@ -580,7 +564,6 @@ class ApprovalWorkflowError(MLOpsException):
         - Invalid approval status
         - Unauthorized approval attempt
     """
-    pass
 
 
 class DeploymentError(MLOpsException):
@@ -592,7 +575,6 @@ class DeploymentError(MLOpsException):
         - Health check failure
         - Rollback failure
     """
-    pass
 
 
 class ABTestError(MLOpsException):
@@ -604,7 +586,6 @@ class ABTestError(MLOpsException):
         - Test not found
         - Statistical analysis failure
     """
-    pass
 
 
 class AuditLogError(MLOpsException):
@@ -616,7 +597,59 @@ class AuditLogError(MLOpsException):
         - Query failure
         - Report generation failure
     """
-    pass
+
+
+class CollaborationException(NeuralException):
+    """
+    Base exception for collaboration-related errors.
+    
+    Raised during collaborative editing, workspace management, or synchronization.
+    """
+
+
+class WorkspaceError(CollaborationException):
+    """
+    Raised when workspace operations fail.
+    
+    Examples:
+        - Workspace not found
+        - Access denied
+        - Invalid workspace configuration
+    """
+
+
+class ConflictError(CollaborationException):
+    """
+    Raised when edit conflicts occur during collaboration.
+    
+    Examples:
+        - Concurrent edits to the same lines
+        - Merge conflicts
+        - Incompatible changes
+    """
+
+
+class SyncError(CollaborationException):
+    """
+    Raised when synchronization fails.
+    
+    Examples:
+        - Network errors
+        - Version mismatch
+        - Sync timeout
+    """
+
+
+class AccessControlError(CollaborationException):
+    """
+    Raised when access control validation fails.
+    
+    Examples:
+        - Insufficient permissions
+        - Invalid credentials
+        - Token expired
+    """
+    """
 
 
 # Convenience functions for common error scenarios
@@ -628,7 +661,8 @@ def raise_parser_error(
     suggestion: Optional[str] = None
 ) -> None:
     """Raise a parser exception with location information."""
-    raise ParserException(message, line=line, column=column, suggestion=suggestion)
+    location = ErrorLocation(line=line, column=column, suggestion=suggestion)
+    raise ParserException(message, location=location)
 
 
 def raise_shape_error(
@@ -679,12 +713,17 @@ NeuralException (base)
 ├── DependencyError
 ├── ConfigurationError
 ├── ExecutionError
-└── MLOpsException
-    ├── ModelRegistryError
-    ├── ApprovalWorkflowError
-    ├── DeploymentError
-    ├── ABTestError
-    └── AuditLogError
+├── MLOpsException
+│   ├── ModelRegistryError
+│   ├── ApprovalWorkflowError
+│   ├── DeploymentError
+│   ├── ABTestError
+│   └── AuditLogError
+└── CollaborationException
+    ├── WorkspaceError
+    ├── ConflictError
+    ├── SyncError
+    └── AccessControlError
 
 Usage Examples:
 ---------------

@@ -1,0 +1,80 @@
+// MultiHeadAttention Layer Examples
+// Demonstrates self-attention and cross-attention modes with key/query/value projections
+//
+// Parameters:
+//   - num_heads: Number of attention heads (required for most uses, default: 8)
+//   - key_dim: Dimension of key vectors (required for TensorFlow, default: 64)
+//   - value_dim: Dimension of value vectors (optional, defaults to key_dim)
+//   - dropout: Dropout rate for attention weights (default: 0.0)
+//   - use_bias: Whether to use bias in projections (default: true)
+//   - mode: "self" for self-attention or "cross" for cross-attention (default: "self")
+//   - embed_dim: Total embedding dimension for PyTorch (inferred from input shape)
+//   - batch_first: Whether batch dimension is first in PyTorch (default: true)
+
+// Self-Attention Model
+network SelfAttentionModel {
+  input: (128, 512)  // Sequence length: 128, embedding dimension: 512
+  layers:
+    MultiHeadAttention(num_heads:8, key_dim:64, dropout:0.1)
+    LayerNormalization()
+    Dense(units:256, activation:"relu")
+    Dropout(rate:0.1)
+    Output(units:10, activation:"softmax")
+
+  loss: "categorical_crossentropy"
+  optimizer: Adam(learning_rate:0.001)
+  train {
+    epochs: 20
+    batch_size: 32
+  }
+}
+
+// Cross-Attention Model
+network CrossAttentionModel {
+  input: (64, 256)  // Query sequence
+  layers:
+    MultiHeadAttention(num_heads:4, key_dim:32, mode:"cross", dropout:0.1)
+    LayerNormalization()
+    Dense(units:128, activation:"relu")
+    Output(units:5, activation:"softmax")
+
+  loss: "sparse_categorical_crossentropy"
+  optimizer: Adam(learning_rate:0.0005)
+  train {
+    epochs: 15
+    batch_size: 16
+  }
+}
+
+// Multi-Layer Attention Model
+network StackedAttentionModel {
+  input: (100, 384)
+  layers:
+    MultiHeadAttention(num_heads:6, key_dim:64, value_dim:64, dropout:0.1)
+    LayerNormalization()
+    Dense(units:384, activation:"gelu")
+    Dropout(rate:0.1)
+    MultiHeadAttention(num_heads:6, key_dim:64, dropout:0.1)
+    LayerNormalization()
+    Dense(units:192, activation:"relu")
+    Output(units:20, activation:"softmax")
+
+  loss: "categorical_crossentropy"
+  optimizer: Adam(learning_rate:0.0001)
+  train {
+    epochs: 30
+    batch_size: 64
+  }
+}
+
+// Minimal Attention Model
+network MinimalAttentionModel {
+  input: (32, 128)
+  layers:
+    MultiHeadAttention(num_heads:2, key_dim:32)
+    Dense(units:64, activation:"relu")
+    Output(units:3, activation:"softmax")
+
+  loss: "categorical_crossentropy"
+  optimizer: Adam(learning_rate:0.01)
+}

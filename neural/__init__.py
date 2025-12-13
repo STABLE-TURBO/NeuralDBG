@@ -50,6 +50,11 @@ from .exceptions import (
     DeploymentError,
     ABTestError,
     AuditLogError,
+    CollaborationException,
+    WorkspaceError,
+    ConflictError,
+    SyncError,
+    AccessControlError,
 )
 
 # Core modules - imported optionally to handle missing dependencies gracefully
@@ -127,6 +132,13 @@ except Exception as e:
     mlops = None  # Mark as unavailable
     warnings.warn(f"MLOps module unavailable: {e}")
 
+# Collaboration module - real-time collaborative editing
+try:
+    from . import collaboration  # Collaborative editing with WebSockets and Git integration
+except Exception as e:
+    collaboration = None  # Mark as unavailable
+    warnings.warn(f"Collaboration module unavailable: {e}")
+
 
 def check_dependencies() -> Dict[str, bool]:
     """
@@ -156,6 +168,7 @@ def check_dependencies() -> Dict[str, bool]:
     - parser: requires 'lark'
     - dashboard: requires 'flask', 'dash'
     - hpo: requires 'optuna'
+    - collaboration: requires 'websockets'
     - Full installation: pip install neural-dsl[full]
     """
     return {
@@ -169,6 +182,7 @@ def check_dependencies() -> Dict[str, bool]:
         "cloud": cloud is not None,  # Cloud available?
         "utils": utils is not None,  # Utils available?
         "mlops": mlops is not None,  # MLOps available?
+        "collaboration": collaboration is not None,  # Collaboration available?
     }
 
 
@@ -210,6 +224,11 @@ __all__ = [
     "DeploymentError",
     "ABTestError",
     "AuditLogError",
+    "CollaborationException",
+    "WorkspaceError",
+    "ConflictError",
+    "SyncError",
+    "AccessControlError",
     # Modules (may be None if dependencies missing)
     "cli",
     "parser",
@@ -221,6 +240,7 @@ __all__ = [
     "cloud",
     "utils",
     "mlops",
+    "collaboration",
     # Helper function
     "check_dependencies",
 ]

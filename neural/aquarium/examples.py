@@ -145,6 +145,28 @@ EXAMPLE_MODELS = {
         Output(units=2, activation=softmax)
     loss: categorical_crossentropy
     optimizer: Adam(learning_rate=0.001)
+}""",
+
+    "Transformer Encoder-Decoder": """network TransformerSeq2Seq {
+    input: (None, 100, 512)
+    layers:
+        TransformerEncoder(num_heads=8, d_model=512, ff_dim=2048, dropout=0.1)
+        TransformerDecoder(num_heads=8, d_model=512, ff_dim=2048, dropout=0.1, use_causal_mask=true)
+        Dense(units=10000, activation=softmax)
+    loss: sparse_categorical_crossentropy
+    optimizer: Adam(learning_rate=0.0001)
+}""",
+
+    "Machine Translation Transformer": """network NMT {
+    input: (None, 50, 256)
+    layers:
+        TransformerEncoder(num_heads=4, d_model=256, ff_dim=1024, dropout=0.2)
+        TransformerEncoder(num_heads=4, d_model=256, ff_dim=1024, dropout=0.2)
+        TransformerDecoder(num_heads=4, d_model=256, ff_dim=1024, dropout=0.2)
+        TransformerDecoder(num_heads=4, d_model=256, ff_dim=1024, dropout=0.2)
+        Dense(units=8000, activation=softmax)
+    loss: sparse_categorical_crossentropy
+    optimizer: Adam(learning_rate=0.0001)
 }"""
 }
 

@@ -1,0 +1,215 @@
+appId: com.neuraldsl.aquarium
+productName: Neural Aquarium
+copyright: Copyright © 2024 Neural DSL Team
+
+directories:
+  buildResources: build
+  output: dist
+
+files:
+  - build/**/*
+  - electron/**/*
+  - node_modules/**/*
+  - package.json
+  - "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+  - "!.editorconfig"
+  - "!**/._*"
+  - "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}"
+  - "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}"
+  - "!**/{appveyor.yml,.travis.yml,circle.yml}"
+  - "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+
+extraMetadata:
+  main: electron/main.js
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - arm64
+    - target: msi
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.ico
+  artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+  publisherName: Neural DSL Team
+  verifyUpdateCodeSignature: false
+  certificateFile: ${WIN_CSC_LINK}
+  certificatePassword: ${WIN_CSC_KEY_PASSWORD}
+  signingHashAlgorithms:
+    - sha256
+  signDlls: true
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Neural Aquarium
+  perMachine: false
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  menuCategory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  license: LICENSE
+  differentialPackage: true
+
+msi:
+  oneClick: false
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Neural Aquarium
+  warningsAsErrors: false
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+        - universal
+    - target: zip
+      arch:
+        - x64
+        - arm64
+        - universal
+  category: public.app-category.developer-tools
+  icon: build/icon.icns
+  artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  provisioningProfile: ${MAC_PROVISIONING_PROFILE}
+  identity: ${APPLE_IDENTITY}
+  type: distribution
+  minimumSystemVersion: "10.13.0"
+  notarize:
+    teamId: ${APPLE_TEAM_ID}
+
+dmg:
+  sign: false
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+  window:
+    width: 540
+    height: 380
+  title: ${productName} ${version}
+  icon: build/icon.icns
+  background: build/background.png
+  iconSize: 128
+  iconTextSize: 12
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+        - arm64
+    - target: deb
+      arch:
+        - x64
+        - arm64
+    - target: rpm
+      arch:
+        - x64
+        - arm64
+    - target: snap
+      arch:
+        - x64
+  category: Development
+  icon: build/icons
+  artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+  desktop:
+    Name: Neural Aquarium
+    Comment: Visual IDE for Neural DSL
+    GenericName: Neural Network IDE
+    Keywords: neural;dsl;ide;machine-learning;deep-learning
+    Categories: Development;IDE;
+    StartupWMClass: neural-aquarium
+    MimeType: text/x-neural-dsl
+  synopsis: Visual IDE for Neural DSL with integrated debugger
+  description: |
+    Neural Aquarium is a comprehensive visual IDE for the Neural DSL language,
+    featuring an integrated debugger, shape propagation visualization, and AI assistant.
+    
+    Key Features:
+    - Visual network designer with drag-and-drop interface
+    - Monaco-based code editor with syntax highlighting
+    - Real-time shape propagation and validation
+    - Integrated debugger with breakpoints and variable inspection
+    - AI assistant for code generation and suggestions
+    - Multi-backend support (TensorFlow, PyTorch, ONNX)
+
+appImage:
+  license: LICENSE
+  systemIntegration: ask
+
+deb:
+  priority: optional
+  afterInstall: build/linux/after-install.sh
+  afterRemove: build/linux/after-remove.sh
+  depends:
+    - gconf2
+    - gconf-service
+    - libnotify4
+    - libappindicator1
+    - libxtst6
+    - libnss3
+    - libxss1
+    - libgtk-3-0
+    - libgbm1
+
+rpm:
+  fpmOptions:
+    - --rpm-rpmbuild-define=_build_id_links none
+  afterInstall: build/linux/after-install.sh
+  afterRemove: build/linux/after-remove.sh
+  depends:
+    - libXScrnSaver
+    - libnotify
+    - libappindicator-gtk3
+    - libXtst
+    - nss
+    - gtk3
+
+snap:
+  confinement: strict
+  grade: stable
+  summary: Visual IDE for Neural DSL
+  plugs:
+    - browser-support
+    - network
+    - network-bind
+    - home
+    - removable-media
+
+publish:
+  provider: github
+  owner: neural-dsl
+  repo: neural-dsl
+  releaseType: release
+  publishAutoUpdate: true
+
+protocols:
+  name: neural-dsl
+  schemes:
+    - neural
+
+fileAssociations:
+  - ext: neural
+    name: Neural DSL File
+    description: Neural DSL Network Definition
+    icon: build/file-icon.ico
+    role: Editor

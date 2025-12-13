@@ -1,0 +1,21 @@
+network MultiLayerTransformer {
+  input: (128, 512)  # Sequence length, embedding dimension
+  layers:
+    Embedding(input_dim=20000, output_dim=512)
+    TransformerEncoder(num_heads=8, ff_dim=2048, dropout=0.1)
+    TransformerEncoder(num_heads=8, ff_dim=2048, dropout=0.1)
+    TransformerEncoder(num_heads=8, ff_dim=2048, dropout=0.1)
+    GlobalAveragePooling1D()
+    Dense(units=256, activation="relu")
+    Dropout(rate=0.3)
+    Dense(units=128, activation="relu")
+    Output(units=20, activation="softmax")
+
+  loss: "sparse_categorical_crossentropy"
+  optimizer: Adam(learning_rate=0.0001)
+  metrics: ["accuracy", "top_k_categorical_accuracy"]
+  train {
+    epochs: 30
+    batch_size: 64
+  }
+}

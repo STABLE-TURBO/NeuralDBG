@@ -1,0 +1,17 @@
+network TransformerModel {
+    input: (None, 512)
+    layers:
+        Embedding(input_dim=30000, output_dim=512)
+        MultiHeadAttention(num_heads=8, key_dim=64)
+        LayerNormalization()
+        Dense(units=2048, activation="relu")
+        Dropout(rate=0.1)
+        Dense(units=512)
+        LayerNormalization()
+        GlobalAveragePooling1D()
+        Dense(units=256, activation="relu")
+        Dropout(rate=0.3)
+        Dense(units=10, activation="softmax")
+    loss: "categorical_crossentropy"
+    optimizer: "Adam"
+}

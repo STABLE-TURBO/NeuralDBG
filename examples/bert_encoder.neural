@@ -1,0 +1,580 @@
+# ============================================================================
+# BERT-Style Encoder-Only Transformer - Masked Language Model
+# ============================================================================
+# This example demonstrates a BERT (Bidirectional Encoder Representations
+# from Transformers) style encoder-only model for pre-training on unlabeled
+# text and fine-tuning on downstream tasks.
+#
+# Model Architecture:
+#   - Bidirectional transformer encoder
+#   - Masked language modeling (MLM) objective
+#   - Next sentence prediction (NSP) objective
+#   - Pre-training on large corpora
+#   - Fine-tuning for classification, QA, NER, etc.
+#
+# Key Concepts Demonstrated:
+#   - Encoder-only architecture (no decoder)
+#   - Bidirectional context (can see future tokens)
+#   - Masked token prediction
+#   - Segment embeddings for sentence pairs
+#   - [CLS] token for sequence classification
+#   - [SEP] token for sentence separation
+#   - Transfer learning via pre-training + fine-tuning
+# ============================================================================
+
+# --------------------------------------------------------------------
+# MACRO DEFINITIONS - BERT Building Blocks
+# --------------------------------------------------------------------
+
+# Multi-Head Self-Attention
+# --------------------------
+# BERT uses standard multi-head attention without masking
+# All positions can attend to all other positions (bidirectional)
+#
+# Unlike decoder-only models, this allows the model to build
+# representations using full context from both directions
+define BertAttention(num_heads, d_model, dropout) {
+  # Query, Key, Value projections
+  # Hidden size must be divisible by num_heads
+  Dense(units=$d_model, activation="linear")  # Query
+  Dense(units=$d_model, activation="linear")  # Key
+  Dense(units=$d_model, activation="linear")  # Value
+  
+  # Attention dropout
+  Dropout(rate=$dropout)
+  
+  # Output projection
+  Dense(units=$d_model, activation="linear")
+  
+  # Output dropout
+  Dropout(rate=$dropout)
+}
+
+# Position-wise Feed-Forward Network
+# -----------------------------------
+# BERT's intermediate layer uses GELU activation instead of ReLU
+# GELU(x) = x * Φ(x) where Φ is standard Gaussian CDF
+# Provides smoother gradients than ReLU
+define BertFeedForward(d_model, d_ff, dropout) {
+  # Expansion: typically d_ff = 4 * d_model
+  # BERT-Base: 768 → 3072
+  # BERT-Large: 1024 → 4096
+  Dense(units=$d_ff, activation="gelu")
+  
+  # Dropout for regularization
+  Dropout(rate=$dropout)
+  
+  # Projection back to model dimension
+  Dense(units=$d_model, activation="linear")
+  
+  # Output dropout
+  Dropout(rate=$dropout)
+}
+
+# BERT Encoder Layer
+# ------------------
+# Single transformer encoder layer with modifications:
+#   - Pre-LayerNorm or Post-LayerNorm
+#   - GELU activation
+#   - Residual connections
+define BertLayer(num_heads, d_model, d_ff, dropout) {
+  # Sublayer 1: Multi-Head Self-Attention
+  # --------------------------------------
+  # Bidirectional attention: each token attends to all tokens
+  # Allows model to integrate context from entire sequence
+  
+  # Multi-head self-attention
+  BertAttention(num_heads=$num_heads, d_model=$d_model, dropout=$dropout)
+  
+  # Add residual connection
+  Add()
+  
+  # Layer normalization
+  # BERT uses post-norm: Add & Norm
+  # Some variants use pre-norm: Norm & Add
+  LayerNormalization(epsilon=1e-12)
+  
+  # Sublayer 2: Feed-Forward Network
+  # --------------------------------
+  # Position-wise transformation
+  # Identical operation at each position
+  
+  # Feed-forward network with GELU
+  BertFeedForward(d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Add residual connection
+  Add()
+  
+  # Layer normalization
+  LayerNormalization(epsilon=1e-12)
+}
+
+# --------------------------------------------------------------------
+# MAIN NETWORK DEFINITION - BERT Base Configuration
+# --------------------------------------------------------------------
+
+network BertEncoder {
+  # --------------------------------------------------------------------
+  # INPUT SPECIFICATION
+  # --------------------------------------------------------------------
+  # BERT takes tokenized sequences with special tokens:
+  # [CLS] token_1 token_2 ... token_n [SEP] token_n+1 ... [SEP]
+  #
+  # For single sentence: [CLS] sentence [SEP]
+  # For sentence pair: [CLS] sentence_a [SEP] sentence_b [SEP]
+  input: (512,)  # Maximum sequence length
+  
+  # --------------------------------------------------------------------
+  # MODEL CONFIGURATION
+  # --------------------------------------------------------------------
+  # BERT-Base configuration:
+  #   - L=12 (layers)
+  #   - H=768 (hidden size)
+  #   - A=12 (attention heads)
+  #   - Total parameters: ~110M
+  #
+  # BERT-Large configuration:
+  #   - L=24 (layers)
+  #   - H=1024 (hidden size)
+  #   - A=16 (attention heads)
+  #   - Total parameters: ~340M
+  
+  # --------------------------------------------------------------------
+  # NETWORK LAYERS
+  # --------------------------------------------------------------------
+  layers:
+    # EMBEDDING LAYER
+    # ===============
+    
+    # Token Embeddings
+    # ----------------
+    # Maps token IDs to dense vectors
+    # vocab_size=30522 (WordPiece vocabulary)
+    # hidden_size=768 (BERT-Base)
+    Embedding(input_dim=30522, output_dim=768, mask_zero=True)
+    
+    # Segment Embeddings (Token Type Embeddings)
+    # ------------------------------------------
+    # Distinguishes between sentence A and sentence B
+    # Embedding(input_dim=2, output_dim=768)  # 0 for A, 1 for B
+    # Added element-wise to token embeddings
+    # Note: Requires separate input for segment IDs in actual implementation
+    
+    # Position Embeddings
+    # -------------------
+    # Learned positional embeddings (not sine/cosine like vanilla Transformer)
+    # BERT learns a separate embedding for each position
+    # Embedding(input_dim=512, output_dim=768)  # Max 512 positions
+    # Added element-wise to token + segment embeddings
+    # Note: Requires position input in actual implementation
+    
+    # Total embedding = token_emb + segment_emb + position_emb
+    
+    # Embedding LayerNorm
+    # -------------------
+    # Normalizes combined embeddings
+    LayerNormalization(epsilon=1e-12)
+    
+    # Embedding Dropout
+    # -----------------
+    Dropout(rate=0.1)
+    
+    # TRANSFORMER ENCODER STACK
+    # =========================
+    # Stack of L=12 identical encoder layers
+    # Each layer: Multi-Head Attention → Add & Norm → FFN → Add & Norm
+    
+    # Layer 1
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 2
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 3
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 4
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 5
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 6
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 7
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 8
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 9
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 10
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 11
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Layer 12
+    BertLayer(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # PRE-TRAINING HEADS
+    # ==================
+    
+    # Masked Language Model (MLM) Head
+    # ---------------------------------
+    # Predicts masked tokens in input sequence
+    # Applied to all positions in sequence
+    #
+    # During pre-training:
+    #   - Randomly mask 15% of tokens
+    #   - 80% replace with [MASK]
+    #   - 10% replace with random token
+    #   - 10% keep original token
+    #
+    # Objective: Predict original token at masked positions
+    
+    # Transform hidden states
+    Dense(units=768, activation="gelu")
+    
+    # Layer normalization
+    LayerNormalization(epsilon=1e-12)
+    
+    # Project to vocabulary size
+    # Weight sharing with embedding layer recommended
+    Dense(units=30522, activation="linear")
+    
+    # Softmax for token probabilities
+    Activation("softmax")
+    
+    # Next Sentence Prediction (NSP) Head
+    # ------------------------------------
+    # Binary classification: is sentence B actual next sentence after A?
+    # Uses [CLS] token representation
+    #
+    # During pre-training:
+    #   - 50% of time: B is actual next sentence (label=1)
+    #   - 50% of time: B is random sentence (label=0)
+    #
+    # Note: Recent research (RoBERTa) shows NSP may not be necessary
+    
+    # Extract [CLS] token representation (first token)
+    # In implementation: hidden_states[:, 0, :]
+    
+    # Classification head
+    # Dense(units=768, activation="tanh")  # Pooler
+    # Output(units=2, activation="softmax")  # Binary classification
+  
+  # --------------------------------------------------------------------
+  # TRAINING CONFIGURATION - Pre-training
+  # --------------------------------------------------------------------
+  
+  # Loss Function
+  # -------------
+  # Combined loss: MLM loss + NSP loss
+  # MLM: Cross-entropy for masked token prediction
+  # NSP: Binary cross-entropy for sentence pair classification
+  # Note: May require custom loss function for both objectives
+  loss: "sparse_categorical_crossentropy"  # For MLM only
+  
+  # Optimizer
+  # ---------
+  # Adam with weight decay (AdamW)
+  # BERT uses specific learning rate schedule:
+  #   1. Linear warmup for first 10,000 steps
+  #   2. Linear decay to 0 over remaining steps
+  optimizer: Adam(
+    learning_rate=0.0001,  # Peak LR after warmup
+    beta_1=0.9,
+    beta_2=0.999,
+    epsilon=1e-6
+  )
+  
+  # Weight decay: 0.01 (applied to all parameters except layer norm and biases)
+  
+  # Evaluation Metrics
+  # ------------------
+  metrics: ["accuracy", "sparse_categorical_crossentropy"]
+  
+  # Training Parameters
+  # -------------------
+  train {
+    # Pre-training requires massive amounts of data and compute
+    # Original BERT: 1M steps on 16 TPU chips
+    epochs: 40  # Or specify by steps
+    
+    # Batch size: As large as possible
+    # Original BERT: 256 sequences (batch_size * sequence_length tokens)
+    batch_size: 32
+    
+    # Gradient accumulation for larger effective batch size
+    # accumulation_steps: 8  # Effective batch_size = 256
+    
+    # Gradient clipping
+    gradient_clip: 1.0
+    
+    # Mixed precision training
+    # use_mixed_precision: True
+    
+    # Validation split
+    validation_split: 0.05
+  }
+}
+
+# ============================================================================
+# PRE-TRAINING DATA PREPARATION
+# ============================================================================
+#
+# Corpus Requirements:
+# --------------------
+# - Large unlabeled text corpus (e.g., Wikipedia, BookCorpus)
+# - Original BERT: 3.3B words (13GB)
+# - Minimum recommended: 1B words for decent results
+#
+# Tokenization:
+# -------------
+# Use WordPiece tokenization:
+# 1. Build vocabulary from corpus (~30,000 tokens)
+# 2. Add special tokens: [PAD], [CLS], [SEP], [MASK], [UNK]
+# 3. Tokenize text: "playing" → ["play", "##ing"]
+#
+# Example with Hugging Face Tokenizers:
+# ```python
+# from tokenizers import BertWordPieceTokenizer
+#
+# tokenizer = BertWordPieceTokenizer()
+# tokenizer.train(
+#     files=["corpus.txt"],
+#     vocab_size=30522,
+#     min_frequency=2,
+#     special_tokens=["[PAD]", "[CLS]", "[SEP]", "[MASK]", "[UNK]"]
+# )
+# ```
+#
+# Creating Training Examples:
+# ---------------------------
+# For each document:
+# 1. Split into sentence pairs (A, B)
+# 2. 50% time: B is actual next sentence
+# 3. 50% time: B is random sentence from corpus
+# 4. Concatenate: [CLS] sentence_a [SEP] sentence_b [SEP]
+# 5. Apply masking to tokens (15% masking rate)
+# 6. Truncate or pad to max_length (512)
+#
+# Masking Procedure:
+# ------------------
+# For each token to mask (15% of tokens):
+# - 80% of time: replace with [MASK] token
+# - 10% of time: replace with random token
+# - 10% of time: keep original token
+#
+# This prevents model from only learning about [MASK] tokens
+#
+# Example masking:
+# ```python
+# def mask_tokens(tokens, mask_prob=0.15):
+#     masked_tokens = tokens.copy()
+#     labels = [-100] * len(tokens)  # -100 ignored in loss
+#     
+#     for i, token in enumerate(tokens):
+#         if random.random() < mask_prob:
+#             labels[i] = token  # True label
+#             
+#             rand = random.random()
+#             if rand < 0.8:
+#                 masked_tokens[i] = MASK_ID
+#             elif rand < 0.9:
+#                 masked_tokens[i] = random.randint(0, vocab_size-1)
+#             # else: keep original (10%)
+#     
+#     return masked_tokens, labels
+# ```
+#
+# Segment IDs:
+# ------------
+# Create segment ID array:
+# - 0 for tokens from sentence A and first [SEP]
+# - 1 for tokens from sentence B and second [SEP]
+# - [CLS] gets segment ID 0
+#
+# Example:
+# tokens:     [CLS] I love NLP [SEP] Me too [SEP]
+# segment_ids:  0   0  0   0    0     1   1    1
+#
+# ============================================================================
+# FINE-TUNING FOR DOWNSTREAM TASKS
+# ============================================================================
+#
+# After pre-training, fine-tune BERT for specific tasks:
+#
+# 1. Sequence Classification (e.g., sentiment analysis)
+# ------------------------------------------------------
+# Use [CLS] token representation:
+# ```
+# network BertSequenceClassifier {
+#     input: (512,)
+#     layers:
+#         # Load pre-trained BERT
+#         BertEncoder(weights="pretrained_bert.h5")
+#         
+#         # Extract [CLS] token (first position)
+#         # hidden[:, 0, :]
+#         
+#         # Classification head
+#         Dense(units=768, activation="tanh")
+#         Dropout(rate=0.1)
+#         Output(units=num_classes, activation="softmax")
+#     
+#     loss: "sparse_categorical_crossentropy"
+#     optimizer: Adam(learning_rate=2e-5)  # Lower LR for fine-tuning
+#     
+#     train {
+#         epochs: 3
+#         batch_size: 16
+#     }
+# }
+# ```
+#
+# 2. Token Classification (e.g., NER, POS tagging)
+# -------------------------------------------------
+# Use representations of all tokens:
+# ```
+# network BertTokenClassifier {
+#     input: (512,)
+#     layers:
+#         # Load pre-trained BERT
+#         BertEncoder(weights="pretrained_bert.h5")
+#         
+#         # Classification for each token
+#         Dropout(rate=0.1)
+#         Output(units=num_labels, activation="softmax")
+#     
+#     loss: "sparse_categorical_crossentropy"
+#     optimizer: Adam(learning_rate=2e-5)
+#     
+#     train {
+#         epochs: 3
+#         batch_size: 16
+#     }
+# }
+# ```
+#
+# 3. Question Answering (e.g., SQuAD)
+# -----------------------------------
+# Predict start and end positions of answer span:
+# ```
+# network BertQuestionAnswering {
+#     input: (512,)  # Question + Context
+#     layers:
+#         # Load pre-trained BERT
+#         BertEncoder(weights="pretrained_bert.h5")
+#         
+#         # Start position logits
+#         Dense(units=1, activation="linear")  # Applied to all positions
+#         
+#         # End position logits (separate head)
+#         # Dense(units=1, activation="linear")
+#     
+#     # Custom loss for span prediction
+#     loss: "sparse_categorical_crossentropy"
+#     optimizer: Adam(learning_rate=3e-5)
+#     
+#     train {
+#         epochs: 2
+#         batch_size: 12
+#     }
+# }
+# ```
+#
+# 4. Sentence Pair Classification (e.g., NLI, paraphrase detection)
+# ------------------------------------------------------------------
+# Same as sequence classification but with two sentences as input
+#
+# Fine-tuning Tips:
+# -----------------
+# - Use lower learning rate (2e-5, 3e-5, 5e-5)
+# - Train for fewer epochs (2-4)
+# - Use smaller batch sizes (8-32)
+# - Apply linear warmup (first 10% of steps)
+# - Consider layer-wise learning rate decay
+# - Freeze early layers if overfitting
+#
+# ============================================================================
+# BERT VARIANTS AND IMPROVEMENTS
+# ============================================================================
+#
+# 1. RoBERTa (Robustly Optimized BERT):
+#    - Removes NSP objective
+#    - Dynamic masking (different masks each epoch)
+#    - Larger batches and more data
+#    - Byte-level BPE instead of WordPiece
+#
+# 2. ALBERT (A Lite BERT):
+#    - Factorized embedding parameters
+#    - Cross-layer parameter sharing
+#    - Sentence-order prediction (SOP) instead of NSP
+#    - Much fewer parameters, similar performance
+#
+# 3. ELECTRA (Efficiently Learning an Encoder):
+#    - Discriminative pre-training (not generative)
+#    - Predict if token is original or replaced
+#    - More efficient than MLM
+#    - Better performance with less compute
+#
+# 4. DeBERTa (Decoding-enhanced BERT):
+#    - Disentangled attention mechanism
+#    - Enhanced mask decoder
+#    - Virtual adversarial training
+#    - State-of-art on many benchmarks
+#
+# 5. DistilBERT:
+#    - Knowledge distillation from BERT
+#    - 6 layers instead of 12
+#    - 40% smaller, 60% faster
+#    - Retains 97% of BERT's performance
+#
+# ============================================================================
+# EXPECTED PERFORMANCE
+# ============================================================================
+#
+# Pre-training (on Wikipedia + BookCorpus):
+#   - Training time: ~3 days on 16 TPU v3 chips
+#   - MLM accuracy: ~70-75% (on masked tokens)
+#   - NSP accuracy: ~98%+
+#
+# Fine-tuning Results (BERT-Base):
+#   - GLUE score: ~82.1
+#   - SQuAD 1.1 F1: ~88.5
+#   - SQuAD 2.0 F1: ~76.3
+#   - MNLI accuracy: ~84.6
+#   - SST-2 accuracy: ~93.5
+#
+# BERT-Large improves by 1-3% on most tasks
+#
+# ============================================================================
+# COMPILATION AND USAGE
+# ============================================================================
+#
+# Compile to TensorFlow:
+#   neural compile examples/bert_encoder.neural --backend tensorflow
+#
+# Compile to PyTorch:
+#   neural compile examples/bert_encoder.neural --backend pytorch
+#
+# Visualize architecture:
+#   neural visualize examples/bert_encoder.neural
+#
+# Debug with NeuralDbg:
+#   neural debug examples/bert_encoder.neural
+#
+# For production use, consider:
+#   - Using pre-trained weights from Hugging Face
+#   - Implementing custom training loop for MLM + NSP
+#   - Adding proper position and segment embeddings
+#   - Implementing efficient attention mechanisms
+#   - Using mixed-precision training
+#   - Distributing training across multiple GPUs/TPUs
+#
+# ============================================================================

@@ -109,20 +109,82 @@ class TensorFlowGenerator(BaseCodeGenerator):
         return code
 
     def generate_layer(self, layer_type: str, params: Dict[str, Any]) -> str:
-        if layer_type == "TransformerEncoder":
+        if layer_type == "MultiHeadAttention":
+            num_heads = params.get("num_heads", 8)
+            key_dim = params.get("key_dim", 64)
+            value_dim = params.get("value_dim", None)
+            dropout = params.get("dropout", 0.0)
+            use_bias = params.get("use_bias", True)
+            mode = params.get("mode", "self")
+            
+            value_dim_str = f", value_dim={value_dim}" if value_dim else ""
+            dropout_str = f", dropout={dropout}" if dropout > 0 else ""
+            use_bias_str = f", use_bias={use_bias}" if not use_bias else ""
+            
+            if mode == "cross":
+                return f"layers.MultiHeadAttention(num_heads={num_heads}, key_dim={key_dim}{value_dim_str}{dropout_str}{use_bias_str})(x, context)"
+            else:
+                return f"layers.MultiHeadAttention(num_heads={num_heads}, key_dim={key_dim}{value_dim_str}{dropout_str}{use_bias_str})(x, x)"
+        elif layer_type == "TransformerEncoder":
             num_heads = params.get("num_heads", 8)
             ff_dim = params.get("ff_dim", 512)
             dropout = params.get("dropout", 0.1)
+            num_layers = params.get("num_layers", 1)
+            activation = params.get("activation", "relu")
+            use_attention_mask = params.get("use_attention_mask", False)
+            
+            code = ["# TransformerEncoder block"]
+            
+            if use_attention_mask:
+                code.append("# Attention mask should be provided as input")
+                code.append("attention_mask = None  # Set this to your mask tensor")
+            
+            for layer_idx in range(num_layers):
+                code.append(f"# Encoder Layer {layer_idx + 1}")
+                code.append(f"x = layers.LayerNormalization(epsilon=1e-6)(x)")
+                
+                if use_attention_mask:
+                    code.append(f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim})(x, x, attention_mask=attention_mask)")
+                else:
+                    code.append(f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim})(x, x)")
+                
+                code.append(f"attn_output = layers.Dropout({dropout})(attn_output)")
+                code.append(f"x = layers.Add()([x, attn_output])")
+                code.append(f"x = layers.LayerNormalization(epsilon=1e-6)(x)")
+                code.append(f"ffn_output = layers.Dense({ff_dim}, activation='{activation}')(x)")
+                code.append(f"ffn_output = layers.Dense({ff_dim})(ffn_output)")
+                code.append(f"ffn_output = layers.Dropout({dropout})(ffn_output)")
+                code.append(f"x = layers.Add()([x, ffn_output])")
+            
+            return "\n".join(code)
+        elif layer_type == "TransformerDecoder":
+            num_heads = params.get("num_heads", 8)
+            ff_dim = params.get("ff_dim", 512)
+            dropout = params.get("dropout", 0.1)
+            d_model = params.get("d_model", ff_dim)
+            use_causal_mask = params.get("use_causal_mask", True)
             code = [
-                "# TransformerEncoder block",
-                f"x = layers.LayerNormalization(epsilon=1e-6)(x)",
-                f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim})(x, x)",
-                f"x = layers.Add()([x, attn_output])",
-                f"x = layers.LayerNormalization(epsilon=1e-6)(x)",
-                f"x = layers.Dense({ff_dim}, activation='relu')(x)",
-                f"x = layers.Dense({ff_dim})(x)",
-                f"x = layers.Dropout({dropout})(x)"
+                "# TransformerDecoder block with cross-attention",
+                f"# Self-attention with causal masking",
+                f"decoder_norm1 = layers.LayerNormalization(epsilon=1e-6)(x)",
             ]
+            if use_causal_mask:
+                code.append(f"# Apply causal mask for autoregressive decoding")
+                code.append(f"self_attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={d_model}, use_causal_mask=True)(decoder_norm1, decoder_norm1)")
+            else:
+                code.append(f"self_attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={d_model})(decoder_norm1, decoder_norm1)")
+            code.extend([
+                f"x = layers.Add()([x, layers.Dropout({dropout})(self_attn_output)])",
+                f"# Cross-attention with encoder output (assume encoder_output available)",
+                f"decoder_norm2 = layers.LayerNormalization(epsilon=1e-6)(x)",
+                f"cross_attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={d_model})(decoder_norm2, encoder_output, encoder_output)",
+                f"x = layers.Add()([x, layers.Dropout({dropout})(cross_attn_output)])",
+                f"# Feed-forward network",
+                f"decoder_norm3 = layers.LayerNormalization(epsilon=1e-6)(x)",
+                f"ff_output = layers.Dense({ff_dim}, activation='relu')(decoder_norm3)",
+                f"ff_output = layers.Dense({d_model})(ff_output)",
+                f"x = layers.Add()([x, layers.Dropout({dropout})(ff_output)])"
+            ])
             return "\n".join(code)
         elif layer_type == "BatchNormalization":
             momentum = params.get("momentum", 0.99)
@@ -176,6 +238,30 @@ class TensorFlowGenerator(BaseCodeGenerator):
         elif layer_type == "Dropout":
             rate = params.get("rate", 0.5)
             return f"layers.Dropout(rate={rate})"
+        elif layer_type == "Embedding":
+            input_dim = params.get("input_dim", 10000)
+            output_dim = params.get("output_dim", 128)
+            mask_zero = params.get("mask_zero", False)
+            input_length = params.get("input_length", None)
+            code = f"layers.Embedding(input_dim={input_dim}, output_dim={output_dim}"
+            if mask_zero:
+                code += f", mask_zero={mask_zero}"
+            if input_length:
+                code += f", input_length={input_length}"
+            code += ")"
+            return code
+        elif layer_type == "GlobalAveragePooling1D":
+            return "layers.GlobalAveragePooling1D()"
+        elif layer_type == "GlobalAveragePooling2D":
+            return "layers.GlobalAveragePooling2D()"
+        elif layer_type == "GlobalAveragePooling3D":
+            return "layers.GlobalAveragePooling3D()"
+        elif layer_type == "GlobalMaxPooling1D":
+            return "layers.GlobalMaxPooling1D()"
+        elif layer_type == "GlobalMaxPooling2D":
+            return "layers.GlobalMaxPooling2D()"
+        elif layer_type == "GlobalMaxPooling3D":
+            return "layers.GlobalMaxPooling3D()"
         elif layer_type == "Output":
             units = params.get("units", 10)
             activation = params.get("activation", "softmax")

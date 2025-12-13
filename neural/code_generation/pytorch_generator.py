@@ -53,7 +53,15 @@ class PyTorchGenerator(BaseCodeGenerator):
             layer_name = f"layer{i}_{layer_type.lower()}"
             layer_counts[layer_type] += 1
 
-            if layer_type == "Dense":
+            if layer_type == "MultiHeadAttention":
+                layer_code = self.generate_layer(layer_type, params)
+                layers_code.append(f"self.{layer_name} = {layer_code}")
+                mode = params.get("mode", "self")
+                if mode == "cross":
+                    forward_code_body.append(f"x, _ = self.{layer_name}(x, context, context)")
+                else:
+                    forward_code_body.append(f"x, _ = self.{layer_name}(x, x, x)")
+            elif layer_type == "Dense":
                 if i == 0 or expanded_layers[i-1]['type'] in ["Input", "Flatten"]:
                     dims = []
                     logger.warning(f"Current input shape: {self.current_input_shape}")
@@ -103,6 +111,38 @@ class PyTorchGenerator(BaseCodeGenerator):
                 layer_code = f"nn.Dropout(p={rate})"
                 layers_code.append(f"self.{layer_name} = {layer_code}")
                 forward_code_body.append(f"x = self.{layer_name}(x)")
+            elif layer_type == "Embedding":
+                num_embeddings = params.get("input_dim", 1000)
+                if isinstance(num_embeddings, dict):
+                    if 'value' in num_embeddings:
+                        num_embeddings = num_embeddings['value']
+                    else:
+                        logger.warning(f"Dictionary parameter without 'value' key: {num_embeddings}, using default")
+                        num_embeddings = 1000
+                embedding_dim = params.get("output_dim", 128)
+                if isinstance(embedding_dim, dict):
+                    if 'value' in embedding_dim:
+                        embedding_dim = embedding_dim['value']
+                    else:
+                        logger.warning(f"Dictionary parameter without 'value' key: {embedding_dim}, using default")
+                        embedding_dim = 128
+                layer_code = f"nn.Embedding(num_embeddings={num_embeddings}, embedding_dim={embedding_dim})"
+                layers_code.append(f"self.{layer_name} = {layer_code}")
+                forward_code_body.append(f"x = self.{layer_name}(x)")
+            elif layer_type == "TransformerEncoder":
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    use_attention_mask = params.get("use_attention_mask", False)
+                    if isinstance(use_attention_mask, dict):
+                        if 'value' in use_attention_mask:
+                            use_attention_mask = use_attention_mask['value']
+                    
+                    if use_attention_mask:
+                        forward_code_body.append(f"# Pass attention mask if available (set src_key_padding_mask for padding)")
+                        forward_code_body.append(f"x = self.{layer_name}(x, src_key_padding_mask=None)")
+                    else:
+                        forward_code_body.append(f"x = self.{layer_name}(x)")
             elif layer_type == "Output":
                 in_features = self.current_input_shape[-1]
                 if isinstance(in_features, dict):
@@ -227,7 +267,46 @@ class PyTorchGenerator(BaseCodeGenerator):
 
 
 def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape: Optional[tuple] = None) -> str:
-    if layer_type == "Conv2D":
+    if layer_type == "MultiHeadAttention":
+        embed_dim = params.get("embed_dim", None)
+        num_heads = params.get("num_heads", 8)
+        dropout = params.get("dropout", 0.0)
+        batch_first = params.get("batch_first", True)
+        
+        if embed_dim is None and input_shape is not None and len(input_shape) >= 2:
+            embed_dim = input_shape[-1]
+            if isinstance(embed_dim, dict):
+                if 'value' in embed_dim:
+                    embed_dim = embed_dim['value']
+                else:
+                    logger.warning(f"Dictionary dimension without 'value' key: {embed_dim}, using default")
+                    embed_dim = 512
+        elif embed_dim is None:
+            embed_dim = 512
+        
+        if isinstance(embed_dim, dict):
+            if 'value' in embed_dim:
+                embed_dim = embed_dim['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {embed_dim}, using default")
+                embed_dim = 512
+        
+        if isinstance(num_heads, dict):
+            if 'value' in num_heads:
+                num_heads = num_heads['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {num_heads}, using default")
+                num_heads = 8
+        
+        if isinstance(dropout, dict):
+            if 'value' in dropout:
+                dropout = dropout['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {dropout}, using default")
+                dropout = 0.0
+        
+        return f"nn.MultiheadAttention(embed_dim={embed_dim}, num_heads={num_heads}, dropout={dropout}, batch_first={batch_first})"
+    elif layer_type == "Conv2D":
         data_format = params.get("data_format", "channels_last")
         in_channels = 3
         if input_shape is not None:
@@ -326,6 +405,22 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 logger.warning(f"Dictionary parameter without 'value' key: {rate}, using default")
                 rate = 0.5
         return f"nn.Dropout(p={rate})"
+    elif layer_type == "Embedding":
+        num_embeddings = params.get("input_dim", 1000)
+        if isinstance(num_embeddings, dict):
+            if 'value' in num_embeddings:
+                num_embeddings = num_embeddings['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {num_embeddings}, using default")
+                num_embeddings = 1000
+        embedding_dim = params.get("output_dim", 128)
+        if isinstance(embedding_dim, dict):
+            if 'value' in embedding_dim:
+                embedding_dim = embedding_dim['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {embedding_dim}, using default")
+                embedding_dim = 128
+        return f"nn.Embedding(num_embeddings={num_embeddings}, embedding_dim={embedding_dim})"
     elif layer_type == "Output":
         if input_shape:
             dims = []
@@ -429,7 +524,80 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {dropout}, using default")
                 dropout = 0.1
-        return f"nn.TransformerEncoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout})"
+        
+        num_layers = params.get("num_layers", 1)
+        if isinstance(num_layers, dict):
+            if 'value' in num_layers:
+                num_layers = num_layers['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {num_layers}, using default")
+                num_layers = 1
+        
+        activation = params.get("activation", "relu")
+        if isinstance(activation, dict):
+            if 'value' in activation:
+                activation = activation['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {activation}, using default")
+                activation = "relu"
+        
+        use_attention_mask = params.get("use_attention_mask", False)
+        if isinstance(use_attention_mask, dict):
+            if 'value' in use_attention_mask:
+                use_attention_mask = use_attention_mask['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {use_attention_mask}, using default")
+                use_attention_mask = False
+        
+        if num_layers > 1:
+            return f"nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout}, activation='{activation}'), num_layers={num_layers})"
+        else:
+            return f"nn.TransformerEncoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout}, activation='{activation}')"
+    elif layer_type == "TransformerDecoder":
+        d_model = params.get("d_model", 512)
+        if isinstance(d_model, dict):
+            if 'value' in d_model:
+                d_model = d_model['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {d_model}, using default")
+                d_model = 512
+
+        nhead = params.get("num_heads", 8)
+        if isinstance(nhead, dict):
+            if 'value' in nhead:
+                nhead = nhead['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {nhead}, using default")
+                nhead = 8
+
+        dim_feedforward = params.get("ff_dim", 2048)
+        if isinstance(dim_feedforward, dict):
+            if 'value' in dim_feedforward:
+                dim_feedforward = dim_feedforward['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {dim_feedforward}, using default")
+                dim_feedforward = 2048
+
+        dropout = params.get("dropout", 0.1)
+        if isinstance(dropout, dict):
+            if 'value' in dropout:
+                dropout = dropout['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {dropout}, using default")
+                dropout = 0.1
+        return f"nn.TransformerDecoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout})"
+    elif layer_type == "GlobalAveragePooling1D":
+        return "nn.AdaptiveAvgPool1d(1)"
+    elif layer_type == "GlobalAveragePooling2D":
+        return "nn.AdaptiveAvgPool2d(1)"
+    elif layer_type == "GlobalAveragePooling3D":
+        return "nn.AdaptiveAvgPool3d(1)"
+    elif layer_type == "GlobalMaxPooling1D":
+        return "nn.AdaptiveMaxPool1d(1)"
+    elif layer_type == "GlobalMaxPooling2D":
+        return "nn.AdaptiveMaxPool2d(1)"
+    elif layer_type == "GlobalMaxPooling3D":
+        return "nn.AdaptiveMaxPool3d(1)"
     else:
         warnings.warn(f"Unsupported layer type '{layer_type}' for pytorch. Skipping.", UserWarning)
         return None

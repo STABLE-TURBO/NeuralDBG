@@ -45,8 +45,7 @@ except ImportError:
     torch = None
     TORCH_AVAILABLE = False
 
-# PretrainedModelHub temporarily disabled due to triton dependency issues
-PretrainedModelHub = None
+# Pretrained model hub functionality is temporarily disabled due to dependency issues
 from neural.exceptions import (
     ShapeException, ShapeMismatchError, InvalidShapeError,
     InvalidParameterError, DependencyError
@@ -103,7 +102,7 @@ class ShapePropagator:
         self.current_layer = 0
         self.execution_trace = []  # Stores nntrace logs
         self.performance_monitor = PerformanceMonitor()
-        self.hub = PretrainedModelHub() if PretrainedModelHub else None
+        self.hub = None
         self.issues = []  # Store detected issues
         self.optimizations = []  # Store optimization suggestions
 
@@ -191,13 +190,22 @@ class ShapePropagator:
                     kernel_size = (3, 3)  # Default value
             params["kernel_size"] = kernel_size  # Ensure tuple in params
 
+        if layer_type == 'MultiHeadAttention':
+            return input_shape
+        
         if layer_type == 'TransformerEncoder':
             if framework == 'tensorflow':
-                return input_shape  # Shape preserved through self-attention
+                return input_shape
             elif framework == 'pytorch':
-                return (input_shape[0], input_shape[1])  # (seq_len, d_model)
+                return (input_shape[0], input_shape[1])
 
-        start_time = time.time()  # Measure execution time
+        if layer_type == 'TransformerDecoder':
+            if framework == 'tensorflow':
+                return input_shape
+            elif framework == 'pytorch':
+                return (input_shape[0], input_shape[1])
+
+        start_time = time.time()
 
         output_shape = self._process_layer(input_shape, layer, framework)
         prev_layer = self.current_layer - 1 if self.current_layer > 0 else None
@@ -402,6 +410,8 @@ class ShapePropagator:
                 output_shape = handle_cropping2d(input_shape, params)
             elif layer_type == 'GlobalAveragePooling1D':
                 output_shape = handle_global_average_pooling1d(input_shape, params)
+            elif layer_type == 'MultiHeadAttention':
+                output_shape = self._handle_multiheadattention(input_shape, params)
             else:
                 # Fall back to default handler
                 output_shape = self._handle_default(input_shape, params)
@@ -597,6 +607,57 @@ class ShapePropagator:
 
             # Output layer can accept higher dimensional inputs and will flatten internally
             # Unlike Dense layer which expects exactly 2D, Output can be more flexible
+
+        elif layer_type == 'Embedding':
+            # Check if input_dim parameter exists and is positive
+            if 'input_dim' not in params:
+                raise InvalidParameterError(
+                    parameter='input_dim',
+                    value=None,
+                    layer_type='Embedding',
+                    expected='input_dim parameter is required'
+                )
+
+            input_dim = params.get('input_dim')
+            if isinstance(input_dim, dict):
+                if 'value' in input_dim:
+                    input_dim = input_dim['value']
+            if input_dim is not None and isinstance(input_dim, (int, float)) and input_dim <= 0:
+                raise InvalidParameterError(
+                    parameter='input_dim',
+                    value=input_dim,
+                    layer_type='Embedding',
+                    expected='positive integer'
+                )
+
+            # Check if output_dim parameter exists and is positive
+            if 'output_dim' not in params:
+                raise InvalidParameterError(
+                    parameter='output_dim',
+                    value=None,
+                    layer_type='Embedding',
+                    expected='output_dim parameter is required'
+                )
+
+            output_dim = params.get('output_dim')
+            if isinstance(output_dim, dict):
+                if 'value' in output_dim:
+                    output_dim = output_dim['value']
+            if output_dim is not None and isinstance(output_dim, (int, float)) and output_dim <= 0:
+                raise InvalidParameterError(
+                    parameter='output_dim',
+                    value=output_dim,
+                    layer_type='Embedding',
+                    expected='positive integer'
+                )
+
+            # Check if input shape is valid for Embedding layer (2D: batch, sequence)
+            if len(input_shape) > 2:
+                raise ShapeMismatchError(
+                    f"Embedding layer expects 2D input (batch, sequence), got {len(input_shape)}D: {input_shape}",
+                    input_shape=input_shape,
+                    layer_type='Embedding'
+                )
 
 ####################################################################
 ### Shape propagation through 2 Dimensional Convolutional Layers ###
@@ -807,6 +868,31 @@ class ShapePropagator:
         else:
             return (units,)
 
+    def _handle_embedding(self, input_shape, params):
+        print(f"DEBUG: _handle_embedding - input_shape: {input_shape}, params: {params}")
+
+        # Get output_dim parameter with proper handling of dictionary values
+        output_dim = params.get('output_dim', 128)  # Default to 128 if not provided
+
+        # Handle dictionary values in output_dim
+        if isinstance(output_dim, dict):
+            # If it's a dictionary with a 'value' key, use that value
+            if 'value' in output_dim:
+                output_dim = output_dim['value']
+            # Otherwise, use a default value
+            else:
+                print(f"DEBUG: _handle_embedding - output_dim is a dict without 'value' key: {output_dim}, using default")
+                output_dim = 128  # Default value
+
+        print(f"DEBUG: _handle_embedding - output_dim after processing: {output_dim}")
+
+        # Embedding layer transforms input shape (batch, sequence_length) to (batch, sequence_length, output_dim)
+        if len(input_shape) >= 2:
+            return (input_shape[0], input_shape[1], output_dim)
+        else:
+            # If input is 1D (just sequence length), add batch dimension
+            return (input_shape[0], output_dim)
+
     def _handle_globalaveragepooling2d(self, input_shape, params):
         print(f"DEBUG: _handle_globalaveragepooling2d - input_shape: {input_shape}, params: {params}")
         data_format = params.get('data_format', 'channels_last')
@@ -870,6 +956,10 @@ class ShapePropagator:
                 print(f"DEBUG: _handle_upsampling2d - Invalid input shape: {input_shape}, using default")
                 return input_shape
 
+    def _handle_multiheadattention(self, input_shape, params):
+        print(f"DEBUG: _handle_multiheadattention - input_shape: {input_shape}, params: {params}")
+        return input_shape
+    
     # Handle default helper
     def _handle_default(self, input_shape, params):
         # Default handler for unsupported layers

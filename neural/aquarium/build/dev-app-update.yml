@@ -1,0 +1,5 @@
+provider: github
+owner: neural-dsl
+repo: neural-dsl
+releaseType: release
+updaterCacheDirName: neural-aquarium-updater

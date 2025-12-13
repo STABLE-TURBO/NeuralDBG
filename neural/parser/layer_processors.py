@@ -235,6 +235,25 @@ def map_positional_to_output_params(ordered_params: List[Any]) -> Dict[str, Any]
     return params
 
 
+def map_positional_to_multiheadattention_params(ordered_params: List[Any]) -> Dict[str, Any]:
+    """Map positional parameters to MultiHeadAttention layer named parameters.
+    
+    Args:
+        ordered_params: List of positional parameters
+        
+    Returns:
+        Dictionary of named parameters
+    """
+    params = {}
+    if len(ordered_params) >= 1:
+        params['num_heads'] = ordered_params[0]
+    if len(ordered_params) >= 2:
+        params['key_dim'] = ordered_params[1]
+    if len(ordered_params) >= 3:
+        params['value_dim'] = ordered_params[2]
+    return params
+
+
 def extract_device_from_items(items: List[Any], extract_value_fn) -> Optional[str]:
     """Extract device specification from parse tree items.
     

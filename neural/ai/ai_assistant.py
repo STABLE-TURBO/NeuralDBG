@@ -2,6 +2,7 @@
 AI Assistant for Neural DSL
 
 Main interface for AI-powered features including natural language to DSL conversion.
+This module now integrates with the enhanced assistant for comprehensive AI features.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from typing import Any, Dict, Optional
 from .natural_language_processor import NaturalLanguageProcessor, IntentType, DSLGenerator
 from .llm_integration import LLMIntegration
 from .multi_language import MultiLanguageSupport
+from .enhanced_assistant import EnhancedAIAssistant
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +21,26 @@ class NeuralAIAssistant:
     """
     AI Assistant for Neural DSL.
     
-    Provides natural language to DSL conversion with multi-language support.
+    Provides natural language to DSL conversion with multi-language support,
+    plus enhanced features like optimization suggestions, transfer learning
+    recommendations, and debugging assistance.
     """
     
-    def __init__(self, use_llm: bool = True, llm_provider: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        use_llm: bool = True,
+        llm_provider: Optional[str] = None,
+        enable_enhanced_features: bool = True,
+        persistence_dir: Optional[str] = None
+    ) -> None:
         """
         Initialize AI Assistant.
         
         Args:
             use_llm: Whether to use LLM for advanced processing (default: True)
             llm_provider: Specific LLM provider to use ('openai', 'anthropic', 'ollama', or None for auto)
+            enable_enhanced_features: Enable optimization, transfer learning, etc. (default: True)
+            persistence_dir: Directory for session persistence (optional)
         """
         self.nlp: NaturalLanguageProcessor = NaturalLanguageProcessor()
         self.dsl_generator: DSLGenerator = DSLGenerator()
@@ -42,6 +54,18 @@ class NeuralAIAssistant:
             except Exception as e:
                 logger.warning("LLM not available: %s. Using rule-based processing.", e)
                 self.use_llm = False
+        
+        # Initialize enhanced assistant if enabled
+        self.enhanced: Optional[EnhancedAIAssistant] = None
+        if enable_enhanced_features:
+            try:
+                self.enhanced = EnhancedAIAssistant(
+                    use_llm=use_llm,
+                    llm_provider=llm_provider,
+                    persistence_dir=persistence_dir
+                )
+            except Exception as e:
+                logger.warning("Enhanced features not available: %s", e)
     
     def chat(self, user_input: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -58,6 +82,22 @@ class NeuralAIAssistant:
             - intent: Detected intent
             - success: Whether operation was successful
         """
+        # Try enhanced assistant first if available
+        if self.enhanced:
+            try:
+                # Check if this is an enhanced query (optimization, debugging, etc.)
+                query_lower = user_input.lower()
+                enhanced_keywords = [
+                    'optimize', 'improve', 'debug', 'error', 'transfer', 
+                    'augment', 'overfit', 'underfit', 'nan', 'help'
+                ]
+                
+                if any(kw in query_lower for kw in enhanced_keywords):
+                    result = self.enhanced.chat(user_input, context)
+                    return result
+            except Exception as e:
+                logger.warning("Enhanced assistant failed: %s. Falling back.", e)
+        
         # Detect and translate language if needed
         lang_result = self.multi_lang.process(user_input, target_lang='en')
         processed_text = lang_result['final']

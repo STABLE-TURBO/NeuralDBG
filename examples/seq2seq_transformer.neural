@@ -1,0 +1,544 @@
+# ============================================================================
+# Sequence-to-Sequence Transformer - Machine Translation Example
+# ============================================================================
+# This example demonstrates a complete sequence-to-sequence transformer for
+# machine translation tasks (e.g., English to French, English to German).
+#
+# Model Architecture:
+#   - Encoder: Processes source language sequence
+#   - Decoder: Generates target language sequence
+#   - Multi-head attention for capturing relationships
+#   - Positional encoding for sequence order
+#   - Feed-forward networks for transformation
+#
+# Key Concepts Demonstrated:
+#   - Encoder-decoder architecture
+#   - Multi-head self-attention mechanism
+#   - Cross-attention between encoder and decoder
+#   - Positional encodings
+#   - Masked attention for autoregressive generation
+#   - Teacher forcing during training
+# ============================================================================
+
+# --------------------------------------------------------------------
+# MACRO DEFINITIONS - Transformer Building Blocks
+# --------------------------------------------------------------------
+
+# Multi-Head Attention Block
+# ---------------------------
+# Core mechanism that allows model to focus on different parts of input
+# Computes attention scores between all positions in sequence
+#
+# How it works:
+#   1. Projects input to Query, Key, Value representations
+#   2. Computes attention scores: softmax(Q·K^T / sqrt(d_k))
+#   3. Applies scores to values: Attention(Q,K,V) = softmax(QK^T/√d)V
+#   4. Uses multiple "heads" to capture different relationships
+#   5. Concatenates and projects heads back to model dimension
+#
+# Parameters:
+#   - num_heads: Number of attention heads (typically 8 or 16)
+#   - key_dim: Dimension of each attention head (d_model / num_heads)
+#   - dropout: Dropout rate for attention weights
+define MultiHeadAttention(num_heads, key_dim, dropout) {
+  # MultiHeadAttention layer computes scaled dot-product attention
+  # Each head learns different aspects of relationships
+  # Example with 8 heads: head_1 → syntax, head_2 → semantics, etc.
+  Dense(units=$key_dim * $num_heads, activation="linear")  # Query projection
+  Dense(units=$key_dim * $num_heads, activation="linear")  # Key projection
+  Dense(units=$key_dim * $num_heads, activation="linear")  # Value projection
+  
+  # Dropout for regularization
+  Dropout(rate=$dropout)
+}
+
+# Position-wise Feed-Forward Network
+# -----------------------------------
+# Applies two linear transformations with ReLU activation
+# FFN(x) = max(0, xW1 + b1)W2 + b2
+#
+# Applied identically to each position separately
+# Expands to higher dimension (d_ff) then projects back
+# Adds non-linearity and capacity to the model
+define PositionwiseFeedForward(d_model, d_ff, dropout) {
+  # Expansion layer: increase dimensionality
+  # Typically d_ff = 4 * d_model (e.g., 512 → 2048)
+  Dense(units=$d_ff, activation="relu")
+  
+  # Dropout for regularization
+  Dropout(rate=$dropout)
+  
+  # Projection layer: back to model dimension
+  Dense(units=$d_model, activation="linear")
+  
+  # Dropout again
+  Dropout(rate=$dropout)
+}
+
+# Encoder Layer
+# -------------
+# Single layer of transformer encoder
+# Consists of:
+#   1. Multi-head self-attention
+#   2. Add & Norm (residual connection + layer normalization)
+#   3. Position-wise feed-forward network
+#   4. Add & Norm
+define EncoderLayer(num_heads, d_model, d_ff, dropout) {
+  # Self-attention: each position attends to all positions
+  # Sublayer 1: Multi-Head Attention + Residual + Norm
+  # LayerNorm(x + MultiHeadAttention(x, x, x))
+  
+  # Multi-head self-attention
+  MultiHeadAttention(num_heads=$num_heads, key_dim=$d_model/$num_heads, dropout=$dropout)
+  
+  # Residual connection (Add layer adds input to attention output)
+  Add()
+  
+  # Layer normalization: normalizes across feature dimension
+  # Stabilizes training and allows higher learning rates
+  LayerNormalization()
+  
+  # Sublayer 2: Feed-Forward + Residual + Norm
+  # LayerNorm(x + FFN(x))
+  
+  # Position-wise feed-forward network
+  PositionwiseFeedForward(d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Residual connection
+  Add()
+  
+  # Layer normalization
+  LayerNormalization()
+}
+
+# Decoder Layer
+# -------------
+# Single layer of transformer decoder
+# Consists of:
+#   1. Masked multi-head self-attention (prevents looking ahead)
+#   2. Add & Norm
+#   3. Multi-head cross-attention (attends to encoder output)
+#   4. Add & Norm
+#   5. Position-wise feed-forward network
+#   6. Add & Norm
+define DecoderLayer(num_heads, d_model, d_ff, dropout) {
+  # Sublayer 1: Masked Self-Attention
+  # Prevents positions from attending to future positions
+  # Essential for autoregressive generation
+  
+  # Masked multi-head self-attention
+  MultiHeadAttention(num_heads=$num_heads, key_dim=$d_model/$num_heads, dropout=$dropout)
+  
+  # Residual + normalization
+  Add()
+  LayerNormalization()
+  
+  # Sublayer 2: Cross-Attention to Encoder
+  # Decoder attends to encoder outputs
+  # Allows decoder to focus on relevant source positions
+  
+  # Multi-head cross-attention
+  MultiHeadAttention(num_heads=$num_heads, key_dim=$d_model/$num_heads, dropout=$dropout)
+  
+  # Residual + normalization
+  Add()
+  LayerNormalization()
+  
+  # Sublayer 3: Feed-Forward Network
+  
+  # Position-wise FFN
+  PositionwiseFeedForward(d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Residual + normalization
+  Add()
+  LayerNormalization()
+}
+
+# --------------------------------------------------------------------
+# MAIN NETWORK DEFINITION
+# --------------------------------------------------------------------
+
+network Seq2SeqTransformer {
+  # --------------------------------------------------------------------
+  # INPUT SPECIFICATION
+  # --------------------------------------------------------------------
+  # Two inputs: source sequence and target sequence
+  # Format: {input_name: (sequence_length,)}
+  input: {
+    encoder_input: (100,)   # Source language sequence (e.g., English)
+    decoder_input: (100,)   # Target language sequence (e.g., French)
+  }
+  
+  # --------------------------------------------------------------------
+  # HYPERPARAMETERS
+  # --------------------------------------------------------------------
+  # Model configuration (can be optimized with HPO)
+  # d_model: Model dimension (embedding size)
+  # num_layers: Number of encoder/decoder layers (N in paper)
+  # num_heads: Number of attention heads
+  # d_ff: Feed-forward network dimension
+  # dropout: Dropout rate for regularization
+  # vocab_size: Vocabulary size for both languages
+  
+  # --------------------------------------------------------------------
+  # NETWORK LAYERS
+  # --------------------------------------------------------------------
+  layers:
+    # ENCODER STACK
+    # =============
+    
+    # Input Embedding + Positional Encoding
+    # --------------------------------------
+    # Maps token indices to dense vectors
+    # vocab_size=32000: Vocabulary size (use subword tokenization)
+    # d_model=512: Embedding dimension (matches model dimension)
+    Embedding(input_dim=32000, output_dim=512, mask_zero=True)
+    
+    # Positional Encoding: Adds position information to embeddings
+    # Transformers have no inherent notion of sequence order
+    # Uses sine/cosine functions of different frequencies:
+    # PE(pos, 2i) = sin(pos / 10000^(2i/d_model))
+    # PE(pos, 2i+1) = cos(pos / 10000^(2i/d_model))
+    # This allows model to learn relative positions
+    # Note: May need custom layer implementation for exact Vaswani et al. encoding
+    
+    # Scale embeddings by sqrt(d_model) as per original paper
+    # This prevents embeddings from being too small relative to positional encodings
+    
+    # Dropout on embeddings
+    Dropout(rate=0.1)
+    
+    # Encoder Layers (Stack of N=6 identical layers)
+    # ----------------------------------------------
+    # Each layer has two sublayers:
+    # 1. Multi-head self-attention
+    # 2. Position-wise fully connected feed-forward network
+    # Residual connections and layer normalization after each sublayer
+    
+    # Layer 1
+    EncoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # Layer 2
+    EncoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # Layer 3
+    EncoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # Layer 4
+    EncoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # Layer 5
+    EncoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # Layer 6
+    EncoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # DECODER STACK
+    # =============
+    
+    # Target Embedding + Positional Encoding
+    # ---------------------------------------
+    # Same architecture as encoder embedding
+    # Uses separate embedding matrix for target vocabulary
+    Embedding(input_dim=32000, output_dim=512, mask_zero=True)
+    
+    # Positional encoding for target sequence
+    # Scale by sqrt(d_model)
+    
+    # Dropout on embeddings
+    Dropout(rate=0.1)
+    
+    # Decoder Layers (Stack of N=6 identical layers)
+    # ----------------------------------------------
+    # Each layer has three sublayers:
+    # 1. Masked multi-head self-attention (only attend to earlier positions)
+    # 2. Multi-head cross-attention over encoder output
+    # 3. Position-wise fully connected feed-forward network
+    # Residual connections and layer normalization after each sublayer
+    
+    # Layer 1
+    DecoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # Layer 2
+    DecoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # Layer 3
+    DecoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # Layer 4
+    DecoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # Layer 5
+    DecoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # Layer 6
+    DecoderLayer(num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # OUTPUT PROJECTION
+    # =================
+    
+    # Linear projection to vocabulary
+    # --------------------------------
+    # Projects decoder output to vocabulary size
+    # Output shape: (batch_size, seq_len, vocab_size)
+    Dense(units=32000, activation="linear")
+    
+    # Softmax activation for probability distribution
+    # -----------------------------------------------
+    # Converts logits to probabilities over vocabulary
+    # Each position gets distribution over all possible next tokens
+    Output(units=32000, activation="softmax")
+  
+  # --------------------------------------------------------------------
+  # TRAINING CONFIGURATION
+  # --------------------------------------------------------------------
+  
+  # Loss Function
+  # -------------
+  # sparse_categorical_crossentropy: For token prediction
+  # Compares predicted token probabilities with true tokens
+  # Automatically handles padding tokens (with mask_zero=True)
+  loss: "sparse_categorical_crossentropy"
+  
+  # Optimizer with Learning Rate Schedule
+  # --------------------------------------
+  # Use custom learning rate schedule as per "Attention is All You Need"
+  # lr = d_model^(-0.5) * min(step^(-0.5), step * warmup_steps^(-1.5))
+  #
+  # Increases linearly for warmup_steps, then decreases proportionally to sqrt(step)
+  # warmup_steps=4000 in original paper
+  #
+  # For simplicity, using Adam with fixed learning rate here
+  # For production, implement custom schedule
+  optimizer: Adam(
+    learning_rate=0.0001,
+    beta_1=0.9,
+    beta_2=0.98,
+    epsilon=1e-9
+  )
+  
+  # Evaluation Metrics
+  # ------------------
+  # Track accuracy and perplexity
+  # Perplexity: exp(cross_entropy_loss)
+  # Lower perplexity = better model
+  metrics: ["accuracy", "sparse_categorical_crossentropy"]
+  
+  # Training Parameters
+  # -------------------
+  train {
+    # Transformers need many epochs for convergence
+    epochs: 100
+    
+    # Batch size: Limited by GPU memory
+    # Original paper used batches containing ~25,000 source + target tokens
+    # Adjust based on sequence length and available memory
+    batch_size: 32
+    
+    # Validation split
+    validation_split: 0.1
+    
+    # Gradient clipping for stability
+    # Prevents exploding gradients
+    gradient_clip: 1.0
+    
+    # Label smoothing (optional, set in loss function)
+    # Prevents model from becoming too confident
+    # label_smoothing: 0.1
+  }
+}
+
+# ============================================================================
+# USAGE AND DATA PREPARATION
+# ============================================================================
+#
+# Data Preprocessing:
+# -------------------
+# 1. Tokenization:
+#    - Use subword tokenization (BPE, SentencePiece, WordPiece)
+#    - Vocabulary size: ~32,000 tokens
+#    - Add special tokens: <PAD>, <BOS>, <EOS>, <UNK>
+#
+# 2. Sequence Formatting:
+#    - Encoder input: <BOS> source_tokens <EOS>
+#    - Decoder input: <BOS> target_tokens
+#    - Decoder target: target_tokens <EOS> (shifted by 1)
+#
+# 3. Padding:
+#    - Pad sequences to max_length (100 in this example)
+#    - Use dynamic padding in batches for efficiency
+#
+# Example preprocessing with TensorFlow:
+# ```python
+# import tensorflow as tf
+# import tensorflow_text as tf_text
+#
+# # Load tokenizer (BPE or SentencePiece)
+# tokenizer = tf_text.SentencepieceTokenizer(model=model_file)
+#
+# # Tokenize source and target
+# source_tokens = tokenizer.tokenize(source_text)
+# target_tokens = tokenizer.tokenize(target_text)
+#
+# # Add special tokens
+# encoder_input = tf.concat([[BOS_ID], source_tokens, [EOS_ID]], axis=0)
+# decoder_input = tf.concat([[BOS_ID], target_tokens], axis=0)
+# decoder_target = tf.concat([target_tokens, [EOS_ID]], axis=0)
+#
+# # Pad to max_length
+# encoder_input = tf.pad(encoder_input, [[0, max_len - tf.shape(encoder_input)[0]]])
+# decoder_input = tf.pad(decoder_input, [[0, max_len - tf.shape(decoder_input)[0]]])
+# ```
+#
+# Compilation:
+# ------------
+# TensorFlow:
+#   neural compile examples/seq2seq_transformer.neural --backend tensorflow
+#
+# PyTorch:
+#   neural compile examples/seq2seq_transformer.neural --backend pytorch
+#
+# Visualization:
+#   neural visualize examples/seq2seq_transformer.neural
+#
+# ============================================================================
+# INFERENCE / DECODING STRATEGIES
+# ============================================================================
+#
+# During inference, generate translations token by token:
+#
+# 1. Greedy Decoding:
+#    - Select highest probability token at each step
+#    - Fast but may not find best translation
+#
+# 2. Beam Search:
+#    - Keep top-k candidates at each step
+#    - Explores multiple hypotheses
+#    - Beam width: 4-10 typical
+#    - Better quality than greedy
+#
+# 3. Sampling:
+#    - Sample from probability distribution
+#    - Temperature parameter controls randomness
+#    - Useful for creative generation
+#
+# Example beam search pseudocode:
+# ```python
+# def beam_search(model, source, beam_width=4, max_length=100):
+#     # Encode source
+#     encoder_output = model.encode(source)
+#     
+#     # Initialize beams with <BOS>
+#     beams = [([BOS_ID], 0.0)]  # (sequence, score)
+#     
+#     for step in range(max_length):
+#         candidates = []
+#         
+#         for seq, score in beams:
+#             if seq[-1] == EOS_ID:
+#                 candidates.append((seq, score))
+#                 continue
+#             
+#             # Get predictions
+#             logits = model.decode(seq, encoder_output)
+#             probs = softmax(logits[-1])
+#             
+#             # Get top-k tokens
+#             top_k = np.argsort(probs)[-beam_width:]
+#             
+#             for token in top_k:
+#                 new_seq = seq + [token]
+#                 new_score = score + np.log(probs[token])
+#                 candidates.append((new_seq, new_score))
+#         
+#         # Keep top beam_width candidates
+#         beams = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_width]
+#         
+#         # Stop if all beams end with EOS
+#         if all(seq[-1] == EOS_ID for seq, _ in beams):
+#             break
+#     
+#     return beams[0][0]  # Return best sequence
+# ```
+#
+# ============================================================================
+# PERFORMANCE OPTIMIZATION
+# ============================================================================
+#
+# 1. Mixed Precision Training:
+#    - Use float16 for faster computation
+#    - Keep float32 for critical operations
+#    - Can speed up training by 2-3x on modern GPUs
+#
+# 2. Gradient Accumulation:
+#    - Simulate larger batch sizes
+#    - Accumulate gradients over multiple mini-batches
+#    - Update weights less frequently
+#
+# 3. Multi-GPU Training:
+#    - Data parallelism: Split batches across GPUs
+#    - Model parallelism: Split layers across GPUs (for very large models)
+#
+# 4. Caching:
+#    - Cache encoder outputs during decoding
+#    - Cache attention keys/values in decoder
+#    - Reduces redundant computation
+#
+# 5. Optimized Attention:
+#    - Flash Attention for memory efficiency
+#    - Sparse attention patterns for long sequences
+#    - Linear attention approximations
+#
+# ============================================================================
+# EXPECTED PERFORMANCE
+# ============================================================================
+#
+# On WMT14 English-German:
+#   - BLEU score: ~28-29 (6-layer model)
+#   - Training time: 12-24 hours on 8 V100 GPUs
+#   - Convergence: ~300,000 steps
+#
+# On WMT14 English-French:
+#   - BLEU score: ~41-42 (6-layer model)
+#   - Training time: 36-48 hours on 8 V100 GPUs
+#
+# Hyperparameter Impact:
+#   - More layers (8-12): +1-2 BLEU, slower training
+#   - Larger d_model (768, 1024): +1-2 BLEU, more memory
+#   - More attention heads (16): Marginal improvement
+#   - Beam search width=5: +0.5-1 BLEU vs greedy
+#
+# ============================================================================
+# TROUBLESHOOTING
+# ============================================================================
+#
+# 1. Loss not decreasing:
+#    - Check learning rate (try 0.0001 - 0.001)
+#    - Verify data preprocessing (tokenization, padding)
+#    - Check for label leakage (decoder seeing future tokens)
+#
+# 2. Out of memory:
+#    - Reduce batch_size
+#    - Reduce sequence length
+#    - Use gradient checkpointing
+#    - Enable mixed precision training
+#
+# 3. Poor translation quality:
+#    - Train longer (transformers are data-hungry)
+#    - Increase model capacity (more layers, larger d_model)
+#    - Use beam search instead of greedy decoding
+#    - Apply BPE dropout for regularization
+#
+# 4. Attention collapse:
+#    - All attention heads learn same patterns
+#    - Increase dropout
+#    - Use attention diversity regularization
+#    - Check initialization
+#
+# 5. Slow convergence:
+#    - Implement learning rate warmup
+#    - Use label smoothing
+#    - Pre-train on larger dataset
+#    - Check gradient flow with NeuralDbg
+#
+# ============================================================================

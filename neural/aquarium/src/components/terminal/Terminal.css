@@ -1,0 +1,51 @@
+.terminal-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #1e1e1e;
+  overflow: hidden;
+}
+
+.terminal-wrapper {
+  flex: 1;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.terminal-wrapper .xterm {
+  height: 100%;
+  padding: 0;
+}
+
+.terminal-wrapper .xterm-viewport {
+  overflow-y: auto;
+}
+
+.terminal-wrapper .xterm-screen {
+  padding: 5px;
+}
+
+.xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+}
+
+.xterm-viewport::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}
+
+.xterm .xterm-cursor-layer {
+  z-index: 1;
+}
+
+.xterm .xterm-selection-layer {
+  z-index: 0;
+}

@@ -1,0 +1,138 @@
+.export-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  background: #252525;
+  border-radius: 4px;
+  gap: 15px;
+}
+
+.progress-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #333;
+  border-top: 4px solid #007acc;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.export-progress p {
+  margin: 0;
+  color: #b0b0b0;
+  font-size: 1rem;
+}
+
+.export-result {
+  padding: 20px;
+  border-radius: 4px;
+  margin-top: 15px;
+}
+
+.export-result.success {
+  background: #1f3a1f;
+  border: 1px solid #4caf50;
+}
+
+.export-result.error {
+  background: #3a1f1f;
+  border: 1px solid #d32f2f;
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.result-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.export-result.success .result-icon {
+  background: #4caf50;
+  color: #fff;
+}
+
+.export-result.error .result-icon {
+  background: #d32f2f;
+  color: #fff;
+}
+
+.result-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #b0b0b0;
+  min-width: 100px;
+}
+
+.detail-value {
+  color: #e0e0e0;
+}
+
+.detail-value code {
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #4fc3f7;
+}
+
+.format-badge {
+  padding: 4px 10px;
+  background: #007acc;
+  color: #fff;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.error-details {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.error-message {
+  margin: 0;
+  color: #ff6b6b;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}

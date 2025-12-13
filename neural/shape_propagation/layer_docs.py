@@ -75,6 +75,19 @@ LAYER_DOCUMENTATION = {
         },
         'shape_transformation': 'Preserves input shape in TensorFlow, returns (batch, seq_len) in PyTorch.'
     },
+    'TransformerDecoder': {
+        'description': 'Transformer decoder layer with cross-attention for encoder-decoder architectures',
+        'parameters': {
+            'num_heads': 'Number of attention heads',
+            'd_model': 'Dimension of the model (default: same as ff_dim)',
+            'ff_dim': 'Dimension of the feed-forward network',
+            'dropout': 'Dropout rate for regularization (default: 0.1)',
+            'use_causal_mask': 'Whether to apply causal masking for autoregressive decoding (default: True)'
+        },
+        'shape_transformation': 'Preserves input shape through self-attention and cross-attention. ' +
+                               'Input shape (batch, seq_len, d_model) remains unchanged. ' +
+                               'Requires encoder_output for cross-attention in encoder-decoder architectures.'
+    },
     'Conv1D': {
         'description': 'One-dimensional convolutional layer',
         'parameters': {
@@ -114,6 +127,16 @@ LAYER_DOCUMENTATION = {
             'rate': 'Fraction of input units to drop (between 0 and 1)'
         },
         'shape_transformation': 'Preserves input shape.'
+    },
+    'Embedding': {
+        'description': 'Embedding layer for converting integer indices to dense vectors',
+        'parameters': {
+            'input_dim': 'Size of the vocabulary (number of unique tokens)',
+            'output_dim': 'Dimension of the dense embedding vectors',
+            'input_length': 'Optional. Length of input sequences (for fixed-length sequences)'
+        },
+        'shape_transformation': 'Transforms input shape (batch, sequence_length) to output shape ' +
+                               '(batch, sequence_length, output_dim). Commonly used for text and sequence data.'
     },
     'BatchNormalization': {
         'description': 'Batch normalization layer',

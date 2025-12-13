@@ -332,6 +332,8 @@ LSTM(units=128) @ "cuda:0"
 | **Regularization**| `Dropout`, `SpatialDropout2D`, `GaussianNoise`, `BatchNormalization` |
 | **Utility**      | `Flatten`, `Lambda`, `TimeDistributed`, `ResidualConnection`          |
 
+**Note**: For comprehensive transformer documentation including architecture patterns, attention mechanisms, training best practices, and migration from TensorFlow/PyTorch, see the [Transformer Documentation](transformers_README.md).
+
 ---
 
 ## Validation Rules

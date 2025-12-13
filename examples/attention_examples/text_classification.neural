@@ -1,0 +1,20 @@
+network TextClassificationTransformer {
+  input: (200,)  # Token indices sequence
+  layers:
+    Embedding(input_dim=10000, output_dim=256)
+    TransformerEncoder(num_heads=4, ff_dim=1024, dropout=0.2)
+    TransformerEncoder(num_heads=4, ff_dim=1024, dropout=0.2)
+    GlobalAveragePooling1D()
+    Dense(units=128, activation="relu")
+    Dropout(rate=0.5)
+    Output(units=3, activation="softmax")
+
+  loss: "categorical_crossentropy"
+  optimizer: Adam(learning_rate=0.0005)
+  metrics: ["accuracy"]
+  train {
+    epochs: 15
+    batch_size: 32
+    validation_split: 0.2
+  }
+}

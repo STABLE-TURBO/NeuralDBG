@@ -1,10 +1,10 @@
 """
-Attention visualization for transformer models.
+Attention visualization for transformer models with Neural DSL integration.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
-import numpy as np
+from typing import Any, Dict, List, Optional, Tuple, Union
 import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,8 @@ class AttentionVisualizer:
     """
     Visualize attention weights in transformer models.
     
-    Supports visualization of self-attention, cross-attention, and multi-head attention.
+    Supports visualization of self-attention, cross-attention, and multi-head attention
+    with seamless integration for Neural DSL compiled models.
     """
     
     def __init__(
@@ -31,7 +32,7 @@ class AttentionVisualizer:
         self.model = model
         self.backend = backend.lower()
         
-        logger.info(f"Initialized AttentionVisualizer for {backend} model")
+        logger.info("Initialized AttentionVisualizer for %s model", backend)
     
     def extract_attention_weights(
         self,
@@ -57,7 +58,7 @@ class AttentionVisualizer:
         else:
             raise ValueError(f"Backend {self.backend} not supported for attention visualization")
         
-        logger.info(f"Extracted attention weights from {len(attention_weights)} layers")
+        logger.info("Extracted attention weights from %d layers", len(attention_weights))
         
         return attention_weights
     
@@ -73,7 +74,8 @@ class AttentionVisualizer:
         
         if layer_names is None:
             layer_names = [layer.name for layer in self.model.layers 
-                          if 'attention' in layer.name.lower()]
+                          if any(keyword in layer.name.lower() 
+                                for keyword in ['attention', 'transformer', 'multihead'])]
         
         for layer_name in layer_names:
             try:
@@ -94,7 +96,7 @@ class AttentionVisualizer:
                     attention_weights[layer_name] = outputs.numpy()
                     
             except Exception as e:
-                logger.warning(f"Could not extract attention from layer {layer_name}: {e}")
+                logger.warning("Could not extract attention from layer %s: %s", layer_name, e)
         
         return attention_weights
     
@@ -115,7 +117,7 @@ class AttentionVisualizer:
         attention_outputs = {}
         
         def attention_hook(name):
-            def hook(module, input, output):
+            def hook(module, input_tensor, output):
                 if isinstance(output, tuple) and len(output) > 1:
                     attention_outputs[name] = output[1].detach().cpu().numpy()
                 elif hasattr(output, 'attention_weights'):
@@ -126,7 +128,8 @@ class AttentionVisualizer:
         
         if layer_names is None:
             for name, module in self.model.named_modules():
-                if 'attention' in name.lower():
+                if any(keyword in name.lower() 
+                      for keyword in ['attention', 'transformer', 'multihead']):
                     hooks.append(module.register_forward_hook(attention_hook(name)))
         else:
             for name, module in self.model.named_modules():
@@ -176,15 +179,15 @@ class AttentionVisualizer:
             'visualizations': {}
         }
         
-        for layer_name, weights in attention_weights.items():
+        for name, weights in attention_weights.items():
             viz = self._create_attention_heatmap(
                 weights,
                 head_index=head_index,
                 tokens=tokens,
-                title=f"Attention: {layer_name}",
+                title=f"Attention: {name}",
                 output_path=output_path
             )
-            results['visualizations'][layer_name] = viz
+            results['visualizations'][name] = viz
         
         return results
     
@@ -233,7 +236,7 @@ class AttentionVisualizer:
             
             if output_path:
                 plt.savefig(output_path, bbox_inches='tight', dpi=150)
-                logger.info(f"Saved attention heatmap to {output_path}")
+                logger.info("Saved attention heatmap to %s", output_path)
             
             return fig
             
@@ -294,10 +297,232 @@ class AttentionVisualizer:
             
             if output_path:
                 plt.savefig(output_path, bbox_inches='tight', dpi=150)
-                logger.info(f"Saved attention heads plot to {output_path}")
+                logger.info("Saved attention heads plot to %s", output_path)
             
             return fig
             
         except ImportError:
             logger.warning("matplotlib/seaborn not available for visualization")
             return None
+    
+    def visualize_from_dsl(
+        self,
+        dsl_file: str,
+        input_data: np.ndarray,
+        backend: str = 'tensorflow',
+        layer_name: Optional[str] = None,
+        head_index: Optional[int] = None,
+        tokens: Optional[List[str]] = None,
+        output_dir: str = 'attention_outputs'
+    ) -> Dict[str, Any]:
+        """
+        Visualize attention from a Neural DSL model file.
+        
+        Args:
+            dsl_file: Path to .neural or .nr file
+            input_data: Input data for attention visualization
+            backend: Backend to compile model with
+            layer_name: Specific attention layer to visualize
+            head_index: Specific attention head
+            tokens: Token labels
+            output_dir: Directory to save outputs
+            
+        Returns:
+            Dictionary with attention weights and visualizations
+        """
+        import os
+        from pathlib import Path
+        
+        os.makedirs(output_dir, exist_ok=True)
+        
+        try:
+            from neural.parser.parser import create_parser, ModelTransformer
+            from neural.code_generation import generate_code
+            
+            parser = create_parser(start_rule='network')
+            with open(dsl_file, 'r') as f:
+                dsl_content = f.read()
+            
+            tree = parser.parse(dsl_content)
+            model_data = ModelTransformer().transform(tree)
+            
+            logger.info(f"Parsed Neural DSL file: {dsl_file}")
+            
+            code = generate_code(model_data, backend)
+            
+            model_path = os.path.join(output_dir, f'compiled_model_{backend}.py')
+            with open(model_path, 'w') as f:
+                f.write(code)
+            
+            logger.info(f"Generated {backend} code for model")
+            
+            if backend == 'tensorflow':
+                import tensorflow as tf
+                import importlib.util
+                
+                spec = importlib.util.spec_from_file_location("compiled_model", model_path)
+                compiled_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(compiled_module)
+                
+                model = compiled_module.create_model()
+                logger.info("Loaded compiled TensorFlow model")
+                
+            elif backend == 'pytorch':
+                import torch
+                import importlib.util
+                
+                spec = importlib.util.spec_from_file_location("compiled_model", model_path)
+                compiled_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(compiled_module)
+                
+                model = compiled_module.create_model()
+                logger.info("Loaded compiled PyTorch model")
+            else:
+                raise ValueError(f"Unsupported backend: {backend}")
+            
+            self.model = model
+            self.backend = backend
+            
+            results = self.visualize(
+                input_data,
+                layer_name=layer_name,
+                head_index=head_index,
+                tokens=tokens,
+                output_path=os.path.join(output_dir, 'attention_heatmap.png')
+            )
+            
+            if results['attention_weights']:
+                for layer_name, weights in results['attention_weights'].items():
+                    if len(weights.shape) >= 3:
+                        heads_path = os.path.join(output_dir, f'attention_heads_{layer_name}.png')
+                        self.plot_attention_heads(
+                            weights[0] if len(weights.shape) == 4 else weights,
+                            tokens=tokens,
+                            output_path=heads_path
+                        )
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Failed to visualize attention from DSL: {e}")
+            raise
+    
+    def create_interactive_visualization(
+        self,
+        attention_weights: Dict[str, np.ndarray],
+        tokens: Optional[List[str]] = None,
+        output_path: str = 'attention_interactive.html'
+    ) -> str:
+        """
+        Create an interactive attention visualization using plotly.
+        
+        Args:
+            attention_weights: Dictionary of attention weights by layer
+            tokens: Token labels
+            output_path: Path to save HTML file
+            
+        Returns:
+            Path to generated HTML file
+        """
+        try:
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+            
+            num_layers = len(attention_weights)
+            
+            fig = make_subplots(
+                rows=1, cols=num_layers,
+                subplot_titles=list(attention_weights.keys()),
+                horizontal_spacing=0.1
+            )
+            
+            for idx, (layer_name, weights) in enumerate(attention_weights.items(), 1):
+                if len(weights.shape) == 4:
+                    weights = weights[0].mean(axis=0)
+                elif len(weights.shape) == 3:
+                    weights = weights.mean(axis=0)
+                
+                heatmap = go.Heatmap(
+                    z=weights,
+                    x=tokens if tokens else list(range(weights.shape[1])),
+                    y=tokens if tokens else list(range(weights.shape[0])),
+                    colorscale='Viridis',
+                    showscale=True if idx == num_layers else False
+                )
+                
+                fig.add_trace(heatmap, row=1, col=idx)
+            
+            fig.update_layout(
+                title='Attention Weights Visualization',
+                height=500,
+                width=400 * num_layers
+            )
+            
+            fig.write_html(output_path)
+            logger.info(f"Saved interactive visualization to {output_path}")
+            
+            return output_path
+            
+        except ImportError:
+            logger.warning("plotly not available for interactive visualization")
+            return None
+    
+    def analyze_attention_patterns(
+        self,
+        attention_weights: np.ndarray
+    ) -> Dict[str, Any]:
+        """
+        Analyze attention patterns for insights.
+        
+        Args:
+            attention_weights: Attention weights to analyze
+            
+        Returns:
+            Dictionary with analysis results
+        """
+        analysis = {}
+        
+        if len(attention_weights.shape) == 4:
+            weights = attention_weights[0]
+        elif len(attention_weights.shape) == 3:
+            weights = attention_weights
+        else:
+            weights = attention_weights[np.newaxis, :]
+        
+        num_heads = weights.shape[0]
+        
+        analysis['num_heads'] = num_heads
+        analysis['attention_entropy'] = []
+        analysis['max_attention_per_head'] = []
+        analysis['attention_distribution'] = []
+        
+        for head_idx in range(num_heads):
+            head_weights = weights[head_idx]
+            
+            attention_probs = head_weights / (head_weights.sum(axis=-1, keepdims=True) + 1e-10)
+            entropy = -(attention_probs * np.log(attention_probs + 1e-10)).sum(axis=-1).mean()
+            analysis['attention_entropy'].append(float(entropy))
+            
+            max_attention = head_weights.max(axis=-1).mean()
+            analysis['max_attention_per_head'].append(float(max_attention))
+            
+            analysis['attention_distribution'].append({
+                'mean': float(head_weights.mean()),
+                'std': float(head_weights.std()),
+                'min': float(head_weights.min()),
+                'max': float(head_weights.max())
+            })
+        
+        analysis['avg_entropy'] = float(np.mean(analysis['attention_entropy']))
+        analysis['avg_max_attention'] = float(np.mean(analysis['max_attention_per_head']))
+        
+        diagonal_attention = []
+        for head_idx in range(num_heads):
+            head_weights = weights[head_idx]
+            diag_strength = np.diag(head_weights).mean() / (head_weights.mean() + 1e-10)
+            diagonal_attention.append(float(diag_strength))
+        
+        analysis['diagonal_attention_strength'] = diagonal_attention
+        analysis['avg_diagonal_strength'] = float(np.mean(diagonal_attention))
+        
+        return analysis

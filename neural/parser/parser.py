@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import re
@@ -42,7 +44,7 @@ logging.basicConfig(
     format='%(levelname)s: %(message)s'  # Include severity in output
 )
 
-def log_by_severity(severity: Severity, message: str) -> None:
+def log_by_severity(severity: 'Severity', message: str) -> None:
     """Log a message based on its severity level."""
     if severity == Severity.DEBUG:
         logger.debug(message)
@@ -97,7 +99,7 @@ class DSLValidationError(Exception):
         self.message = message  # Store raw message for logging
 
 # Custom error handler for Lark parsing
-def custom_error_handler(error):
+def custom_error_handler(error: Exception) -> Optional[Dict[str, Any]]:
     if isinstance(error, KeyError):
         msg = "Unexpected end of input (KeyError). The parser did not expect '$END'."
         severity = Severity.ERROR
@@ -209,7 +211,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         // Layer name patterns
         CUSTOM_LAYER.1: /[A-Z][a-zA-Z0-9]*((Layer|RNN)s?|Transformer|Encoder|Decoder|Regularizer|Initializer|Constraint|$)/  // Requires ending with common layer component suffixes to avoid matching basic layer types
 
-        MACRO_NAME: /^(?!.*Layer$)(?!ResidualConnection|Dot|Average|Maximum|Multiply|Add|Concatenate|substract|TimeDistributed|Activation|GroupNormalization|InstanceNormalization|LayerNormalization|GaussianNoise|TransformerEncoder|TransformerDecoder|BatchNormalization|Dropout|Flatten|Output|Conv2DTranspose|LSTM|GRU|SimpleRNN|LSTMCell|GRUCell|Dense|Conv1D|Conv2D|Conv3D|MaxPooling1D|MaxPooling2D|MaxPooling3D)[A-Z][a-zA-Z0-9]*/
+        MACRO_NAME: /^(?!.*Layer$)(?!ResidualConnection|Dot|Average|Maximum|Multiply|Add|Concatenate|substract|TimeDistributed|Activation|GroupNormalization|InstanceNormalization|LayerNormalization|GaussianNoise|TransformerEncoder|TransformerDecoder|MultiHeadAttention|BatchNormalization|Dropout|Flatten|Output|Conv2DTranspose|LSTM|GRU|SimpleRNN|LSTMCell|GRUCell|Dense|Conv1D|Conv2D|Conv3D|MaxPooling1D|MaxPooling2D|MaxPooling3D)[A-Z][a-zA-Z0-9]*/
 
         // Comments and whitespace
         COMMENT: /#[^\n]*/
@@ -661,7 +663,7 @@ class NeuralParser:
     for parsing different types of Neural DSL constructs.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the Neural parser with the main network parser."""
         self.parser = network_parser
         self.transformer = ModelTransformer()
@@ -717,6 +719,7 @@ class ModelTransformer(lark.Transformer):
             'TRANSFORMER': 'transformer',
             'TRANSFORMER_ENCODER': 'transformer',
             'TRANSFORMER_DECODER': 'transformer',
+            'MULTIHEADATTENTION': 'multiheadattention',
             'CONV2DTRANSPOSE': 'conv2d_transpose',
             'LSTMCELL': 'lstmcell',
             'GRUCELL': 'grucell',
@@ -828,11 +831,11 @@ class ModelTransformer(lark.Transformer):
 
         return layer_def
 
-    def special_layer(self, items):
+    def special_layer(self, items: List[Any]) -> Any:
         """Process special_layer rule by returning the first child (custom, macro_ref, etc.)."""
         return self._extract_value(items[0])
 
-    def define(self, items):
+    def define(self, items: List[Any]) -> Dict[str, Any]:
         """Process macro definition."""
         if len(items) < 1:
             self.raise_validation_error("Macro definition requires a name")
@@ -860,7 +863,7 @@ class ModelTransformer(lark.Transformer):
         # Return the macro structure instead of the layers list
         return {'type': macro_name, 'params': {}, 'sublayers': layers}
 
-    def _extract_layer_block_value(self, node):
+    def _extract_layer_block_value(self, node: Any) -> List[Any]:
         """Special version of _extract_value for layer_block nodes in Residual macros."""
         if not hasattr(node, 'data') or node.data != 'layer_block':
             return []
@@ -882,7 +885,7 @@ class ModelTransformer(lark.Transformer):
 
         return sub_layers
 
-    def macro_ref(self, items):
+    def macro_ref(self, items: List[Any]) -> Dict[str, Any]:
         """Process a macro reference."""
         macro_name = items[0].value
 
@@ -967,7 +970,7 @@ class ModelTransformer(lark.Transformer):
 
         return {'type': macro_name, 'params': params, 'sublayers': sub_layers}
 
-    def layer_block(self, items):
+    def layer_block(self, items: List[Any]) -> List[Any]:
         """Process a block of nested layers."""
         sub_layers = []
         for item in items:
@@ -1045,11 +1048,11 @@ class ModelTransformer(lark.Transformer):
             return {'type': layer_type, 'params': raw_params, 'sublayers': sublayers}
 
 
-    def branch_spec(self, items):
+    def branch_spec(self, items: List[Any]) -> Dict[str, Any]:
         # NAME ':' '{' (layer_or_repeated)* '}'
         name_token = items[0]
         name = name_token.value if hasattr(name_token, 'value') else str(name_token)
-        sub_layers: list = []
+        sub_layers: List[Any] = []
         # Collect all subsequent children as potential sublayers
         for child in items[1:]:
             val = self._extract_value(child)
@@ -1060,18 +1063,18 @@ class ModelTransformer(lark.Transformer):
         return {'type': 'Branch', 'name': name, 'sublayers': sub_layers}
 
 
-    def device_spec(self, items):
+    def device_spec(self, items: List[Any]) -> Optional[str]:
         """Process device specification correctly (e.g., @ "cuda:0")."""
         # Expect pattern: AT STRING (or AT NAME in future grammar). Extract the second element.
         if len(items) > 1:
             return self._extract_value(items[1])
         # Fallback: nothing usable
         return None
-    def params(self, items):
+    def params(self, items: List[Any]) -> List[Any]:
         return [self._extract_value(item) for item in items]
-    def param(self, items):
+    def param(self, items: List[Any]) -> Any:
         return self._extract_value(items[0])
-    def advanced_layer(self, items):
+    def advanced_layer(self, items: List[Any]) -> Any:
         return self._extract_value(items[0])
     def layers(self, items: List[Any]) -> List[LayerConfig]:
         expanded_layers: List[LayerConfig] = []
@@ -1085,7 +1088,7 @@ class ModelTransformer(lark.Transformer):
                 expanded_layers.append(item)
         return expanded_layers
 
-    def layer_or_repeated(self, items):
+    def layer_or_repeated(self, items: List[Any]) -> Union[Any, Tuple[Any, int]]:
         # Debug the items to understand what's being passed
         if len(items) == 1:
             return items[0]  # Just the layer, no repetition
@@ -1119,9 +1122,9 @@ class ModelTransformer(lark.Transformer):
         return {'type': 'Input', 'shape': shapes[0] if len(shapes) == 1 else shapes}
 
 
-    def named_inputs(self, items):
+    def named_inputs(self, items: List[Any]) -> Dict[str, Any]:
         # Items come as alternating NAME and shape
-        result = {}
+        result: Dict[str, Any] = {}
         i = 0
         while i < len(items):
             name_token = items[i]
@@ -1227,10 +1230,10 @@ class ModelTransformer(lark.Transformer):
         # Ensure sublayers is included
         return {'type': 'Output', 'params': params, 'sublayers': []}
 
-    def regularization(self, items):
+    def regularization(self, items: List[Any]) -> Dict[str, Any]:
         return {'type': items[0].data.capitalize(), 'params': self._extract_value(items[0].children[0])}
 
-    def parse_execution_config(self, items):
+    def parse_execution_config(self, items: List[Any]) -> Dict[str, Any]:
         """Parse execution configuration parameters.
 
         Args:
@@ -1368,10 +1371,10 @@ class ModelTransformer(lark.Transformer):
             result['device'] = device
         return result
 
-    def conv(self, items):
+    def conv(self, items: List[Any]) -> Any:
         return items[0]
 
-    def conv1d(self, items):
+    def conv1d(self, items: List[Any]) -> LayerConfig:
         params = self._extract_value(items[0])
         if 'filters' in params:
             filters = params['filters']
@@ -1507,7 +1510,7 @@ class ModelTransformer(lark.Transformer):
             result['device'] = device
         return result
 
-    def conv3d(self, items):
+    def conv3d(self, items: List[Any]) -> LayerConfig:
         params = self._extract_value(items[0])
         if 'filters' in params:
             filters = params['filters']
@@ -1522,31 +1525,31 @@ class ModelTransformer(lark.Transformer):
                 self.raise_validation_error(f"Conv3D kernel_size must be a positive integer, got {ks}", items[0])
         return {'type': 'Conv3D', 'params': params}
 
-    def conv1d_transpose(self, items):
+    def conv1d_transpose(self, items: List[Any]) -> LayerConfig:
         return {'type': 'Conv1DTranspose', 'params': self._extract_value(items[0])}
 
-    def conv2d_transpose(self, items):
+    def conv2d_transpose(self, items: List[Any]) -> LayerConfig:
         return {'type': 'Conv2DTranspose', 'params': self._extract_value(items[0])}
 
-    def conv3d_transpose(self, items):
+    def conv3d_transpose(self, items: List[Any]) -> LayerConfig:
         return {'type': 'Conv3DTranspose', 'params': self._extract_value(items[0])}
 
-    def depthwise_conv2d(self, items):
+    def depthwise_conv2d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'DepthwiseConv2D', 'params': self._extract_value(items[0])}
 
-    def separable_conv2d(self, items):
+    def separable_conv2d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'SeparableConv2D', 'params': self._extract_value(items[0])}
 
-    def graph_conv(self, items):
+    def graph_conv(self, items: List[Any]) -> LayerConfig:
         params = self._extract_value(items[0]) if items else None
         return {'type': 'GraphConv', 'params': params}
 
-    def loss(self, items):
+    def loss(self, items: List[Any]) -> str:
         loss_name = items[0].value.strip('"\'')
         self._validate_loss_function(loss_name, items[0])
         return loss_name
 
-    def named_optimizer(self, items):
+    def named_optimizer(self, items: List[Any]) -> Dict[str, Any]:
         import logging
         logger = logging.getLogger(__name__)
         logger.setLevel(logging.DEBUG)
@@ -1653,7 +1656,7 @@ class ModelTransformer(lark.Transformer):
         logger.debug(f"named_optimizer returning: {result}")
         return result
 
-    def schedule(self, items):
+    def schedule(self, items: List[Any]) -> Dict[str, Any]:
         return {"type": items[0].value, "args": [self._extract_value(x) for x in items[1].children]}
 
     ## Training And Configurations ##
@@ -1687,18 +1690,18 @@ class ModelTransformer(lark.Transformer):
 
         return params
 
-    def search_method_param_rule(self, items):
+    def search_method_param_rule(self, items: List[Any]) -> Dict[str, Any]:
         """Process search_method parameter."""
         return {'search_method': self._extract_value(items[0])}
 
 
-    def validation_split_param(self, items):
+    def validation_split_param(self, items: List[Any]) -> Dict[str, float]:
         return {'validation_split': self._extract_value(items[0])}
 
-    def epochs_param(self, items):
+    def epochs_param(self, items: List[Any]) -> Dict[str, int]:
         return {'epochs': self._extract_value(items[0])}
 
-    def batch_size_param(self, items):
+    def batch_size_param(self, items: List[Any]) -> Dict[str, Any]:
         value = self._extract_value(items[0])
         if isinstance(value, dict) and 'hpo' in value:
             # Track HPO for batch_size
@@ -1754,11 +1757,11 @@ class ModelTransformer(lark.Transformer):
             'params': params
         }
 
-    def exponential_decay_param(self, items):
+    def exponential_decay_param(self, items: List[Any]) -> Any:
         """Process an exponential decay parameter."""
         return self._extract_value(items[0])
 
-    def exponential_decay(self, items):
+    def exponential_decay(self, items: List[Any]) -> Dict[str, Any]:
         """Process ExponentialDecay learning rate schedule."""
         print(f"DEBUG: exponential_decay items: {items}")
         params = {}
@@ -1801,20 +1804,20 @@ class ModelTransformer(lark.Transformer):
             'params': params
         }
 
-    def decay_steps(self, items):
+    def decay_steps(self, items: List[Any]) -> Dict[str, Any]:
         return {'decay_steps': self._extract_value(items[0])}
 
     ###############
 
 
-    def values_list(self, items):
+    def values_list(self, items: List[Any]) -> Any:
         values = [self._extract_value(x) for x in items]
         return values[0] if len(values) == 1 else values
 
-    def optimizer_param(self, items):
+    def optimizer_param(self, items: List[Any]) -> Dict[str, Any]:
         return {'optimizer': self._extract_value(items[0])}
 
-    def learning_rate_param(self, items):
+    def learning_rate_param(self, items: List[Any]) -> Dict[str, Any]:
         value = self._extract_value(items[0])
 
         # Handle direct learning rate schedule
@@ -1921,7 +1924,7 @@ class ModelTransformer(lark.Transformer):
 
         return {'learning_rate': value}
 
-    def momentum_param(self, items):
+    def momentum_param(self, items: List[Any]) -> Dict[str, Any]:
         value = self._extract_value(items[0])
         if isinstance(value, dict) and 'hpo' in value:
             # Track HPO for momentum
@@ -1930,23 +1933,23 @@ class ModelTransformer(lark.Transformer):
             self.raise_validation_error(f"momentum should be between 0 and 1, got {value}", items[0])
         return {'momentum': value}
 
-    def shape(self, items):
+    def shape(self, items: List[Any]) -> Tuple[Any, ...]:
         return tuple(self._extract_value(item) for item in items)
 
     ## Pooling Layers ##
 
 
-    def pooling(self, items):
+    def pooling(self, items: List[Any]) -> Any:
         return items[0]
 
-    def max_pooling(self, items):
+    def max_pooling(self, items: List[Any]) -> Any:
         return self._extract_value(items[0])
 
-    def pool_size(self, items):
+    def pool_size(self, items: List[Any]) -> Dict[str, Any]:
         value = self._extract_value(items[0])
         return {'pool_size': value}
 
-    def maxpooling1d(self, items):
+    def maxpooling1d(self, items: List[Any]) -> LayerConfig:
         param_nodes = items[0].children
         params = {}
         param_vals = [self._extract_value(child) for child in param_nodes]
@@ -2031,12 +2034,12 @@ class ModelTransformer(lark.Transformer):
         if device is not None:
             result['device'] = device
         return result
-    def max_pooling2d(self, items):
+    def max_pooling2d(self, items: List[Any]) -> LayerConfig:
         """Alias handler that delegates to maxpooling2d for consistency."""
         return self.maxpooling2d(items)
 
 
-    def maxpooling3d(self, items):
+    def maxpooling3d(self, items: List[Any]) -> LayerConfig:
         param_nodes = items[0].children
         params = {}
 
@@ -2061,55 +2064,55 @@ class ModelTransformer(lark.Transformer):
                     self.raise_validation_error(f"MaxPooling3D {key} must be a positive integer, got {val}", items[0])
         return {"type": "MaxPooling3D", "params": params}
 
-    def average_pooling1d(self, items):
+    def average_pooling1d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'AveragePooling1D', 'params': self._extract_value(items[0])}
 
-    def average_pooling2d(self, items):
+    def average_pooling2d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'AveragePooling2D', 'params': self._extract_value(items[0])}
 
-    def average_pooling3d(self, items):
+    def average_pooling3d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'AveragePooling3D', 'params': self._extract_value(items[0])}
 
-    def global_max_pooling1d(self, items):
+    def global_max_pooling1d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'GlobalMaxPooling1D', 'params': self._extract_value(items[0])}
 
-    def global_max_pooling2d(self, items):
+    def global_max_pooling2d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'GlobalMaxPooling2D', 'params': self._extract_value(items[0])}
 
-    def global_max_pooling3d(self, items):
+    def global_max_pooling3d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'GlobalMaxPooling3D', 'params': self._extract_value(items[0])}
 
-    def global_average_pooling1d(self, items):
+    def global_average_pooling1d(self, items: List[Any]) -> LayerConfig:
         params = self._extract_value(items[0]) if items else {}
         return {'type': 'GlobalAveragePooling1D', 'params': params or {}, 'sublayers': []}
 
-    def global_average_pooling2d(self, items):
+    def global_average_pooling2d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'GlobalAveragePooling2D', 'params': self._extract_value(items[0])}
 
-    def global_average_pooling3d(self, items):
+    def global_average_pooling3d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'GlobalAveragePooling3D', 'params': self._extract_value(items[0])}
 
-    def adaptive_max_pooling1d(self, items):
+    def adaptive_max_pooling1d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'AdaptiveMaxPooling1D', 'params': self._extract_value(items[0])}
 
-    def adaptive_max_pooling2d(self, items):
+    def adaptive_max_pooling2d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'AdaptiveMaxPooling2D', 'params': self._extract_value(items[0])}
 
-    def adaptive_max_pooling3d(self, items):
+    def adaptive_max_pooling3d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'AdaptiveMaxPooling3D', 'params': self._extract_value(items[0])}
 
-    def adaptive_average_pooling1d(self, items):
+    def adaptive_average_pooling1d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'AdaptiveAveragePooling1D', 'params': self._extract_value(items[0])}
 
-    def adaptive_average_pooling2d(self, items):
+    def adaptive_average_pooling2d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'AdaptiveAveragePooling2D', 'params': self._extract_value(items[0])}
 
-    def adaptive_average_pooling3d(self, items):
+    def adaptive_average_pooling3d(self, items: List[Any]) -> LayerConfig:
         return {'type': 'AdaptiveAveragePooling3D', 'params': self._extract_value(items[0])}
 
     ## Normalization ##
 
-    def norm_layer(self, items):
+    def norm_layer(self, items: List[Any]) -> Any:
         return self._extract_value(items[0])
 
 
@@ -2147,19 +2150,19 @@ class ModelTransformer(lark.Transformer):
 
         return {'type': 'BatchNormalization', 'params': params}  # 'sublayers' added by basic_layer
 
-    def named_momentum(self, items):
+    def named_momentum(self, items: List[Any]) -> Dict[str, Any]:
         return {'momentum': self._extract_value(items[0])}
 
-    def layer_norm(self, items):
+    def layer_norm(self, items: List[Any]) -> LayerConfig:
         params = self._extract_value(items[0]) if items else None
         return {'type': 'LayerNormalization', 'params': params}
 
-    def instance_norm(self, items):
+    def instance_norm(self, items: List[Any]) -> LayerConfig:
         params = self._extract_value(items[0]) if items else None
         return {'type': 'InstanceNormalization', 'params': params}
 
 
-    def group_norm(self, items):
+    def group_norm(self, items: List[Any]) -> LayerConfig:
         raw_params = self._extract_value(items[0]) if items else None
         params = {}
         if isinstance(raw_params, list):
@@ -2209,7 +2212,7 @@ class ModelTransformer(lark.Transformer):
 
         return {'type': 'LSTM', 'params': params}
 
-    def lr_schedule(self, items):
+    def lr_schedule(self, items: List[Any]) -> Dict[str, Any]:
         """
         Process learning rate schedule expressions.
 
@@ -2235,7 +2238,7 @@ class ModelTransformer(lark.Transformer):
             'args': args
         }
 
-    def exponentialdecay(self, items):
+    def exponentialdecay(self, items: List[Any]) -> Dict[str, Any]:
         """
         Process an ExponentialDecay learning rate schedule.
 
@@ -2257,7 +2260,7 @@ class ModelTransformer(lark.Transformer):
             'args': args
         }
 
-    def lr_schedule_args(self, items):
+    def lr_schedule_args(self, items: List[Any]) -> List[Any]:
         """
         Process learning rate schedule arguments.
 
@@ -2271,7 +2274,7 @@ class ModelTransformer(lark.Transformer):
         """
         return items
 
-    def lr_schedule_arg(self, items):
+    def lr_schedule_arg(self, items: List[Any]) -> Any:
         """
         Process a learning rate schedule argument.
 
@@ -2285,7 +2288,7 @@ class ModelTransformer(lark.Transformer):
         """
         return self._extract_value(items[0])
 
-    def conv_lstm(self, items):
+    def conv_lstm(self, items: List[Any]) -> LayerConfig:
         """
         Process a ConvLSTM2D layer.
 
@@ -2299,7 +2302,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'type': 'ConvLSTM2D', 'params': self._extract_value(items[0])}
 
-    def conv_gru(self, items):
+    def conv_gru(self, items: List[Any]) -> LayerConfig:
         """
         Process a ConvGRU2D layer.
 
@@ -2313,7 +2316,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'type': 'ConvGRU2D', 'params': self._extract_value(items[0])}
 
-    def bidirectional_rnn(self, items):
+    def bidirectional_rnn(self, items: List[Any]) -> LayerConfig:
         """
         Process a bidirectional RNN layer.
 
@@ -2332,7 +2335,7 @@ class ModelTransformer(lark.Transformer):
         rnn_layer['params'].update(bidirectional_params)
         return {'type': f"Bidirectional({rnn_layer['type']})", 'params': rnn_layer['params']}
 
-    def cudnn_gru_layer(self, items):
+    def cudnn_gru_layer(self, items: List[Any]) -> LayerConfig:
         """
         Process a CuDNN GRU layer.
 
@@ -2347,7 +2350,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'type': 'GRU', 'params': self._extract_value(items[0])}
 
-    def bidirectional_simple_rnn_layer(self, items):
+    def bidirectional_simple_rnn_layer(self, items: List[Any]) -> LayerConfig:
         """
         Process a bidirectional SimpleRNN layer.
 
@@ -2361,7 +2364,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'type': 'Bidirectional(SimpleRNN)', 'params': self._extract_value(items[0])}
 
-    def bidirectional_lstm_layer(self, items):
+    def bidirectional_lstm_layer(self, items: List[Any]) -> LayerConfig:
         """
         Process a bidirectional LSTM layer.
 
@@ -2375,7 +2378,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'type': 'Bidirectional(LSTM)', 'params': self._extract_value(items[0])}
 
-    def bidirectional_gru_layer(self, items):
+    def bidirectional_gru_layer(self, items: List[Any]) -> LayerConfig:
         """
         Process a bidirectional GRU layer.
 
@@ -2389,7 +2392,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'type': 'Bidirectional(GRU)', 'params': self._extract_value(items[0])}
 
-    def conv_lstm_layer(self, items):
+    def conv_lstm_layer(self, items: List[Any]) -> LayerConfig:
         """
         Process a ConvLSTM2D layer.
 
@@ -2404,7 +2407,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'type': 'ConvLSTM2D', 'params': self._extract_value(items[0])}
 
-    def conv_gru_layer(self, items):
+    def conv_gru_layer(self, items: List[Any]) -> LayerConfig:
         """
         Process a ConvGRU2D layer.
 
@@ -2421,7 +2424,7 @@ class ModelTransformer(lark.Transformer):
 
     ## Cell Layers ##
 
-    def rnn_cell_layer(self, items):
+    def rnn_cell_layer(self, items: List[Any]) -> LayerConfig:
         """
         Process an RNNCell layer.
 
@@ -2436,7 +2439,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'type': 'RNNCell', 'params': self._extract_value(items[0])}
 
-    def simple_rnn_cell(self, items):
+    def simple_rnn_cell(self, items: List[Any]) -> LayerConfig:
         """
         Process a SimpleRNNCell layer.
 
@@ -2451,7 +2454,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'type': 'SimpleRNNCell', 'params': self._extract_value(items[0])}
 
-    def lstmcell(self, items):
+    def lstmcell(self, items: List[Any]) -> LayerConfig:
         """
         Process an LSTMCell layer.
 
@@ -2483,7 +2486,7 @@ class ModelTransformer(lark.Transformer):
             self.raise_validation_error("LSTMCell requires 'units' parameter", items)
         return {'type': 'LSTMCell', 'params': params}
 
-    def grucell(self, items):
+    def grucell(self, items: List[Any]) -> LayerConfig:
         """
         Process a GRUCell layer.
 
@@ -2516,7 +2519,7 @@ class ModelTransformer(lark.Transformer):
             self.raise_validation_error("GRUCell requires 'units' parameter", items[0])
         return {"type": "GRUCell", "params": params}
 
-    def simple_rnn_dropout(self, items):
+    def simple_rnn_dropout(self, items: List[Any]) -> LayerConfig:
         """
         Process a SimpleRNNDropoutWrapper layer.
 
@@ -2554,7 +2557,7 @@ class ModelTransformer(lark.Transformer):
 
         return {"type": "SimpleRNNDropoutWrapper", 'params': params}
 
-    def gru_dropout(self, items):
+    def gru_dropout(self, items: List[Any]) -> LayerConfig:
         """
         Process a GRUDropoutWrapper layer.
 
@@ -2569,7 +2572,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {"type": "GRUDropoutWrapper", 'params': self._extract_value(items[0])}
 
-    def lstm_dropout(self, items):
+    def lstm_dropout(self, items: List[Any]) -> LayerConfig:
         """
         Process an LSTMDropoutWrapper layer.
 
@@ -2584,7 +2587,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {"type": "LSTMDropoutWrapper", 'params': self._extract_value(items[0])}
 
-    def research(self, items):
+    def research(self, items: List[Any]) -> Dict[str, Any]:
         """
         Process a Research block.
 
@@ -2610,7 +2613,7 @@ class ModelTransformer(lark.Transformer):
                 params = self._extract_value(items[0])
         return {'type': 'Research', 'name': name, 'params': params}
 
-    def research_params(self, items):
+    def research_params(self, items: List[Any]) -> Dict[str, Any]:
         """
         Process parameters for a Research block.
 
@@ -2631,7 +2634,7 @@ class ModelTransformer(lark.Transformer):
                 params.update(item)
         return params
 
-    def metrics(self, items):
+    def metrics(self, items: List[Any]) -> Dict[str, Any]:
         """
         Process metrics specifications.
 
@@ -2666,7 +2669,7 @@ class ModelTransformer(lark.Transformer):
 
 
 
-    def accuracy_param(self, items):
+    def accuracy_param(self, items: List[Any]) -> Dict[str, Any]:
         """
         Process an accuracy metric parameter.
 
@@ -2681,7 +2684,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'accuracy': self._extract_value(items[0])}
 
-    def precision_param(self, items):
+    def precision_param(self, items: List[Any]) -> Dict[str, Any]:
         """
         Process a precision metric parameter.
 
@@ -2696,7 +2699,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'precision': self._extract_value(items[0])}
 
-    def recall_param(self, items):
+    def recall_param(self, items: List[Any]) -> Dict[str, Any]:
         """
         Process a recall metric parameter.
 
@@ -2711,7 +2714,7 @@ class ModelTransformer(lark.Transformer):
         """
         return {'recall': self._extract_value(items[0])}
 
-    def paper_param(self, items):
+    def paper_param(self, items: List[Any]) -> str:
         """
         Process a paper reference parameter.
 
@@ -2727,7 +2730,7 @@ class ModelTransformer(lark.Transformer):
         # Extract the string value from the 'paper:' parameter
         return self._extract_value(items[0])
 
-    def references(self, items):
+    def references(self, items: List[Any]) -> Dict[str, List[str]]:
         """
         Process paper references.
 
@@ -2742,7 +2745,7 @@ class ModelTransformer(lark.Transformer):
         """
         papers = [self._extract_value(item) for item in items if item is not None]
         return {'references': papers}
-    def metrics_loss_param(self, items):
+    def metrics_loss_param(self, items: List[Any]) -> Dict[str, Any]:
         """
         Process a loss metric parameter.
 
@@ -3317,6 +3320,33 @@ class ModelTransformer(lark.Transformer):
                     self.raise_validation_error(f"{transformer_type} {key} must be a positive integer, got {val}", items[0])
 
         return {'type': transformer_type, 'params': params, 'sublayers': sub_layers}
+
+    def multiheadattention(self, items):
+        items = self._shift_if_token(items)
+        params: Dict[str, Any] = {}
+        
+        if not items or items[0] is None:
+            return {'type': 'MultiHeadAttention', 'params': {}, 'sublayers': []}
+        
+        param_node = items[0]
+        param_values = self._extract_value(param_node) if param_node else []
+        
+        if isinstance(param_values, list):
+            for param in param_values:
+                if isinstance(param, dict):
+                    params.update(param)
+        elif isinstance(param_values, dict):
+            params = param_values
+        
+        for key in ['num_heads', 'key_dim']:
+            if key in params:
+                val = params[key]
+                if isinstance(val, dict) and 'hpo' in val:
+                    continue
+                if not isinstance(val, int) or val <= 0:
+                    self.raise_validation_error(f"MultiHeadAttention {key} must be a positive integer, got {val}", items[0] if items else None)
+        
+        return {'type': 'MultiHeadAttention', 'params': params, 'sublayers': []}
 
     def named_num_heads(self, items):
         params = self._extract_value(items[0]) if items else None

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """
 Main CLI implementation for Neural using Click.
 """
@@ -102,6 +102,184 @@ logger = logging.getLogger(__name__)
 
 # Supported datasets
 SUPPORTED_DATASETS = {"MNIST", "CIFAR10", "CIFAR100", "ImageNet"}
+
+# Input validation functions
+def sanitize_file_path(file_path: str, allow_absolute: bool = True) -> str:
+    """
+    Sanitize and validate a file path to prevent path traversal attacks.
+    
+    Args:
+        file_path: The file path to sanitize
+        allow_absolute: Whether to allow absolute paths
+        
+    Returns:
+        Sanitized file path
+        
+    Raises:
+        ValueError: If the path is invalid or contains malicious patterns
+    """
+    if not file_path or not isinstance(file_path, str):
+        raise ValueError("File path must be a non-empty string")
+    
+    # Remove null bytes
+    file_path = file_path.replace('\0', '')
+    
+    # Normalize the path
+    normalized = os.path.normpath(file_path)
+    
+    # Check for path traversal attempts
+    if '..' in normalized.split(os.sep):
+        raise ValueError(f"Path traversal detected in: {file_path}")
+    
+    # Check for absolute paths if not allowed
+    if not allow_absolute and os.path.isabs(normalized):
+        raise ValueError(f"Absolute paths not allowed: {file_path}")
+    
+    # Check for suspicious patterns
+    suspicious_patterns = [r'\.\./', r'\.\.$', r'^\.\.', r'~/', r'\$\{', r'%[A-Z_]+%']
+    for pattern in suspicious_patterns:
+        if re.search(pattern, file_path):
+            raise ValueError(f"Suspicious pattern detected in path: {file_path}")
+    
+    return normalized
+
+def validate_port(port: int, min_port: int = 1024, max_port: int = 65535) -> int:
+    """
+    Validate a port number.
+    
+    Args:
+        port: Port number to validate
+        min_port: Minimum allowed port (default: 1024 to avoid privileged ports)
+        max_port: Maximum allowed port
+        
+    Returns:
+        Validated port number
+        
+    Raises:
+        ValueError: If port is invalid
+    """
+    if not isinstance(port, int):
+        try:
+            port = int(port)
+        except (TypeError, ValueError):
+            raise ValueError(f"Port must be an integer, got: {type(port).__name__}")
+    
+    if port < min_port or port > max_port:
+        raise ValueError(f"Port must be between {min_port} and {max_port}, got: {port}")
+    
+    return port
+
+def validate_backend(backend: str) -> str:
+    """
+    Validate and normalize a backend name.
+    
+    Args:
+        backend: Backend name to validate
+        
+    Returns:
+        Normalized backend name
+        
+    Raises:
+        ValueError: If backend is invalid
+    """
+    if not backend or not isinstance(backend, str):
+        raise ValueError("Backend must be a non-empty string")
+    
+    backend = backend.lower().strip()
+    valid_backends = {'tensorflow', 'pytorch', 'onnx', 'jax'}
+    
+    if backend not in valid_backends:
+        raise ValueError(f"Invalid backend '{backend}'. Supported: {', '.join(sorted(valid_backends))}")
+    
+    return backend
+
+def validate_dataset_name(dataset: str) -> str:
+    """
+    Validate a dataset name.
+    
+    Args:
+        dataset: Dataset name to validate
+        
+    Returns:
+        Validated dataset name
+        
+    Raises:
+        ValueError: If dataset name is invalid
+    """
+    if not dataset or not isinstance(dataset, str):
+        raise ValueError("Dataset name must be a non-empty string")
+    
+    # Remove any potentially dangerous characters
+    dataset = dataset.strip()
+    
+    # Check for alphanumeric and basic separators only
+    if not re.match(r'^[a-zA-Z0-9_-]+$', dataset):
+        raise ValueError(f"Dataset name contains invalid characters: {dataset}")
+    
+    # Check length
+    if len(dataset) > 100:
+        raise ValueError(f"Dataset name too long (max 100 characters): {dataset}")
+    
+    return dataset
+
+def validate_json_input(json_str: str, max_size: int = 1024 * 1024) -> dict:
+    """
+    Validate and parse JSON input safely.
+    
+    Args:
+        json_str: JSON string to parse
+        max_size: Maximum allowed size in bytes
+        
+    Returns:
+        Parsed JSON as dictionary
+        
+    Raises:
+        ValueError: If JSON is invalid or too large
+    """
+    if not json_str or not isinstance(json_str, str):
+        raise ValueError("JSON input must be a non-empty string")
+    
+    if len(json_str.encode('utf-8')) > max_size:
+        raise ValueError(f"JSON input too large (max {max_size} bytes)")
+    
+    try:
+        data = json.loads(json_str)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON: {str(e)}")
+    
+    if not isinstance(data, dict):
+        raise ValueError("JSON must be a dictionary/object")
+    
+    return data
+
+def sanitize_experiment_name(name: str) -> str:
+    """
+    Sanitize an experiment or model name.
+    
+    Args:
+        name: Name to sanitize
+        
+    Returns:
+        Sanitized name
+        
+    Raises:
+        ValueError: If name is invalid
+    """
+    if not name or not isinstance(name, str):
+        raise ValueError("Name must be a non-empty string")
+    
+    # Remove leading/trailing whitespace
+    name = name.strip()
+    
+    # Check length
+    if len(name) < 1 or len(name) > 200:
+        raise ValueError(f"Name length must be between 1 and 200 characters, got: {len(name)}")
+    
+    # Allow alphanumeric, spaces, hyphens, underscores
+    if not re.match(r'^[a-zA-Z0-9_\- ]+$', name):
+        raise ValueError(f"Name contains invalid characters: {name}")
+    
+    return name
 
 # Global CLI context
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -250,6 +428,15 @@ def compile(ctx, file: str, backend: str, dataset: str, output: Optional[str], d
 def docs(ctx, file: str, output: str, pdf: bool):
     """Generate Markdown (and optionally PDF) documentation with math and shapes."""
     print_command_header("docs")
+    
+    # Input validation
+    try:
+        file = sanitize_file_path(file)
+        output = sanitize_file_path(output)
+    except ValueError as e:
+        print_error(f"Invalid input: {str(e)}")
+        sys.exit(1)
+    
     print_info(f"Generating documentation for {file}")
 
     # Parse the Neural DSL file (same start rule detection as compile)
@@ -295,7 +482,7 @@ def docs(ctx, file: str, output: str, pdf: bool):
 
 
 
-#### RUN COMMAND #####
+####Â RUN COMMAND #####
 
 @cli.command()
 @click.argument('file', type=click.Path(exists=True, file_okay=True, dir_okay=False))
@@ -307,6 +494,16 @@ def docs(ctx, file: str, output: str, pdf: bool):
 def run(ctx, file: str, backend: str, dataset: str, hpo: bool, device: str):
     """Run a compiled model or optimize and run a .neural file."""
     print_command_header("run")
+    
+    # Input validation
+    try:
+        file = sanitize_file_path(file)
+        backend = validate_backend(backend)
+        dataset = validate_dataset_name(dataset)
+    except ValueError as e:
+        print_error(f"Invalid input: {str(e)}")
+        sys.exit(1)
+    
     print_info(f"Running {file} with {backend} backend")
 
     # Set device mode
@@ -369,8 +566,14 @@ def run(ctx, file: str, backend: str, dataset: str, hpo: bool, device: str):
 @click.argument('file', type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.option('--format', '-f', default='html', help='Output format', type=click.Choice(['html', 'png', 'svg'], case_sensitive=False))
 @click.option('--cache/--no-cache', default=True, help='Use cached visualizations if available')
+@click.option('--attention', is_flag=True, help='Visualize attention weights for transformer models')
+@click.option('--backend', '-b', default='tensorflow', help='Backend for attention visualization', type=click.Choice(['tensorflow', 'pytorch'], case_sensitive=False))
+@click.option('--data', '-d', type=click.Path(exists=True), help='Input data file for attention visualization (.npy format)')
+@click.option('--tokens', help='Comma-separated token labels for attention visualization')
+@click.option('--layer', help='Specific attention layer to visualize')
+@click.option('--head', type=int, help='Specific attention head to visualize')
 @click.pass_context
-def visualize(ctx, file: str, format: str, cache: bool):
+def visualize(ctx, file: str, format: str, cache: bool, attention: bool, backend: str, data: Optional[str], tokens: Optional[str], layer: Optional[str], head: Optional[int]):
     """Visualize network architecture and shape propagation."""
     print_command_header("visualize")
     print_info(f"Visualizing {file} in {format} format")
@@ -489,6 +692,103 @@ def visualize(ctx, file: str, format: str, cache: bool):
             print_info("Visualization cached for future use")
         except (PermissionError, IOError) as e:
             print_warning(f"Failed to cache visualization: {str(e)}")
+    
+    # Attention visualization for transformer models
+    if attention:
+        print_info("Visualizing attention weights...")
+        
+        try:
+            from neural.explainability.attention_visualizer import AttentionVisualizer
+            
+            # Parse tokens if provided
+            token_list = None
+            if tokens:
+                token_list = [t.strip() for t in tokens.split(',')]
+            
+            # Load or generate input data
+            if data:
+                input_data = np.load(data)
+                print_info(f"Loaded input data: {input_data.shape}")
+            else:
+                print_warning("No input data provided. Generating synthetic data based on model input shape.")
+                input_shape = model_data['input']['shape']
+                if input_shape:
+                    batch_size = 1
+                    input_data = np.random.randn(batch_size, *input_shape).astype(np.float32)
+                    print_info(f"Generated synthetic data with shape: {input_data.shape}")
+                else:
+                    print_error("Cannot generate synthetic data without input shape in model")
+                    sys.exit(1)
+            
+            # Create output directory for attention visualizations
+            attention_output = 'attention_outputs'
+            os.makedirs(attention_output, exist_ok=True)
+            
+            # Use the AttentionVisualizer
+            visualizer = AttentionVisualizer(model=None, backend=backend)
+            
+            with Spinner("Extracting and visualizing attention weights") as spinner:
+                if ctx.obj.get('NO_ANIMATIONS'):
+                    spinner.stop()
+                
+                results = visualizer.visualize_from_dsl(
+                    dsl_file=file,
+                    input_data=input_data,
+                    backend=backend,
+                    layer_name=layer,
+                    head_index=head,
+                    tokens=token_list,
+                    output_dir=attention_output
+                )
+            
+            if results['attention_weights']:
+                print_success(f"Attention visualization complete!")
+                print(f"\n{Colors.CYAN}Attention Analysis:{Colors.ENDC}")
+                print(f"  {Colors.BOLD}Layers with attention:{Colors.ENDC} {len(results['attention_weights'])}")
+                
+                for layer_name, weights in results['attention_weights'].items():
+                    print(f"  {Colors.BOLD}{layer_name}:{Colors.ENDC} {weights.shape}")
+                    
+                    # Analyze attention patterns
+                    analysis = visualizer.analyze_attention_patterns(weights)
+                    print(f"    - Num heads: {analysis['num_heads']}")
+                    print(f"    - Avg entropy: {analysis['avg_entropy']:.3f}")
+                    print(f"    - Avg max attention: {analysis['avg_max_attention']:.3f}")
+                    print(f"    - Diagonal strength: {analysis['avg_diagonal_strength']:.3f}")
+                
+                print(f"\n{Colors.CYAN}Output files:{Colors.ENDC}")
+                print(f"  - {Colors.GREEN}{attention_output}/attention_heatmap.png{Colors.ENDC}")
+                
+                for layer_name in results['attention_weights'].keys():
+                    heads_file = f"{attention_output}/attention_heads_{layer_name}.png"
+                    if os.path.exists(heads_file):
+                        print(f"  - {Colors.GREEN}{heads_file}{Colors.ENDC}")
+                
+                # Create interactive visualization if plotly is available
+                try:
+                    interactive_path = visualizer.create_interactive_visualization(
+                        results['attention_weights'],
+                        tokens=token_list,
+                        output_path=os.path.join(attention_output, 'attention_interactive.html')
+                    )
+                    if interactive_path:
+                        print(f"  - {Colors.GREEN}{interactive_path}{Colors.ENDC} (interactive)")
+                except Exception as e:
+                    logger.debug(f"Could not create interactive visualization: {e}")
+            else:
+                print_warning("No attention layers found in the model")
+                print_info("Make sure your model contains TransformerEncoder, MultiHeadAttention, or similar attention layers")
+        
+        except ImportError as e:
+            print_error(f"Missing dependencies for attention visualization: {str(e)}")
+            print_info("Install visualization dependencies: pip install matplotlib seaborn plotly")
+            sys.exit(1)
+        except Exception as e:
+            print_error(f"Attention visualization failed: {str(e)}")
+            if ctx.obj.get('VERBOSE'):
+                import traceback
+                traceback.print_exc()
+            sys.exit(1)
 
 @cli.command()
 @click.option('--yes', is_flag=True, help='Apply deletions; otherwise perform a dry run')
@@ -1027,14 +1327,14 @@ def cloud_connect(ctx, platform: str, interactive: bool, notebook: bool, port: i
     # Create a more aesthetic header
     if not quiet:
         platform_emoji = {
-            'kaggle': '🏆',
-            'colab': '🧪',
-            'sagemaker': '☁️'
-        }.get(platform.lower(), '🌐')
+            'kaggle': 'ðŸ†',
+            'colab': 'ðŸ§ª',
+            'sagemaker': 'â˜ï¸'
+        }.get(platform.lower(), 'ðŸŒ')
 
-        print("\n" + "─" * 60)
+        print("\n" + "â”€" * 60)
         print(f"  {platform_emoji}  Neural Cloud Connect: {platform.upper()}")
-        print("─" * 60 + "\n")
+        print("â”€" * 60 + "\n")
 
     try:
         # Import the remote connection module
@@ -1305,6 +1605,17 @@ print(f"Model visualization saved to: {{viz_path}}")
 def debug(ctx: click.Context, file: str, gradients: bool, dead_neurons: bool, anomalies: bool, step: bool, backend: str, dataset: str, dashboard: bool, port: int) -> None:
     """Debug a neural network model with NeuralDbg."""
     print_command_header("debug")
+    
+    # Input validation
+    try:
+        file = sanitize_file_path(file)
+        backend = validate_backend(backend)
+        dataset = validate_dataset_name(dataset)
+        port = validate_port(port)
+    except ValueError as e:
+        print_error(f"Invalid input: {str(e)}")
+        sys.exit(1)
+    
     print_info(f"Debugging {file} with NeuralDbg (backend: {backend})")
 
     ext = os.path.splitext(file)[1].lower()
@@ -1528,7 +1839,6 @@ def no_code(ctx: click.Context, port: int) -> None:
     except KeyboardInterrupt:
         print_info("Server stopped by user")
 
-<<<<<<< HEAD
 @cli.command()
 @click.argument('model_path', type=click.Path(exists=True, file_okay=True, dir_okay=False))
 @click.option('--method', '-m', default='shap', help='Explanation method', type=click.Choice(['shap', 'lime', 'saliency', 'attention', 'feature_importance', 'counterfactual', 'all'], case_sensitive=False))
@@ -1774,6 +2084,13 @@ def aquarium(ctx, base_dir: str, port: int, host: str, debug: bool):
 try:
     from neural.monitoring.cli_commands import monitor
     cli.add_command(monitor)
+except ImportError:
+    pass
+
+# Import and register teams commands
+try:
+    from neural.teams.cli_commands import teams
+    cli.add_command(teams)
 except ImportError:
     pass
 
@@ -2156,6 +2473,120 @@ def marketplace_hub_download(ctx, repo_id, filename, output, revision):
 
 @cli.group()
 @click.pass_context
+def cost(ctx):
+    """Commands for cost optimization and tracking."""
+    pass
+
+@cost.command('estimate')
+@click.option('--provider', type=click.Choice(['aws', 'gcp', 'azure']), required=True, help='Cloud provider')
+@click.option('--instance', required=True, help='Instance type name')
+@click.option('--hours', type=float, required=True, help='Training hours')
+@click.option('--storage-gb', type=float, default=100.0, help='Storage in GB')
+@click.option('--spot/--on-demand', default=True, help='Use spot instances')
+@click.pass_context
+def cost_estimate(ctx, provider, instance, hours, storage_gb, spot):
+    """Estimate training costs."""
+    print_command_header("cost estimate")
+    
+    try:
+        from neural.cost import CostEstimator, CloudProvider
+        
+        estimator = CostEstimator()
+        cloud_provider = CloudProvider(provider)
+        
+        with Spinner("Calculating cost estimate") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            
+            estimate = estimator.estimate_cost(
+                provider=cloud_provider,
+                instance_name=instance,
+                training_hours=hours,
+                storage_gb=storage_gb,
+                use_spot=spot
+            )
+        
+        print_success("Cost estimation complete!")
+        print(f"\n{Colors.CYAN}Cost Breakdown:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}Provider:{Colors.ENDC}      {estimate.provider.value}")
+        print(f"  {Colors.BOLD}Instance:{Colors.ENDC}      {estimate.instance_type.name}")
+        print(f"  {Colors.BOLD}Duration:{Colors.ENDC}      {estimate.estimated_hours:.2f} hours")
+        print(f"\n  {Colors.BOLD}Compute (On-Demand):{Colors.ENDC} ${estimate.on_demand_cost:.2f}")
+        print(f"  {Colors.BOLD}Compute (Spot):{Colors.ENDC}      ${estimate.spot_cost:.2f}")
+        print(f"  {Colors.BOLD}Storage:{Colors.ENDC}             ${estimate.storage_cost:.2f}")
+        print(f"  {Colors.BOLD}Data Transfer:{Colors.ENDC}       ${estimate.data_transfer_cost:.2f}")
+        print(f"\n  {Colors.GREEN}{Colors.BOLD}Total (Spot):{Colors.ENDC}        ${estimate.total_spot_cost:.2f}")
+        print(f"  {Colors.BOLD}Potential Savings:{Colors.ENDC}   ${estimate.potential_savings:.2f}")
+        
+    except Exception as e:
+        print_error(f"Cost estimation failed: {str(e)}")
+        sys.exit(1)
+
+@cost.command('compare')
+@click.option('--gpu-count', type=int, default=1, help='Number of GPUs')
+@click.option('--hours', type=float, required=True, help='Training hours')
+@click.option('--max-cost', type=float, help='Maximum acceptable cost')
+@click.pass_context
+def cost_compare(ctx, gpu_count, hours, max_cost):
+    """Compare costs across cloud providers."""
+    print_command_header("cost compare")
+    print_info(f"Comparing costs for {gpu_count} GPU(s), {hours:.1f} hours")
+    
+    try:
+        from neural.cost import CostEstimator
+        
+        estimator = CostEstimator()
+        
+        with Spinner("Analyzing provider costs") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            
+            estimates = estimator.compare_providers(
+                gpu_count=gpu_count,
+                training_hours=hours
+            )
+        
+        if max_cost:
+            estimates = [e for e in estimates if e.total_spot_cost <= max_cost]
+        
+        print_success(f"Found {len(estimates)} matching configurations")
+        print(f"\n{Colors.CYAN}{'Provider':<10} {'Instance':<25} {'Spot Cost':<12} {'Savings':<10}{Colors.ENDC}")
+        print(f"{'-' * 60}")
+        
+        for est in estimates[:10]:
+            savings_pct = (est.potential_savings / est.total_on_demand_cost * 100) if est.total_on_demand_cost > 0 else 0
+            print(f"{est.provider.value:<10} {est.instance_type.name:<25} ${est.total_spot_cost:<11.2f} {savings_pct:<9.1f}%")
+        
+    except Exception as e:
+        print_error(f"Cost comparison failed: {str(e)}")
+        sys.exit(1)
+
+@cost.command('dashboard')
+@click.option('--port', type=int, default=8052, help='Dashboard port')
+@click.pass_context
+def cost_dashboard(ctx, port):
+    """Launch interactive cost dashboard."""
+    print_command_header("cost dashboard")
+    print_info(f"Starting cost dashboard on port {port}")
+    
+    try:
+        from neural.cost.dashboard import create_dashboard
+        
+        dashboard = create_dashboard(port=port)
+        print_success(f"Dashboard running at http://localhost:{port}")
+        print(f"{Colors.YELLOW}Press Ctrl+C to stop the server{Colors.ENDC}")
+        
+        dashboard.run(debug=False)
+        
+    except ImportError as e:
+        print_error("Dashboard dependencies not available")
+        print_info("Install with: pip install neural-dsl[dashboard]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print_info("\nDashboard stopped by user")
+
+@cli.group()
+@click.pass_context
 def data(ctx):
     """Commands for data versioning and lineage tracking."""
     pass
@@ -2390,6 +2821,376 @@ def data_lineage(ctx, graph_name, trace, visualize, output, format, base_dir):
     except Exception as e:
         print_error(f"Failed to process lineage: {str(e)}")
         sys.exit(1)
+
+@cli.group()
+@click.pass_context
+def collab(ctx):
+    """Commands for collaborative editing."""
+    pass
+
+@collab.command('create')
+@click.argument('workspace_name')
+@click.option('--description', '-d', help='Workspace description')
+@click.option('--user-id', '-u', required=True, help='Your user ID')
+@click.option('--base-dir', default='neural_workspaces', help='Base directory for workspaces')
+@click.pass_context
+def collab_create(ctx, workspace_name, description, user_id, base_dir):
+    """Create a new collaborative workspace."""
+    print_command_header("collab create")
+    print_info(f"Creating workspace: {workspace_name}")
+
+    try:
+        from neural.collaboration import WorkspaceManager
+
+        with Spinner("Creating workspace") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            manager = WorkspaceManager(base_dir=base_dir)
+            workspace = manager.create_workspace(workspace_name, user_id, description)
+
+        print_success("Workspace created successfully!")
+        print(f"\n{Colors.CYAN}Workspace Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}ID:{Colors.ENDC}          {workspace.workspace_id}")
+        print(f"  {Colors.BOLD}Name:{Colors.ENDC}        {workspace.name}")
+        print(f"  {Colors.BOLD}Owner:{Colors.ENDC}       {workspace.owner}")
+        print(f"  {Colors.BOLD}Directory:{Colors.ENDC}   {workspace.workspace_dir}")
+        if description:
+            print(f"  {Colors.BOLD}Description:{Colors.ENDC} {description}")
+
+    except Exception as e:
+        print_error(f"Failed to create workspace: {str(e)}")
+        sys.exit(1)
+
+@collab.command('join')
+@click.argument('workspace_id')
+@click.option('--user-id', '-u', required=True, help='Your user ID')
+@click.option('--username', '-n', required=True, help='Your username')
+@click.option('--host', default='localhost', help='Collaboration server host')
+@click.option('--port', default=8080, type=int, help='Collaboration server port')
+@click.pass_context
+def collab_join(ctx, workspace_id, user_id, username, host, port):
+    """Join a collaborative workspace."""
+    print_command_header("collab join")
+    print_info(f"Connecting to workspace: {workspace_id}")
+
+    try:
+        import asyncio
+        import json
+
+        try:
+            import websockets
+        except ImportError:
+            print_error("websockets package required")
+            print_info("Install with: pip install websockets")
+            sys.exit(1)
+
+        async def connect_to_workspace():
+            uri = f"ws://{host}:{port}"
+            
+            with Spinner("Connecting to collaboration server") as spinner:
+                if ctx.obj.get('NO_ANIMATIONS'):
+                    spinner.stop()
+                
+                try:
+                    async with websockets.connect(uri) as websocket:
+                        auth_message = {
+                            'type': 'auth',
+                            'workspace_id': workspace_id,
+                            'user_id': user_id,
+                            'username': username
+                        }
+                        
+                        await websocket.send(json.dumps(auth_message))
+                        
+                        response = await websocket.recv()
+                        data = json.loads(response)
+                        
+                        if data.get('type') == 'auth_success':
+                            print_success(f"Connected to workspace successfully!")
+                            print(f"\n{Colors.CYAN}Connection Information:{Colors.ENDC}")
+                            print(f"  {Colors.BOLD}Workspace ID:{Colors.ENDC} {workspace_id}")
+                            print(f"  {Colors.BOLD}Username:{Colors.ENDC}     {username}")
+                            print(f"  {Colors.BOLD}Client ID:{Colors.ENDC}    {data.get('client_id')}")
+                            print(f"\n{Colors.YELLOW}Press Ctrl+C to disconnect{Colors.ENDC}\n")
+                            
+                            while True:
+                                message = await websocket.recv()
+                                msg_data = json.loads(message)
+                                
+                                if msg_data.get('type') == 'user_joined':
+                                    print(f"{Colors.GREEN}✓{Colors.ENDC} {msg_data.get('username')} joined the workspace")
+                                elif msg_data.get('type') == 'user_left':
+                                    print(f"{Colors.YELLOW}✗{Colors.ENDC} {msg_data.get('username')} left the workspace")
+                                elif msg_data.get('type') == 'edit':
+                                    print(f"{Colors.CYAN}✎{Colors.ENDC} {msg_data.get('username')} made an edit")
+                        else:
+                            print_error(f"Authentication failed: {data.get('message')}")
+                
+                except websockets.exceptions.ConnectionRefused:
+                    print_error(f"Could not connect to server at {host}:{port}")
+                    print_info("Make sure the collaboration server is running")
+                    print_info("Start server with: neural collab server")
+        
+        asyncio.run(connect_to_workspace())
+
+    except KeyboardInterrupt:
+        print_info("\nDisconnected from workspace")
+    except Exception as e:
+        print_error(f"Connection failed: {str(e)}")
+        sys.exit(1)
+
+@collab.command('server')
+@click.option('--host', default='localhost', help='Server host')
+@click.option('--port', default=8080, type=int, help='Server port')
+@click.pass_context
+def collab_server(ctx, host, port):
+    """Start the collaboration server."""
+    print_command_header("collab server")
+    print_info(f"Starting collaboration server on {host}:{port}")
+
+    try:
+        from neural.collaboration import CollaborationServer
+
+        print_success("Collaboration server starting...")
+        print(f"\n{Colors.CYAN}Server Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}Host:{Colors.ENDC} {host}")
+        print(f"  {Colors.BOLD}Port:{Colors.ENDC} {port}")
+        print(f"\n{Colors.YELLOW}Press Ctrl+C to stop the server{Colors.ENDC}\n")
+
+        server = CollaborationServer(host=host, port=port)
+        server.start()
+
+    except ImportError:
+        print_error("Collaboration module not available")
+        print_info("Install dependencies: pip install websockets")
+        sys.exit(1)
+    except Exception as e:
+        print_error(f"Server failed: {str(e)}")
+        sys.exit(1)
+
+@collab.command('list')
+@click.option('--user-id', '-u', help='Filter by user ID')
+@click.option('--base-dir', default='neural_workspaces', help='Base directory for workspaces')
+@click.pass_context
+def collab_list(ctx, user_id, base_dir):
+    """List collaborative workspaces."""
+    print_command_header("collab list")
+
+    try:
+        from neural.collaboration import WorkspaceManager
+
+        with Spinner("Loading workspaces") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            manager = WorkspaceManager(base_dir=base_dir)
+            workspaces = manager.list_workspaces(user_id=user_id)
+
+        if not workspaces:
+            print_warning("No workspaces found")
+            return
+
+        print_success(f"Found {len(workspaces)} workspace(s)")
+        print(f"\n{Colors.CYAN}Workspaces:{Colors.ENDC}\n")
+
+        for ws in workspaces:
+            print(f"{Colors.BOLD}{ws.name}{Colors.ENDC}")
+            print(f"  ID:          {ws.workspace_id}")
+            print(f"  Owner:       {ws.owner}")
+            print(f"  Members:     {len(ws.members)}")
+            print(f"  Files:       {len(ws.files)}")
+            print(f"  Created:     {ws.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            print()
+
+    except Exception as e:
+        print_error(f"Failed to list workspaces: {str(e)}")
+        sys.exit(1)
+
+@collab.command('info')
+@click.argument('workspace_id')
+@click.option('--base-dir', default='neural_workspaces', help='Base directory for workspaces')
+@click.pass_context
+def collab_info(ctx, workspace_id, base_dir):
+    """Show workspace information."""
+    print_command_header("collab info")
+
+    try:
+        from neural.collaboration import WorkspaceManager
+
+        with Spinner("Loading workspace") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            manager = WorkspaceManager(base_dir=base_dir)
+            workspace = manager.get_workspace(workspace_id)
+
+        if not workspace:
+            print_error(f"Workspace not found: {workspace_id}")
+            sys.exit(1)
+
+        print(f"\n{Colors.CYAN}Workspace Information:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}ID:{Colors.ENDC}          {workspace.workspace_id}")
+        print(f"  {Colors.BOLD}Name:{Colors.ENDC}        {workspace.name}")
+        print(f"  {Colors.BOLD}Owner:{Colors.ENDC}       {workspace.owner}")
+        print(f"  {Colors.BOLD}Directory:{Colors.ENDC}   {workspace.workspace_dir}")
+        print(f"  {Colors.BOLD}Created:{Colors.ENDC}     {workspace.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"  {Colors.BOLD}Updated:{Colors.ENDC}     {workspace.updated_at.strftime('%Y-%m-%d %H:%M:%S')}")
+
+        if workspace.metadata.get('description'):
+            print(f"\n{Colors.CYAN}Description:{Colors.ENDC}")
+            print(f"  {workspace.metadata['description']}")
+
+        print(f"\n{Colors.CYAN}Members ({len(workspace.members)}):{Colors.ENDC}")
+        for member in workspace.members:
+            role = workspace.get_role(member)
+            print(f"  - {member} ({role})")
+
+        if workspace.files:
+            print(f"\n{Colors.CYAN}Files ({len(workspace.files)}):{Colors.ENDC}")
+            for filename in workspace.files:
+                print(f"  - {filename}")
+
+    except Exception as e:
+        print_error(f"Failed to get workspace info: {str(e)}")
+        sys.exit(1)
+
+@collab.command('sync')
+@click.argument('workspace_id')
+@click.option('--user-id', '-u', required=True, help='Your user ID')
+@click.option('--base-dir', default='neural_workspaces', help='Base directory for workspaces')
+@click.pass_context
+def collab_sync(ctx, workspace_id, user_id, base_dir):
+    """Sync workspace with version control."""
+    print_command_header("collab sync")
+    print_info(f"Synchronizing workspace: {workspace_id}")
+
+    try:
+        from neural.collaboration import WorkspaceManager, GitIntegration, SyncManager
+
+        with Spinner("Loading workspace") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            manager = WorkspaceManager(base_dir=base_dir)
+            workspace = manager.get_workspace(workspace_id)
+
+        if not workspace:
+            print_error(f"Workspace not found: {workspace_id}")
+            sys.exit(1)
+
+        if not workspace.has_member(user_id):
+            print_error("You are not a member of this workspace")
+            sys.exit(1)
+
+        with Spinner("Initializing Git") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            git = GitIntegration(workspace.workspace_dir)
+            
+            if not git.is_repo():
+                git.init_repo()
+                print_info("Initialized Git repository")
+
+        with Spinner("Checking workspace status") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            status = git.get_status()
+
+        if status['modified'] or status['untracked']:
+            print(f"\n{Colors.CYAN}Workspace Status:{Colors.ENDC}")
+            
+            if status['modified']:
+                print(f"\n  Modified files:")
+                for f in status['modified']:
+                    print(f"    {Colors.YELLOW}M{Colors.ENDC} {f}")
+            
+            if status['untracked']:
+                print(f"\n  Untracked files:")
+                for f in status['untracked']:
+                    print(f"    {Colors.YELLOW}?{Colors.ENDC} {f}")
+            
+            if click.confirm("\nCommit changes?", default=True):
+                git.add_files(['.'])
+                commit_msg = click.prompt("Commit message", default="Update workspace")
+                git.commit(commit_msg, author_name=user_id, author_email=f"{user_id}@neural.local")
+                print_success("Changes committed")
+        else:
+            print_info("No changes to commit")
+
+    except Exception as e:
+        print_error(f"Sync failed: {str(e)}")
+        sys.exit(1)
+
+@collab.command('add-member')
+@click.argument('workspace_id')
+@click.argument('member_user_id')
+@click.option('--role', default='member', type=click.Choice(['viewer', 'member', 'admin']), help='Member role')
+@click.option('--owner-id', '-o', required=True, help='Your user ID (must be owner)')
+@click.option('--base-dir', default='neural_workspaces', help='Base directory for workspaces')
+@click.pass_context
+def collab_add_member(ctx, workspace_id, member_user_id, role, owner_id, base_dir):
+    """Add a member to workspace."""
+    print_command_header("collab add-member")
+
+    try:
+        from neural.collaboration import WorkspaceManager
+
+        with Spinner("Loading workspace") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            manager = WorkspaceManager(base_dir=base_dir)
+            workspace = manager.get_workspace(workspace_id)
+
+        if not workspace:
+            print_error(f"Workspace not found: {workspace_id}")
+            sys.exit(1)
+
+        if workspace.owner != owner_id:
+            print_error("Only workspace owner can add members")
+            sys.exit(1)
+
+        workspace.add_member(member_user_id, role)
+        manager.update_workspace(workspace)
+
+        print_success(f"Added {member_user_id} to workspace as {role}")
+
+    except Exception as e:
+        print_error(f"Failed to add member: {str(e)}")
+        sys.exit(1)
+
+@collab.command('remove-member')
+@click.argument('workspace_id')
+@click.argument('member_user_id')
+@click.option('--owner-id', '-o', required=True, help='Your user ID (must be owner)')
+@click.option('--base-dir', default='neural_workspaces', help='Base directory for workspaces')
+@click.pass_context
+def collab_remove_member(ctx, workspace_id, member_user_id, owner_id, base_dir):
+    """Remove a member from workspace."""
+    print_command_header("collab remove-member")
+
+    try:
+        from neural.collaboration import WorkspaceManager
+
+        with Spinner("Loading workspace") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            manager = WorkspaceManager(base_dir=base_dir)
+            workspace = manager.get_workspace(workspace_id)
+
+        if not workspace:
+            print_error(f"Workspace not found: {workspace_id}")
+            sys.exit(1)
+
+        if workspace.owner != owner_id:
+            print_error("Only workspace owner can remove members")
+            sys.exit(1)
+
+        workspace.remove_member(member_user_id)
+        manager.update_workspace(workspace)
+
+        print_success(f"Removed {member_user_id} from workspace")
+
+    except Exception as e:
+        print_error(f"Failed to remove member: {str(e)}")
+        sys.exit(1)
+
 
 if __name__ == '__main__':
     cli()

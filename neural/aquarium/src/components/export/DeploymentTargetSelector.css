@@ -1,0 +1,132 @@
+.deployment-target-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.target-section,
+.platform-section {
+  padding: 15px;
+  background: #252525;
+  border-radius: 4px;
+}
+
+.target-section h3,
+.platform-section h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.target-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.target-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: #1e1e1e;
+  border: 2px solid #333;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.target-card:hover {
+  border-color: #007acc;
+  background: #252525;
+}
+
+.target-card.selected {
+  border-color: #007acc;
+  background: #1a3a52;
+}
+
+.target-icon {
+  font-size: 2rem;
+}
+
+.target-content h4 {
+  margin: 0 0 5px 0;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.target-content p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #b0b0b0;
+  line-height: 1.3;
+}
+
+.platform-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.platform-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #1e1e1e;
+  border: 2px solid #333;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.platform-card:hover {
+  border-color: #007acc;
+  background: #252525;
+}
+
+.platform-card.selected {
+  border-color: #007acc;
+  background: #1a3a52;
+}
+
+.platform-card input[type='radio'] {
+  cursor: pointer;
+}
+
+.platform-label {
+  flex: 1;
+  font-weight: 500;
+  color: #fff;
+}
+
+.supported-formats {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.format-badge {
+  padding: 3px 8px;
+  background: #333;
+  color: #b0b0b0;
+  font-size: 0.75rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.format-badge.active {
+  background: #007acc;
+  color: #fff;
+}
+
+.no-platforms-warning {
+  padding: 15px;
+  background: #3a2a1f;
+  border: 1px solid #ff9800;
+  border-radius: 4px;
+  color: #ffb74d;
+  text-align: center;
+}

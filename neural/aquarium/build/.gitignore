@@ -1,0 +1,35 @@
+# Build output
+dist/
+*.dmg
+*.pkg
+*.app
+*.exe
+*.msi
+*.deb
+*.rpm
+*.AppImage
+*.snap
+*.zip
+*.tar.gz
+
+# Icon generation temporary files
+icon.iconset/
+placeholder.png
+
+# Certificates (never commit!)
+*.pfx
+*.p12
+*.cer
+*.pem
+*.key
+certificate.*
+
+# macOS specific
+.DS_Store
+
+# Windows specific
+Thumbs.db
+
+# Build caches
+.cache/
+node_modules/.cache/

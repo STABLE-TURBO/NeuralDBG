@@ -1,0 +1,27 @@
+network ResNetImageClassifier {
+    input: (None, 224, 224, 3)
+    layers:
+        Conv2D(filters=64, kernel_size=(7, 7), strides=(2, 2), padding="same", activation="relu")
+        BatchNormalization()
+        MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding="same")
+        
+        Conv2D(filters=64, kernel_size=(3, 3), padding="same", activation="relu")
+        BatchNormalization()
+        Conv2D(filters=64, kernel_size=(3, 3), padding="same", activation="relu")
+        BatchNormalization()
+        
+        Conv2D(filters=128, kernel_size=(3, 3), strides=(2, 2), padding="same", activation="relu")
+        BatchNormalization()
+        Conv2D(filters=128, kernel_size=(3, 3), padding="same", activation="relu")
+        BatchNormalization()
+        
+        Conv2D(filters=256, kernel_size=(3, 3), strides=(2, 2), padding="same", activation="relu")
+        BatchNormalization()
+        Conv2D(filters=256, kernel_size=(3, 3), padding="same", activation="relu")
+        BatchNormalization()
+        
+        GlobalAveragePooling2D()
+        Dense(units=1000, activation="softmax")
+    loss: "categorical_crossentropy"
+    optimizer: "Adam"
+}

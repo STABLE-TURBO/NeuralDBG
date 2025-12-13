@@ -7,6 +7,15 @@ from typing import Any, Dict, List, Optional, Set, Union
 
 
 class LineageNode:
+    """
+    Represents a node in the lineage graph.
+    
+    Attributes:
+        node_id: Unique identifier
+        node_type: properties type (data, model, etc.)
+        name: Human-readable name
+        metadata: Additional metadata
+    """
     def __init__(
         self,
         node_id: str,
@@ -41,6 +50,15 @@ class LineageNode:
 
 
 class LineageEdge:
+    """
+    Represents an edge in the lineage graph.
+    
+    Attributes:
+        source_id: Node ID of source
+        target_id: Node ID of target
+        edge_type: Type of relationship
+        metadata: Additional metadata
+    """
     def __init__(
         self,
         source_id: str,
@@ -75,6 +93,14 @@ class LineageEdge:
 
 
 class LineageGraph:
+    """
+    Represents a full lineage graph.
+    
+    Attributes:
+        name: Graph name
+        nodes: Dictionary of nodes
+        edges: List of edges
+    """
     def __init__(self, name: str):
         self.name = name
         self.nodes: Dict[str, LineageNode] = {}
@@ -153,6 +179,11 @@ class LineageGraph:
 
 
 class LineageTracker:
+    """
+    Tracks data and model lineage.
+    
+    Manages creation and persistence of lineage graphs.
+    """
     def __init__(self, base_dir: Union[str, Path] = ".neural_data"):
         self.base_dir = Path(base_dir)
         self.lineage_dir = self.base_dir / "lineage"

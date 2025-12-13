@@ -81,7 +81,87 @@ Neural DSL syntax:
 - Layers: Conv2D(filters, kernel_size, activation), Dense(units, activation), etc.
 - Always provide complete, valid Neural DSL code.
 
-Respond only with the Neural DSL code, no explanations unless asked."""
+Few-shot examples:
+
+Example 1:
+Input: Create a simple CNN for MNIST digit classification
+Output:
+```
+network MNISTClassifier {
+    input: (28, 28, 1)
+    layers:
+        Conv2D(32, (3, 3), "relu")
+        MaxPooling2D((2, 2))
+        Conv2D(64, (3, 3), "relu")
+        MaxPooling2D((2, 2))
+        Flatten()
+        Dense(128, "relu")
+        Dropout(0.5)
+        Output(10, "softmax")
+    loss: "categorical_crossentropy"
+    optimizer: Adam(learning_rate=0.001)
+}
+```
+
+Example 2:
+Input: Build a ResNet-style model with skip connections for image classification
+Output:
+```
+network ResNetClassifier {
+    input: (224, 224, 3)
+    layers:
+        Conv2D(64, (7, 7), "relu", stride=2)
+        BatchNormalization()
+        MaxPooling2D((3, 3), stride=2)
+        
+        ResidualBlock(filters=64, blocks=3)
+        ResidualBlock(filters=128, blocks=4, stride=2)
+        ResidualBlock(filters=256, blocks=6, stride=2)
+        
+        GlobalAveragePooling2D()
+        Dense(512, "relu")
+        Dropout(0.5)
+        Output(1000, "softmax")
+    
+    loss: "categorical_crossentropy"
+    optimizer: Adam(learning_rate=0.0001)
+    
+    training: {
+        epochs: 100
+        batch_size: 32
+        callbacks: [
+            EarlyStopping(patience=10),
+            ReduceLROnPlateau(factor=0.5, patience=5)
+        ]
+    }
+}
+```
+
+Example 3:
+Input: Create an LSTM model for text classification with 5 classes
+Output:
+```
+network TextClassifier {
+    input: (100,)  # Sequence length
+    embedding: {
+        vocab_size: 10000
+        embedding_dim: 128
+    }
+    layers:
+        Embedding(vocab_size=10000, embedding_dim=128)
+        LSTM(64, return_sequences=True)
+        Dropout(0.3)
+        LSTM(32)
+        Dense(64, "relu")
+        Dropout(0.5)
+        Output(5, "softmax")
+    
+    loss: "categorical_crossentropy"
+    optimizer: Adam(learning_rate=0.001)
+}
+```
+
+Respond only with the Neural DSL code in the format shown above."""
 
 
 class AnthropicProvider(LLMProvider):
@@ -129,6 +209,38 @@ class AnthropicProvider(LLMProvider):
         """Get system prompt for Neural DSL generation."""
         return """You are an expert in neural networks and the Neural DSL language.
 Convert natural language descriptions into valid Neural DSL code.
+
+Few-shot examples:
+
+Example 1 - Simple CNN:
+Input: Create a CNN for MNIST
+Output:
+network MNISTClassifier {
+    input: (28, 28, 1)
+    layers:
+        Conv2D(32, (3, 3), "relu")
+        MaxPooling2D((2, 2))
+        Flatten()
+        Dense(128, "relu")
+        Output(10, "softmax")
+    loss: "categorical_crossentropy"
+    optimizer: Adam(learning_rate=0.001)
+}
+
+Example 2 - LSTM:
+Input: Text classifier with LSTM
+Output:
+network TextClassifier {
+    input: (100,)
+    layers:
+        Embedding(vocab_size=10000, embedding_dim=128)
+        LSTM(64)
+        Dense(64, "relu")
+        Output(5, "softmax")
+    loss: "categorical_crossentropy"
+    optimizer: Adam(learning_rate=0.001)
+}
+
 Respond only with the Neural DSL code."""
 
 
@@ -188,6 +300,34 @@ class OllamaProvider(LLMProvider):
         """Get system prompt for Neural DSL generation."""
         return """You are an expert in neural networks and the Neural DSL language.
 Convert natural language descriptions into valid Neural DSL code.
+
+Few-shot examples:
+
+Example 1: Create a CNN for MNIST
+network MNISTClassifier {
+    input: (28, 28, 1)
+    layers:
+        Conv2D(32, (3, 3), "relu")
+        MaxPooling2D((2, 2))
+        Flatten()
+        Dense(128, "relu")
+        Output(10, "softmax")
+    loss: "categorical_crossentropy"
+    optimizer: Adam(learning_rate=0.001)
+}
+
+Example 2: Text classifier with LSTM
+network TextClassifier {
+    input: (100,)
+    layers:
+        Embedding(vocab_size=10000, embedding_dim=128)
+        LSTM(64)
+        Dense(64, "relu")
+        Output(5, "softmax")
+    loss: "categorical_crossentropy"
+    optimizer: Adam(learning_rate=0.001)
+}
+
 Respond only with the Neural DSL code."""
 
 

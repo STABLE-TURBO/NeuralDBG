@@ -1,5 +1,5 @@
 # config.yaml
-websocket_interval: 1000  # milliseconds
+websocket_interval: 1000
 auth:
   username: "admin"
-  password: "secure_password_123"
+  password: null

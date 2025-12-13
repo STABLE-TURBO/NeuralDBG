@@ -1,0 +1,11 @@
+[MASTER]
+ignore=venv,.venv,.venv312,build,dist,docs,neural/src,tests
+
+[MESSAGES CONTROL]
+disable=C0103,C0301,C0411,C0413,C0415,R0911,R0912,R0914,R0915,R0801,R1705,R1735,R0903,C0114,C0115,C0116,C0303,W0718,W1514,W0622,W0611,W1309,E0401,R0401
+
+[FORMAT]
+max-line-length=100
+
+[BASIC]
+good-names=i,j,k,_,x,y,z,df,ax,ex,ok

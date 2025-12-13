@@ -34,6 +34,88 @@ def generate_onnx(model_data: Dict[str, Any]):
                 kernel_shape=params.get('kernel_size', [3, 3]),
                 strides=params.get('strides', [1, 1])
             ))
+        elif layer_type == "MultiHeadAttention":
+            num_heads = params.get('num_heads', 8)
+            nodes.append(helper.make_node(
+                'Attention',
+                inputs=[current_input, current_input, current_input],
+                outputs=[output_name],
+                num_heads=num_heads
+            ))
+        elif layer_type == "Dense":
+            nodes.append(helper.make_node(
+                'Gemm',
+                inputs=[current_input],
+                outputs=[output_name]
+            ))
+        elif layer_type == "Dropout":
+            nodes.append(helper.make_node(
+                'Dropout',
+                inputs=[current_input],
+                outputs=[output_name],
+                ratio=params.get('rate', 0.5)
+            ))
+        elif layer_type == "Embedding":
+            nodes.append(helper.make_node(
+                'Gather',
+                inputs=[current_input],
+                outputs=[output_name]
+            ))
+        elif layer_type == "GlobalAveragePooling1D":
+            nodes.append(helper.make_node(
+                'GlobalAveragePool',
+                inputs=[current_input],
+                outputs=[output_name]
+            ))
+        elif layer_type == "GlobalAveragePooling2D":
+            nodes.append(helper.make_node(
+                'GlobalAveragePool',
+                inputs=[current_input],
+                outputs=[output_name]
+            ))
+        elif layer_type in ["GlobalMaxPooling1D", "GlobalMaxPooling2D"]:
+            nodes.append(helper.make_node(
+                'GlobalMaxPool',
+                inputs=[current_input],
+                outputs=[output_name]
+            ))
+        elif layer_type == "TransformerEncoder":
+            num_heads = params.get('num_heads', 8)
+            hidden_size = params.get('d_model', 512)
+            nodes.append(helper.make_node(
+                'MultiHeadAttention',
+                inputs=[current_input, current_input, current_input],
+                outputs=[output_name],
+                num_heads=num_heads
+            ))
+        elif layer_type == "TransformerDecoder":
+            num_heads = params.get('num_heads', 8)
+            hidden_size = params.get('d_model', 512)
+            self_attn_output = f"layer_{i}_self_attn"
+            cross_attn_output = f"layer_{i}_cross_attn"
+            nodes.append(helper.make_node(
+                'MultiHeadAttention',
+                inputs=[current_input, current_input, current_input],
+                outputs=[self_attn_output],
+                num_heads=num_heads
+            ))
+            nodes.append(helper.make_node(
+                'MultiHeadAttention',
+                inputs=[self_attn_output, 'encoder_output', 'encoder_output'],
+                outputs=[cross_attn_output],
+                num_heads=num_heads
+            ))
+            nodes.append(helper.make_node(
+                'Identity',
+                inputs=[cross_attn_output],
+                outputs=[output_name]
+            ))
+        elif layer_type == "Output":
+            nodes.append(helper.make_node(
+                'Gemm',
+                inputs=[current_input],
+                outputs=[output_name]
+            ))
 
         current_input = output_name
 

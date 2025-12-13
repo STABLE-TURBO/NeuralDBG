@@ -1,0 +1,13 @@
+network SentimentAnalyzer {
+    input: (None, 200)
+    layers:
+        Embedding(input_dim=20000, output_dim=128)
+        Bidirectional(LSTM(units=64, return_sequences=true))
+        Dropout(rate=0.5)
+        Bidirectional(LSTM(units=32))
+        Dense(units=64, activation="relu")
+        Dropout(rate=0.5)
+        Dense(units=1, activation="sigmoid")
+    loss: "binary_crossentropy"
+    optimizer: "Adam"
+}

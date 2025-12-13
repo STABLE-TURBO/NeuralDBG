@@ -15,12 +15,14 @@ def create_data_to_model_lineage(
     graph_name: str,
     dataset_version: str,
     preprocessing_pipeline: str,
-    model_name: str,
-    prediction_name: str,
+    model_info: Dict[str, str],
     base_dir: Union[str, Path] = ".neural_data",
 ) -> str:
     tracker = LineageTracker(base_dir=base_dir)
     graph = tracker.create_graph(graph_name)
+    
+    model_name = model_info.get("name", "unknown_model")
+    prediction_name = model_info.get("prediction", "unknown_prediction")
     
     data_node = tracker.add_data_node(
         graph_name,
@@ -90,13 +92,16 @@ def setup_data_versioning_project(
 def validate_and_version_dataset(
     dataset_path: Union[str, Path],
     version: Optional[str] = None,
-    tags: Optional[List[str]] = None,
-    metadata: Optional[Dict[str, Any]] = None,
-    validate: bool = True,
+    options: Optional[Dict[str, Any]] = None,
     base_dir: Union[str, Path] = ".neural_data",
 ) -> Dict[str, Any]:
     version_manager = DatasetVersionManager(base_dir=base_dir)
     quality_validator = DataQualityValidator(base_dir=base_dir)
+    
+    options = options or {}
+    validate = options.get("validate", True)
+    tags = options.get("tags")
+    metadata = options.get("metadata")
     
     validation_results = None
     if validate:
@@ -104,9 +109,9 @@ def validate_and_version_dataset(
             import numpy as np
             
             if str(dataset_path).endswith('.npy'):
-                data = np.load(dataset_path)
+                data = np.load(dataset_path, allow_pickle=False)
             elif str(dataset_path).endswith('.npz'):
-                data = np.load(dataset_path)['data']
+                data = np.load(dataset_path, allow_pickle=False)['data']
             else:
                 try:
                     import pandas as pd

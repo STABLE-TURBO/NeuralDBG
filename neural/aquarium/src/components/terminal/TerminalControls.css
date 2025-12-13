@@ -1,0 +1,194 @@
+.terminal-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #252526;
+  border-bottom: 1px solid #3e3e42;
+  height: 40px;
+  min-height: 40px;
+}
+
+.terminal-controls-left,
+.terminal-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #cccccc;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.status-dot.connected {
+  background-color: #4caf50;
+  box-shadow: 0 0 4px #4caf50;
+}
+
+.status-dot.disconnected {
+  background-color: #f44336;
+  box-shadow: 0 0 4px #f44336;
+}
+
+.status-text {
+  font-weight: 500;
+}
+
+.shell-selector {
+  position: relative;
+}
+
+.shell-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: #3e3e42;
+  border: 1px solid #555555;
+  border-radius: 4px;
+  color: #d4d4d4;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.shell-button:hover {
+  background-color: #4e4e52;
+  border-color: #666666;
+}
+
+.shell-icon {
+  font-weight: bold;
+  color: #4caf50;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  color: #999999;
+}
+
+.shell-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background-color: #2d2d30;
+  border: 1px solid #555555;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 120px;
+}
+
+.shell-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: #d4d4d4;
+  font-size: 12px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.shell-option:hover {
+  background-color: #3e3e42;
+}
+
+.shell-option.active {
+  background-color: #37373d;
+  color: #4caf50;
+}
+
+.checkmark {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.search-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.search-input {
+  padding: 4px 8px;
+  background-color: #3e3e42;
+  border: 1px solid #555555;
+  border-radius: 4px;
+  color: #d4d4d4;
+  font-size: 12px;
+  outline: none;
+  width: 150px;
+  transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+  border-color: #0078d4;
+}
+
+.search-submit {
+  padding: 4px 8px;
+  background-color: #0078d4;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s ease;
+}
+
+.search-submit:hover {
+  background-color: #005a9e;
+}
+
+.control-button {
+  padding: 4px 8px;
+  background-color: #3e3e42;
+  border: 1px solid #555555;
+  border-radius: 4px;
+  color: #d4d4d4;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 28px;
+}
+
+.control-button:hover {
+  background-color: #4e4e52;
+  border-color: #666666;
+}
+
+.control-button:active {
+  transform: scale(0.95);
+}
+
+.control-button.close-button {
+  color: #f44336;
+  border-color: #f44336;
+}
+
+.control-button.close-button:hover {
+  background-color: #f44336;
+  color: white;
+}

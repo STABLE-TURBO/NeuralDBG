@@ -30,7 +30,7 @@ def get_data(
     batch_size: int, 
     train: bool = True, 
     backend: str = 'pytorch'
-) -> Any:
+) -> Union[torch.utils.data.DataLoader, tf.data.Dataset]:
     datasets = {'MNIST': MNIST, 'CIFAR10': CIFAR10}
     dataset = datasets.get(dataset_name, MNIST)(root='./data', train=train, transform=ToTensor(), download=True)
     if backend == 'pytorch':
@@ -65,18 +65,23 @@ def create_dynamic_model(
                 if isinstance(param_value, dict) and 'hpo' in param_value:
                     hpo = param_value['hpo']
                     if hpo['type'] == 'categorical':
-                        layer['params'][param_name] = trial.suggest_categorical(f"{layer['type']}_{param_name}", hpo['values'])
+                        values = validate_hpo_categorical(param_name, hpo['values'])
+                        layer['params'][param_name] = trial.suggest_categorical(f"{layer['type']}_{param_name}", values)
                     elif hpo['type'] == 'range':
+                        low = hpo['start']
+                        high = hpo['end']
+                        low, high = validate_hpo_bounds(param_name, low, high, 'range')
                         layer['params'][param_name] = trial.suggest_float(
                             f"{layer['type']}_{param_name}",
-                            hpo['start'],
-                            hpo['end'],
+                            low,
+                            high,
                             step=hpo.get('step', None)
                         )
                     elif hpo['type'] == 'log_range':
                         # Handle all naming conventions (start/end, low/high, min/max)
                         low = hpo.get('start', hpo.get('low', hpo.get('min')))
                         high = hpo.get('end', hpo.get('high', hpo.get('max')))
+                        low, high = validate_hpo_bounds(param_name, low, high, 'log_range')
                         layer['params'][param_name] = trial.suggest_float(
                             f"{layer['type']}_{param_name}",
                             low,
@@ -168,9 +173,9 @@ class DynamicPTModel(nn.Module):
         hpo_params: List[Dict[str, Any]]
     ) -> None:
         super().__init__()
-        self.model_dict = model_dict
-        self.layers = nn.ModuleList()
-        self.shape_propagator = ShapePropagator(debug=False)
+        self.model_dict: Dict[str, Any] = model_dict
+        self.layers: nn.ModuleList = nn.ModuleList()
+        self.shape_propagator: ShapePropagator = ShapePropagator(debug=False)
         input_shape_raw = model_dict['input']['shape']  # (28, 28, 1)
         input_shape = (None, input_shape_raw[-1], *input_shape_raw[:-1])  # (None, 1, 28, 28)
         current_shape = input_shape
@@ -277,7 +282,7 @@ class DynamicTFModel(tf.keras.Model):
         hpo_params: List[Dict[str, Any]]
     ) -> None:
         super().__init__()
-        self.layers_list = []
+        self.layers_list: List[Any] = []
         input_shape = model_dict['input']['shape']
         in_features = prod(input_shape)
         for layer in model_dict['layers']:
@@ -312,9 +317,9 @@ class DynamicTFModel(tf.keras.Model):
 # Training Method
 def train_model(
     model: Union[DynamicPTModel, DynamicTFModel], 
-    optimizer: Any, 
-    train_loader: Any, 
-    val_loader: Any, 
+    optimizer: Union[optim.Optimizer, Any], 
+    train_loader: Union[torch.utils.data.DataLoader, tf.data.Dataset], 
+    val_loader: Union[torch.utils.data.DataLoader, tf.data.Dataset], 
     backend: str = 'pytorch', 
     epochs: int = 1, 
     execution_config: Optional[Dict[str, Any]] = None

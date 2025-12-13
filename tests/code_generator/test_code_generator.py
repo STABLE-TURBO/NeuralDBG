@@ -264,6 +264,108 @@ def test_transformer_generation(transformer_model_data):
     assert "dim_feedforward=256" in pt_code
     assert "nhead=4" in pt_code
 
+def test_transformer_with_multiple_layers():
+    """Test TransformerEncoder with multiple stacked layers"""
+    model_data = {
+        "type": "model",
+        "input": {"shape": (None, 128)},
+        "layers": [
+            {
+                "type": "TransformerEncoder",
+                "params": {"num_heads": 8, "ff_dim": 512, "dropout": 0.1, "num_layers": 3}
+            },
+            {"type": "Dense", "params": {"units": 10}}
+        ],
+        "loss": "categorical_crossentropy",
+        "optimizer": "Adam"
+    }
+    tf_code = generate_code(model_data, "tensorflow")
+    assert "# Encoder Layer 1" in tf_code
+    assert "# Encoder Layer 2" in tf_code
+    assert "# Encoder Layer 3" in tf_code
+    assert "MultiHeadAttention" in tf_code
+    
+    pt_code = generate_code(model_data, "pytorch")
+    assert "nn.TransformerEncoder(" in pt_code
+    assert "num_layers=3" in pt_code
+
+def test_transformer_with_custom_activation():
+    """Test TransformerEncoder with custom activation function"""
+    model_data = {
+        "type": "model",
+        "input": {"shape": (None, 128)},
+        "layers": [
+            {
+                "type": "TransformerEncoder",
+                "params": {"num_heads": 4, "ff_dim": 256, "dropout": 0.1, "activation": "gelu"}
+            },
+            {"type": "Dense", "params": {"units": 10}}
+        ],
+        "loss": "categorical_crossentropy",
+        "optimizer": "Adam"
+    }
+    tf_code = generate_code(model_data, "tensorflow")
+    assert "activation='gelu'" in tf_code
+    
+    pt_code = generate_code(model_data, "pytorch")
+    assert "activation='gelu'" in pt_code
+
+def test_transformer_with_attention_mask():
+    """Test TransformerEncoder with attention mask support"""
+    model_data = {
+        "type": "model",
+        "input": {"shape": (None, 128)},
+        "layers": [
+            {
+                "type": "TransformerEncoder",
+                "params": {"num_heads": 8, "ff_dim": 512, "dropout": 0.1, "use_attention_mask": True}
+            },
+            {"type": "Dense", "params": {"units": 10}}
+        ],
+        "loss": "categorical_crossentropy",
+        "optimizer": "Adam"
+    }
+    tf_code = generate_code(model_data, "tensorflow")
+    assert "attention_mask" in tf_code
+    assert "# Attention mask should be provided as input" in tf_code
+    
+    pt_code = generate_code(model_data, "pytorch")
+    assert "src_key_padding_mask" in pt_code
+
+def test_transformer_all_features():
+    """Test TransformerEncoder with all features combined"""
+    model_data = {
+        "type": "model",
+        "input": {"shape": (None, 128)},
+        "layers": [
+            {
+                "type": "TransformerEncoder",
+                "params": {
+                    "num_heads": 8,
+                    "ff_dim": 512,
+                    "dropout": 0.2,
+                    "num_layers": 6,
+                    "activation": "gelu",
+                    "use_attention_mask": True
+                }
+            },
+            {"type": "Dense", "params": {"units": 10}}
+        ],
+        "loss": "categorical_crossentropy",
+        "optimizer": "Adam"
+    }
+    tf_code = generate_code(model_data, "tensorflow")
+    assert "# Encoder Layer 1" in tf_code
+    assert "# Encoder Layer 6" in tf_code
+    assert "activation='gelu'" in tf_code
+    assert "attention_mask" in tf_code
+    assert "dropout=0.2" in tf_code or "Dropout(0.2)" in tf_code
+    
+    pt_code = generate_code(model_data, "pytorch")
+    assert "num_layers=6" in pt_code
+    assert "activation='gelu'" in pt_code
+    assert "src_key_padding_mask" in pt_code
+
 # New Tests
 def test_different_pooling_configs():
     """Test various pooling configurations"""

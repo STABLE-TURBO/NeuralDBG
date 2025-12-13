@@ -1,0 +1,302 @@
+name: Aquarium Release
+
+on:
+  push:
+    tags:
+      - 'aquarium-v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.3.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: neural/aquarium/package-lock.json
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+        working-directory: neural/aquarium
+      
+      - name: Install Node.js dependencies
+        run: npm ci
+        working-directory: neural/aquarium
+      
+      - name: Update version (if manually triggered)
+        if: github.event_name == 'workflow_dispatch'
+        run: npm version ${{ github.event.inputs.version }} --no-git-tag-version
+        working-directory: neural/aquarium
+      
+      # Windows Code Signing Setup
+      - name: Setup Windows Code Signing
+        if: runner.os == 'Windows' && (secrets.WIN_CSC_LINK != '' && secrets.WIN_CSC_KEY_PASSWORD != '')
+        shell: pwsh
+        run: |
+          $certPath = Join-Path $env:TEMP "certificate.pfx"
+          [System.Convert]::FromBase64String("${{ secrets.WIN_CSC_LINK }}") | Set-Content $certPath -AsByteStream
+          echo "WIN_CSC_LINK=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "WIN_CSC_KEY_PASSWORD=${{ secrets.WIN_CSC_KEY_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      
+      # macOS Code Signing Setup
+      - name: Setup macOS Code Signing
+        if: runner.os == 'macOS' && (secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '')
+        run: |
+          echo "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode > certificate.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security import certificate.p12 -k build.keychain -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+          rm certificate.p12
+          echo "APPLE_ID=${{ secrets.APPLE_ID }}" >> $GITHUB_ENV
+          echo "APPLE_ID_PASSWORD=${{ secrets.APPLE_ID_PASSWORD }}" >> $GITHUB_ENV
+          echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}" >> $GITHUB_ENV
+      
+      # Linux GPG Setup
+      - name: Setup Linux GPG Signing
+        if: runner.os == 'Linux' && secrets.GPG_PRIVATE_KEY != ''
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import --batch
+          echo "GPG_PASSPHRASE=${{ secrets.GPG_PASSPHRASE }}" >> $GITHUB_ENV
+      
+      # Build the React app
+      - name: Build React App
+        run: npm run build
+        working-directory: neural/aquarium
+      
+      # Build Electron app
+      - name: Build Electron App (Windows)
+        if: runner.os == 'Windows'
+        run: npm run electron:build:win
+        working-directory: neural/aquarium
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build Electron App (macOS)
+        if: runner.os == 'macOS'
+        run: npm run electron:build:mac
+        working-directory: neural/aquarium
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      
+      - name: Build Electron App (Linux)
+        if: runner.os == 'Linux'
+        run: npm run electron:build:linux
+        working-directory: neural/aquarium
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Upload artifacts
+      - name: Upload Windows Artifacts
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers
+          path: |
+            neural/aquarium/dist/*.exe
+            neural/aquarium/dist/*.msi
+          retention-days: 7
+      
+      - name: Upload macOS Artifacts
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installers
+          path: |
+            neural/aquarium/dist/*.dmg
+            neural/aquarium/dist/*.zip
+          retention-days: 7
+      
+      - name: Upload Linux Artifacts
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installers
+          path: |
+            neural/aquarium/dist/*.AppImage
+            neural/aquarium/dist/*.deb
+            neural/aquarium/dist/*.rpm
+          retention-days: 7
+      
+      # Generate checksums
+      - name: Generate Checksums (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem neural/aquarium/dist/*.{exe,msi} | ForEach-Object {
+            $hash = Get-FileHash $_.FullName -Algorithm SHA256
+            "$($hash.Hash)  $($_.Name)" | Out-File -Append "neural/aquarium/dist/checksums-windows.txt" -Encoding ASCII
+          }
+      
+      - name: Generate Checksums (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: |
+          cd neural/aquarium/dist
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            shasum -a 256 *.dmg *.zip > checksums-macos.txt 2>/dev/null || true
+          else
+            sha256sum *.AppImage *.deb *.rpm > checksums-linux.txt 2>/dev/null || true
+          fi
+      
+      # Upload checksums
+      - name: Upload Checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums-${{ runner.os }}
+          path: neural/aquarium/dist/checksums-*.txt
+          retention-days: 7
+      
+      # Cleanup certificates
+      - name: Cleanup Windows Certificate
+        if: runner.os == 'Windows' && always()
+        shell: pwsh
+        run: |
+          $certPath = Join-Path $env:TEMP "certificate.pfx"
+          if (Test-Path $certPath) { Remove-Item $certPath -Force }
+      
+      - name: Cleanup macOS Certificate
+        if: runner.os == 'macOS' && always()
+        run: |
+          security delete-keychain build.keychain || true
+
+  create-release:
+    needs: release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+      
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/aquarium-v}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: aquarium-v${{ steps.version.outputs.version }}
+          name: Neural Aquarium v${{ steps.version.outputs.version }}
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Neural Aquarium v${{ steps.version.outputs.version }}
+            
+            Visual IDE for Neural DSL with integrated debugger.
+            
+            ### Installation
+            
+            **Windows:**
+            - Download the `.exe` (NSIS installer) or `.msi` installer
+            - Run the installer and follow the prompts
+            - Launch from Start Menu or Desktop shortcut
+            
+            **macOS:**
+            - Download the `.dmg` file
+            - Open the DMG and drag Neural Aquarium to Applications
+            - On first launch, right-click and select "Open" to bypass Gatekeeper
+            
+            **Linux:**
+            - **AppImage**: Download, make executable (`chmod +x`), and run
+            - **Debian/Ubuntu**: Download `.deb` and install with `sudo dpkg -i neural-aquarium-*.deb`
+            - **Fedora/RHEL**: Download `.rpm` and install with `sudo rpm -i neural-aquarium-*.rpm`
+            
+            ### What's New
+            
+            See the [CHANGELOG](https://github.com/neural-dsl/neural-dsl/blob/main/neural/aquarium/CHANGELOG.md) for details.
+            
+            ### Verification
+            
+            All installers are signed and can be verified using the provided checksums:
+            ```bash
+            sha256sum -c checksums-*.txt
+            ```
+            
+            ### System Requirements
+            
+            - **Windows**: Windows 10 or later (64-bit)
+            - **macOS**: macOS 10.13 High Sierra or later
+            - **Linux**: Ubuntu 18.04+, Fedora 32+, or equivalent (64-bit)
+            
+            ### Auto-Update
+            
+            The application includes automatic update checking. When a new version is available, you'll be prompted to download and install it.
+          files: |
+            artifacts/windows-installers/*
+            artifacts/macos-installers/*
+            artifacts/linux-installers/*
+            artifacts/checksums-*/*.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-release:
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/aquarium-v')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/aquarium-v}" >> $GITHUB_OUTPUT
+      
+      - name: Publish Release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: 'aquarium-v${{ steps.version.outputs.version }}'
+            });
+            
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              draft: false
+            });

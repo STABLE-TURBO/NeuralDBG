@@ -90,6 +90,16 @@ Complete guide to all Neural DSL documentation resources.
 | [MNIST Guide](examples/mnist_guide.md) | Step-by-step MNIST tutorial | Beginner |
 | [HPO Guide](examples/hpo_guide.md) | Comprehensive HPO guide | Intermediate |
 | [AI Integration Guide](ai_integration_guide.md) | Natural language to DSL | All |
+| [Transformers Guide](transformers_README.md) | Complete transformer documentation | Intermediate |
+
+### Transformer Documentation
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [Transformers Overview](transformers_README.md) | Quick start and reference | All |
+| [Architecture Guide](transformer_architecture.md) | Build transformer models | Intermediate |
+| [Attention Mechanism](transformer_attention.md) | Understand attention in depth | Intermediate |
+| [Training Best Practices](transformer_training.md) | Optimize transformer training | Advanced |
+| [Migration Guide](transformer_migration.md) | Convert from TensorFlow/PyTorch | All |
 
 ### API Documentation
 - [Parser API](api/parser.md) - Coming soon
@@ -132,6 +142,11 @@ Complete guide to all Neural DSL documentation resources.
 → Study [ResNet Example](../examples/resnet_block_commented.neural)  
 → Learn about [Macros](dsl.md#macros)  
 → Use [NeuralDbg](tutorials/video_scripts.md#video-4-debugging-with-neuraldbg)
+
+#### Build Transformers
+→ Start with [Transformers Overview](transformers_README.md)  
+→ Learn [Attention Mechanism](transformer_attention.md)  
+→ Migrate from [TensorFlow/PyTorch](transformer_migration.md)
 
 #### Deploy to Cloud
 → Watch [Cloud Integration Video](tutorials/video_scripts.md#video-6-cloud-integration)  

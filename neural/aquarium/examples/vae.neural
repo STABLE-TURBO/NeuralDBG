@@ -1,0 +1,16 @@
+network VariationalAutoencoder {
+    input: (None, 784)
+    layers:
+        Dense(units=512, activation="relu")
+        Dense(units=256, activation="relu")
+        Dense(units=128, activation="relu")
+        Dense(units=64, activation="relu")
+        Dense(units=32, activation="relu")
+        Dense(units=64, activation="relu")
+        Dense(units=128, activation="relu")
+        Dense(units=256, activation="relu")
+        Dense(units=512, activation="relu")
+        Dense(units=784, activation="sigmoid")
+    loss: "binary_crossentropy"
+    optimizer: "Adam"
+}

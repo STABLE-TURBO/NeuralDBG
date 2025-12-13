@@ -1,0 +1,683 @@
+# ============================================================================
+# GPT-Style Decoder-Only Transformer - Autoregressive Language Model
+# ============================================================================
+# This example demonstrates a GPT (Generative Pre-trained Transformer) style
+# decoder-only model for causal language modeling and text generation.
+#
+# Model Architecture:
+#   - Decoder-only transformer stack
+#   - Causal (masked) self-attention
+#   - Autoregressive generation
+#   - Pre-training on next token prediction
+#   - Fine-tuning for various generation tasks
+#
+# Key Concepts Demonstrated:
+#   - Decoder-only architecture (no encoder)
+#   - Causal/masked attention (cannot see future)
+#   - Autoregressive generation (one token at a time)
+#   - Next token prediction objective
+#   - Zero-shot, few-shot, and fine-tuned inference
+#   - Prompt engineering for task specification
+# ============================================================================
+
+# --------------------------------------------------------------------
+# MACRO DEFINITIONS - GPT Building Blocks
+# --------------------------------------------------------------------
+
+# Masked Multi-Head Self-Attention
+# ---------------------------------
+# Causal attention: each position can only attend to earlier positions
+# Prevents information flow from future tokens to past
+# Essential for autoregressive generation
+#
+# Masking applied to attention scores before softmax:
+# scores[i, j] = -inf if j > i (mask future positions)
+#
+# This ensures position i can only see positions 0 to i
+define CausalAttention(num_heads, d_model, dropout) {
+  # Query, Key, Value projections
+  # For each head: d_head = d_model / num_heads
+  Dense(units=$d_model, activation="linear")  # Query
+  Dense(units=$d_model, activation="linear")  # Key
+  Dense(units=$d_model, activation="linear")  # Value
+  
+  # Attention with causal mask
+  # In implementation: apply upper triangular mask
+  # mask = torch.triu(torch.ones(seq_len, seq_len), diagonal=1) * -1e9
+  
+  # Attention dropout
+  Dropout(rate=$dropout)
+  
+  # Output projection
+  Dense(units=$d_model, activation="linear")
+  
+  # Residual dropout
+  Dropout(rate=$dropout)
+}
+
+# Position-wise Feed-Forward Network
+# -----------------------------------
+# Two linear transformations with GELU activation
+# GPT-2/3 use GELU instead of ReLU for smoother gradients
+# Expansion factor: typically 4x (d_ff = 4 * d_model)
+define GptFeedForward(d_model, d_ff, dropout) {
+  # Expand to intermediate dimension
+  # GPT-2: 768 → 3072
+  # GPT-3: 12288 → 49152
+  Dense(units=$d_ff, activation="gelu")
+  
+  # Project back to model dimension
+  Dense(units=$d_model, activation="linear")
+  
+  # Dropout
+  Dropout(rate=$dropout)
+}
+
+# GPT Decoder Block
+# -----------------
+# Single transformer decoder layer
+# Pre-LayerNorm architecture (used in GPT-2+):
+#   - LayerNorm before attention
+#   - LayerNorm before feed-forward
+# Benefits: More stable training, better gradient flow
+define GptBlock(num_heads, d_model, d_ff, dropout) {
+  # Sublayer 1: Masked Self-Attention
+  # ----------------------------------
+  
+  # Pre-LayerNorm (normalize before attention)
+  # GPT-2 introduced this for better training stability
+  LayerNormalization(epsilon=1e-5)
+  
+  # Masked multi-head self-attention
+  # Each position attends to all previous positions (and itself)
+  CausalAttention(num_heads=$num_heads, d_model=$d_model, dropout=$dropout)
+  
+  # Residual connection
+  # Output = x + Attention(LayerNorm(x))
+  Add()
+  
+  # Sublayer 2: Feed-Forward Network
+  # --------------------------------
+  
+  # Pre-LayerNorm
+  LayerNormalization(epsilon=1e-5)
+  
+  # Position-wise feed-forward
+  GptFeedForward(d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Residual connection
+  # Output = x + FFN(LayerNorm(x))
+  Add()
+}
+
+# --------------------------------------------------------------------
+# MAIN NETWORK DEFINITION - GPT-2 Small Configuration
+# --------------------------------------------------------------------
+
+network GptDecoder {
+  # --------------------------------------------------------------------
+  # INPUT SPECIFICATION
+  # --------------------------------------------------------------------
+  # Input: Sequence of token IDs
+  # During training: complete sequences
+  # During inference: grow sequence token by token
+  input: (1024,)  # Context length (max sequence length)
+  
+  # --------------------------------------------------------------------
+  # MODEL CONFIGURATION
+  # --------------------------------------------------------------------
+  # GPT-2 Small (117M parameters):
+  #   - n_layers=12
+  #   - d_model=768
+  #   - n_heads=12
+  #   - d_ff=3072
+  #   - context_length=1024
+  #
+  # GPT-2 Medium (345M parameters):
+  #   - n_layers=24, d_model=1024, n_heads=16
+  #
+  # GPT-2 Large (774M parameters):
+  #   - n_layers=36, d_model=1280, n_heads=20
+  #
+  # GPT-2 XL (1.5B parameters):
+  #   - n_layers=48, d_model=1600, n_heads=25
+  #
+  # GPT-3 (175B parameters):
+  #   - n_layers=96, d_model=12288, n_heads=96
+  #   - context_length=2048
+  
+  # --------------------------------------------------------------------
+  # NETWORK LAYERS
+  # --------------------------------------------------------------------
+  layers:
+    # EMBEDDING LAYER
+    # ===============
+    
+    # Token Embeddings
+    # ----------------
+    # Maps token IDs to dense vectors
+    # vocab_size=50257 (GPT-2 BPE vocabulary)
+    # hidden_size=768 (GPT-2 Small)
+    #
+    # GPT uses Byte-Pair Encoding (BPE):
+    # - Handles any text (no unknown tokens)
+    # - Subword tokenization for efficiency
+    # - Vocabulary includes common words and subwords
+    Embedding(input_dim=50257, output_dim=768)
+    
+    # Positional Embeddings
+    # ---------------------
+    # GPT uses learned positional embeddings (not sinusoidal)
+    # Separate embedding for each position up to max context length
+    # Embedding(input_dim=1024, output_dim=768)
+    # Note: Requires position indices as separate input
+    #
+    # Total embedding = token_embedding + positional_embedding
+    
+    # Embedding Dropout
+    # -----------------
+    Dropout(rate=0.1)
+    
+    # TRANSFORMER DECODER STACK
+    # =========================
+    # Stack of N=12 identical decoder blocks
+    # Each block: LayerNorm → Attention → Add → LayerNorm → FFN → Add
+    
+    # Block 1
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 2
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 3
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 4
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 5
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 6
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 7
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 8
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 9
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 10
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 11
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # Block 12
+    GptBlock(num_heads=12, d_model=768, d_ff=3072, dropout=0.1)
+    
+    # FINAL LAYER NORMALIZATION
+    # =========================
+    # Normalize final hidden states before output projection
+    LayerNormalization(epsilon=1e-5)
+    
+    # LANGUAGE MODEL HEAD
+    # ===================
+    
+    # Output Projection
+    # -----------------
+    # Projects hidden states to vocabulary size
+    # Produces logits for next token prediction
+    #
+    # Weight tying: often shares weights with token embedding
+    # Reduces parameters and improves performance
+    Dense(units=50257, activation="linear")
+    
+    # Softmax for token probabilities
+    # --------------------------------
+    # Converts logits to probability distribution
+    # P(token_t | token_1, ..., token_{t-1})
+    Activation("softmax")
+  
+  # --------------------------------------------------------------------
+  # TRAINING CONFIGURATION
+  # --------------------------------------------------------------------
+  
+  # Loss Function
+  # -------------
+  # Cross-entropy loss for next token prediction
+  # For each position t, predict token at position t+1
+  # Loss averaged over all positions and sequences in batch
+  loss: "sparse_categorical_crossentropy"
+  
+  # Optimizer
+  # ---------
+  # AdamW (Adam with weight decay)
+  # GPT-2/3 use cosine learning rate schedule with warmup
+  #
+  # Learning rate schedule:
+  #   1. Linear warmup: 0 → max_lr (first 2000 steps)
+  #   2. Cosine decay: max_lr → 0 (remaining steps)
+  optimizer: Adam(
+    learning_rate=0.00025,  # Peak learning rate
+    beta_1=0.9,
+    beta_2=0.95,
+    epsilon=1e-8
+  )
+  
+  # Weight decay: 0.1 (applied to all parameters except biases and layer norms)
+  
+  # Gradient clipping for stability
+  # GPT-3 uses global norm clipping at 1.0
+  
+  # Evaluation Metrics
+  # ------------------
+  # Track perplexity: exp(cross_entropy_loss)
+  # Lower perplexity = better model
+  metrics: ["accuracy", "sparse_categorical_crossentropy"]
+  
+  # Training Parameters
+  # -------------------
+  train {
+    # Language models require extensive training
+    # GPT-2: 40GB of text, 1M+ steps
+    # GPT-3: 45TB of text (filtered to 570GB)
+    epochs: 1  # Usually specified by steps, not epochs
+    
+    # Batch size: As large as GPU memory allows
+    # GPT-2: 512 sequences
+    # GPT-3: 3.2M tokens per batch
+    # Use gradient accumulation for larger effective batch size
+    batch_size: 8
+    
+    # Validation split
+    validation_split: 0.05
+    
+    # Gradient clipping
+    gradient_clip: 1.0
+    
+    # Mixed precision training for speed and memory
+    # use_mixed_precision: True
+  }
+}
+
+# ============================================================================
+# PRE-TRAINING DATA PREPARATION
+# ============================================================================
+#
+# Corpus Requirements:
+# --------------------
+# - Large diverse text corpus
+# - GPT-2: WebText (40GB, 8M documents)
+# - GPT-3: Common Crawl, WebText2, Books1, Books2, Wikipedia
+# - Quality filtering crucial for performance
+#
+# Tokenization:
+# -------------
+# GPT-2 uses Byte-Pair Encoding (BPE):
+# 1. Start with character vocabulary
+# 2. Iteratively merge most frequent pairs
+# 3. Build vocabulary of 50,257 tokens
+# 4. Can represent any text (no UNK tokens)
+#
+# Example BPE tokenization:
+# "playing" → ["play", "ing"]
+# "unbelievable" → ["un", "believ", "able"]
+#
+# Install and use:
+# ```python
+# from transformers import GPT2Tokenizer
+#
+# tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+# tokens = tokenizer.encode("Hello, world!")
+# # [15496, 11, 995, 0]
+#
+# text = tokenizer.decode(tokens)
+# # "Hello, world!"
+# ```
+#
+# Creating Training Examples:
+# ---------------------------
+# Simple next-token prediction:
+# 1. Concatenate documents with <|endoftext|> separator
+# 2. Split into sequences of context_length (1024)
+# 3. For each sequence, predict next token at each position
+# 4. No masking needed (causal attention handles it)
+#
+# Example:
+# Input:  [The, cat, sat, on, the]
+# Target: [cat, sat, on, the, mat]
+#
+# Loss computed only on predictions (shift by 1):
+# ```python
+# # Input: [token_1, token_2, ..., token_n]
+# input_ids = sequence[:-1]   # [token_1, ..., token_{n-1}]
+# labels = sequence[1:]       # [token_2, ..., token_n]
+#
+# # Model predicts next token at each position
+# logits = model(input_ids)   # [batch, seq_len, vocab_size]
+# loss = cross_entropy(logits, labels)
+# ```
+#
+# Document Separation:
+# --------------------
+# Use special <|endoftext|> token between documents
+# Prevents model from learning spurious correlations
+# across document boundaries
+#
+# Packing for Efficiency:
+# -----------------------
+# Pack multiple short documents into single sequence
+# Mask attention across document boundaries
+# Maximizes GPU utilization
+#
+# ============================================================================
+# TEXT GENERATION / INFERENCE
+# ============================================================================
+#
+# Autoregressive Generation:
+# ---------------------------
+# Generate text one token at a time:
+# 1. Start with prompt tokens
+# 2. Feed tokens to model
+# 3. Sample next token from output distribution
+# 4. Append to sequence
+# 5. Repeat until done (max length or <|endoftext|>)
+#
+# Example generation loop:
+# ```python
+# def generate(model, prompt, max_length=100, temperature=1.0):
+#     tokens = tokenizer.encode(prompt)
+#     
+#     for _ in range(max_length):
+#         # Get logits for next token
+#         logits = model(tokens)[-1]  # Last position
+#         
+#         # Apply temperature
+#         logits = logits / temperature
+#         
+#         # Sample next token
+#         probs = softmax(logits)
+#         next_token = sample(probs)
+#         
+#         # Append to sequence
+#         tokens.append(next_token)
+#         
+#         # Stop if EOS token
+#         if next_token == EOS_TOKEN:
+#             break
+#     
+#     return tokenizer.decode(tokens)
+# ```
+#
+# Sampling Strategies:
+# --------------------
+#
+# 1. Greedy Decoding:
+#    - Always pick highest probability token
+#    - Deterministic, fast
+#    - Can be repetitive and boring
+#    next_token = argmax(probs)
+#
+# 2. Temperature Sampling:
+#    - Control randomness with temperature
+#    - T=1.0: sample from model distribution
+#    - T→0: approaches greedy
+#    - T>1: more random/creative
+#    probs = softmax(logits / temperature)
+#
+# 3. Top-k Sampling:
+#    - Sample from k most likely tokens
+#    - k=1: greedy
+#    - k=10-50: good balance
+#    - Filters out very unlikely tokens
+#    top_k_probs = top_k(probs, k=40)
+#    next_token = sample(top_k_probs)
+#
+# 4. Top-p (Nucleus) Sampling:
+#    - Sample from smallest set with cumulative prob ≥ p
+#    - Adaptive vocabulary size
+#    - p=0.9-0.95 works well
+#    - More coherent than top-k
+#    nucleus = smallest_set_with_prob_p(probs, p=0.9)
+#    next_token = sample(nucleus)
+#
+# 5. Beam Search:
+#    - Keep top-k candidates at each step
+#    - Explores multiple paths
+#    - Good for translation, poor for creative generation
+#    - Can lead to repetition
+#
+# 6. Repetition Penalty:
+#    - Reduce probability of repeated tokens
+#    - penalty=1.0: no penalty
+#    - penalty=1.2: typical value
+#    for token in already_generated:
+#        logits[token] /= penalty
+#
+# Combined strategy (GPT-3 style):
+# ```python
+# logits = model(tokens)[-1]
+# logits = logits / temperature
+# logits = apply_repetition_penalty(logits, tokens, penalty=1.2)
+# probs = softmax(logits)
+# nucleus_probs = nucleus_sampling(probs, p=0.9)
+# next_token = sample(nucleus_probs)
+# ```
+#
+# ============================================================================
+# PROMPT ENGINEERING FOR TASKS
+# ============================================================================
+#
+# Zero-Shot Learning:
+# -------------------
+# Specify task in natural language prompt
+# No task-specific training needed
+#
+# Example - Sentiment Analysis:
+# Prompt: "Review: This movie was terrible. Sentiment: negative
+#          Review: I loved this book! Sentiment: positive
+#          Review: The product broke after one day. Sentiment:"
+# Model completes: "negative"
+#
+# Example - Translation:
+# Prompt: "Translate English to French:
+#          Hello → Bonjour
+#          Goodbye → Au revoir
+#          Thank you →"
+# Model completes: "Merci"
+#
+# Few-Shot Learning:
+# ------------------
+# Provide few examples in prompt (in-context learning)
+# GPT-3 excels at this with larger model size
+#
+# Example - Question Answering:
+# Prompt: "Q: What is the capital of France?
+#          A: Paris
+#          Q: What is 2+2?
+#          A: 4
+#          Q: Who wrote Hamlet?
+#          A:"
+# Model completes: "William Shakespeare"
+#
+# Prompt Design Tips:
+# -------------------
+# 1. Be specific and clear
+# 2. Use consistent format
+# 3. Provide good examples (few-shot)
+# 4. Use delimiters (###, ---, etc.)
+# 5. Specify desired output format
+# 6. Experiment with temperature
+#
+# ============================================================================
+# FINE-TUNING FOR SPECIFIC TASKS
+# ============================================================================
+#
+# While GPT can do zero/few-shot, fine-tuning improves performance:
+#
+# 1. Text Classification:
+# -----------------------
+# Format: "Text: {text}\nCategory:"
+# Train on labeled examples
+# Lower learning rate (1e-5 to 5e-5)
+# Few epochs (1-3)
+#
+# 2. Question Answering:
+# ----------------------
+# Format: "Context: {context}\nQuestion: {question}\nAnswer:"
+# Train on QA pairs
+# May need custom stopping criteria
+#
+# 3. Summarization:
+# -----------------
+# Format: "Article: {article}\nSummary:"
+# Train on article-summary pairs
+# Control length with max_tokens parameter
+#
+# 4. Dialogue / Chatbot:
+# ----------------------
+# Format: "User: {message}\nAssistant:"
+# Train on conversation data
+# May alternate User/Assistant turns
+#
+# 5. Code Generation:
+# -------------------
+# Format: "# {description}\n{code}"
+# Train on code-comment pairs
+# Used in Codex, GitHub Copilot
+#
+# Fine-tuning Configuration:
+# ```
+# train {
+#     epochs: 3
+#     batch_size: 4
+#     learning_rate: 5e-5
+#     warmup_steps: 100
+#     gradient_accumulation_steps: 8
+# }
+# ```
+#
+# ============================================================================
+# PERFORMANCE AND SCALING
+# ============================================================================
+#
+# GPT-2 Performance:
+# ------------------
+# - WebText perplexity: ~35-40
+# - Training time: ~1 week on 32 TPU v3 chips
+# - Zero-shot capabilities on various tasks
+#
+# GPT-3 Performance:
+# ------------------
+# - Zero-shot: Competitive with fine-tuned models
+# - Few-shot: Often matches or exceeds fine-tuned baselines
+# - Training cost: ~$4.6M (estimated)
+# - 175B parameters: largest dense language model (at time)
+#
+# Scaling Laws:
+# -------------
+# Performance improves predictably with:
+# - More parameters (model size)
+# - More training data
+# - More compute (training steps)
+#
+# Power law relationship:
+# Loss ∝ N^(-α) where N is parameters
+#
+# GPT-3 sizes and perplexity on test set:
+# - 125M params: perplexity ~30
+# - 350M params: perplexity ~20
+# - 1.3B params: perplexity ~15
+# - 6.7B params: perplexity ~12
+# - 175B params: perplexity ~10
+#
+# Diminishing returns at very large scale
+# GPT-4 focuses on quality over pure scale
+#
+# ============================================================================
+# OPTIMIZATION TECHNIQUES
+# ============================================================================
+#
+# 1. Memory Optimization:
+# -----------------------
+# - Gradient checkpointing: Trade compute for memory
+# - Mixed precision (FP16): 2x memory reduction
+# - Model parallelism: Split layers across GPUs
+# - ZeRO optimizer: Partition optimizer states
+#
+# 2. Speed Optimization:
+# ----------------------
+# - Flash Attention: Faster attention computation
+# - Fused kernels: Combine operations
+# - Cached attention: Reuse KV cache during generation
+# - Speculative decoding: Generate multiple tokens
+#
+# 3. Distributed Training:
+# ------------------------
+# - Data parallelism: Replicate model, split data
+# - Pipeline parallelism: Split model vertically
+# - Tensor parallelism: Split model horizontally
+# - 3D parallelism: Combine all three
+#
+# 4. KV Cache for Generation:
+# ----------------------------
+# Cache key/value tensors from previous steps
+# Only compute for new token position
+# Speeds up generation by ~10x
+#
+# ```python
+# # Without cache: recompute all positions
+# for i in range(max_length):
+#     logits = model(tokens[:i+1])  # O(n²) complexity
+#
+# # With cache: only new position
+# cache = None
+# for i in range(max_length):
+#     logits, cache = model(tokens[i], cache)  # O(n) complexity
+# ```
+#
+# ============================================================================
+# COMPILATION AND USAGE
+# ============================================================================
+#
+# Compile to TensorFlow:
+#   neural compile examples/gpt_decoder.neural --backend tensorflow
+#
+# Compile to PyTorch:
+#   neural compile examples/gpt_decoder.neural --backend pytorch
+#
+# Visualize architecture:
+#   neural visualize examples/gpt_decoder.neural
+#
+# For production:
+# - Use pre-trained weights (Hugging Face Transformers)
+# - Implement KV caching for efficient generation
+# - Add proper positional embeddings
+# - Implement learning rate schedule
+# - Use mixed precision and distributed training
+# - Consider serving optimizations (ONNX, TensorRT)
+#
+# Loading pre-trained GPT-2:
+# ```python
+# from transformers import GPT2LMHeadModel, GPT2Tokenizer
+#
+# model = GPT2LMHeadModel.from_pretrained('gpt2')
+# tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+#
+# text = "Once upon a time"
+# input_ids = tokenizer.encode(text, return_tensors='pt')
+# output = model.generate(
+#     input_ids,
+#     max_length=100,
+#     temperature=0.9,
+#     top_p=0.95,
+#     do_sample=True
+# )
+# generated = tokenizer.decode(output[0])
+# ```
+#
+# ============================================================================

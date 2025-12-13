@@ -1,0 +1,860 @@
+# ============================================================================
+# Full Encoder-Decoder Transformer - Complete Implementation
+# ============================================================================
+# This example demonstrates a complete encoder-decoder transformer architecture
+# as described in "Attention is All You Need" (Vaswani et al., 2017).
+#
+# This is a comprehensive reference implementation covering all components:
+#   - Complete encoder stack with multi-head attention
+#   - Complete decoder stack with masked and cross attention
+#   - Positional encodings
+#   - All sublayers with residual connections and layer normalization
+#   - Detailed configuration for different model sizes
+#
+# Model Architecture:
+#   - N stacked encoder layers
+#   - N stacked decoder layers
+#   - Multi-head self-attention mechanism
+#   - Position-wise feed-forward networks
+#   - Residual connections and layer normalization
+#   - Positional encoding for sequence ordering
+#
+# Key Concepts Demonstrated:
+#   - Complete encoder-decoder architecture
+#   - Self-attention vs cross-attention
+#   - Causal masking in decoder
+#   - Padding mask for variable-length sequences
+#   - Multi-head attention with multiple parallel heads
+#   - Scaled dot-product attention
+#   - Position-wise feed-forward networks
+#   - Residual connections for gradient flow
+#   - Layer normalization for training stability
+# ============================================================================
+
+# --------------------------------------------------------------------
+# CORE ATTENTION MECHANISMS
+# --------------------------------------------------------------------
+
+# Scaled Dot-Product Attention
+# -----------------------------
+# Core attention mechanism: Attention(Q, K, V) = softmax(QK^T / √d_k)V
+#
+# Steps:
+# 1. Compute attention scores: Q·K^T
+# 2. Scale by √d_k to prevent gradients from vanishing
+# 3. Apply mask (optional: padding mask or causal mask)
+# 4. Apply softmax to get attention weights
+# 5. Weight the values: multiply by V
+#
+# Why scaling?
+# - Dot products grow with dimension
+# - Large values → softmax saturates
+# - Gradients vanish → slow training
+# - Scaling by √d_k keeps variance constant
+#
+# Dimensions:
+# - Q: (batch, seq_len, d_k)
+# - K: (batch, seq_len, d_k)
+# - V: (batch, seq_len, d_v)
+# - Output: (batch, seq_len, d_v)
+
+# Multi-Head Attention
+# --------------------
+# Performs attention multiple times in parallel with different projections
+# Allows model to attend to information from different representation subspaces
+#
+# MultiHead(Q, K, V) = Concat(head_1, ..., head_h)W^O
+# where head_i = Attention(QW^Q_i, KW^K_i, VW^V_i)
+#
+# Benefits:
+# - Different heads learn different patterns
+# - Some heads focus on syntax, others on semantics
+# - Increases model capacity without much cost
+# - h heads with d_k/h dimensions ≈ same cost as single head with d_k
+define MultiHeadAttention(num_heads, d_model, dropout) {
+  # Project inputs to Query, Key, Value
+  # Each projection has dimension d_model
+  # Will be split into num_heads of dimension d_k = d_model / num_heads
+  
+  # Query projection: learns what to look for
+  Dense(units=$d_model, activation="linear", use_bias=True)
+  
+  # Key projection: learns what information is available
+  Dense(units=$d_model, activation="linear", use_bias=True)
+  
+  # Value projection: learns what information to extract
+  Dense(units=$d_model, activation="linear", use_bias=True)
+  
+  # Split into multiple heads (done in implementation)
+  # Each head operates on d_k = d_model / num_heads dimensions
+  
+  # Compute scaled dot-product attention for each head
+  # score = softmax(QK^T / √d_k)V
+  
+  # Attention dropout for regularization
+  # Randomly drop some attention connections
+  Dropout(rate=$dropout)
+  
+  # Concatenate all heads and project
+  # Concat(head_1, ..., head_h) → d_model dimension output
+  Dense(units=$d_model, activation="linear", use_bias=True)
+  
+  # Residual dropout
+  Dropout(rate=$dropout)
+}
+
+# Position-wise Feed-Forward Network
+# -----------------------------------
+# Two linear layers with ReLU activation
+# Applied independently to each position
+# Same across all positions but different across layers
+#
+# FFN(x) = max(0, xW_1 + b_1)W_2 + b_2
+#
+# Typical configuration:
+# - Inner layer: d_ff = 4 * d_model (expansion)
+# - Outer layer: d_model (projection back)
+#
+# Why position-wise?
+# - Adds non-linearity after attention
+# - Processes each position independently
+# - Provides additional capacity per layer
+# - No interaction between positions (attention handles that)
+define PositionwiseFeedForward(d_model, d_ff, dropout) {
+  # First linear layer: expand dimension
+  # Original paper uses ReLU activation
+  # Modern variants often use GELU
+  Dense(units=$d_ff, activation="relu")
+  
+  # Dropout for regularization
+  Dropout(rate=$dropout)
+  
+  # Second linear layer: project back to model dimension
+  Dense(units=$d_model, activation="linear")
+  
+  # Dropout again
+  Dropout(rate=$dropout)
+}
+
+# --------------------------------------------------------------------
+# ENCODER COMPONENTS
+# --------------------------------------------------------------------
+
+# Encoder Layer
+# -------------
+# Single layer of the encoder stack
+# Two sublayers with residual connections and layer normalization:
+#   1. Multi-head self-attention
+#   2. Position-wise feed-forward network
+#
+# Each sublayer has:
+# - Sublayer computation
+# - Residual connection: output = input + sublayer(input)
+# - Layer normalization: output = LayerNorm(output)
+#
+# Layer normalization:
+# - Normalizes across feature dimension (not batch dimension)
+# - Stabilizes training and allows higher learning rates
+# - Formula: y = (x - μ) / √(σ² + ε) * γ + β
+# - Learnable parameters: γ (scale), β (shift)
+define EncoderLayer(num_heads, d_model, d_ff, dropout) {
+  # Sublayer 1: Multi-Head Self-Attention
+  # --------------------------------------
+  # Self-attention: Q, K, V all come from same source (encoder input)
+  # Each position attends to all positions in encoder
+  # No masking in encoder (bidirectional)
+  
+  # Multi-head self-attention
+  MultiHeadAttention(num_heads=$num_heads, d_model=$d_model, dropout=$dropout)
+  
+  # Add residual connection
+  # This allows gradients to flow directly through layers
+  # Essential for training deep networks (6-12+ layers)
+  Add()
+  
+  # Layer normalization
+  # Normalizes output of attention + residual
+  # epsilon=1e-6 for numerical stability
+  LayerNormalization(epsilon=1e-6)
+  
+  # Sublayer 2: Position-wise Feed-Forward
+  # ---------------------------------------
+  # Processes each position independently
+  # Adds non-linearity and capacity to model
+  
+  # Feed-forward network
+  PositionwiseFeedForward(d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Add residual connection
+  Add()
+  
+  # Layer normalization
+  LayerNormalization(epsilon=1e-6)
+}
+
+# Full Encoder Stack
+# ------------------
+# Stacks N encoder layers
+# Original paper uses N=6
+# Larger models use N=12, 24, or more
+define EncoderStack(num_layers, num_heads, d_model, d_ff, dropout) {
+  # Repeat encoder layer N times
+  # Each layer has same architecture but different parameters
+  # Information flows through layers sequentially
+  # Each layer refines representations
+  
+  # Layer 1
+  EncoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Layer 2
+  EncoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Layer 3
+  EncoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Layer 4
+  EncoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Layer 5
+  EncoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Layer 6
+  EncoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+}
+
+# --------------------------------------------------------------------
+# DECODER COMPONENTS
+# --------------------------------------------------------------------
+
+# Decoder Layer
+# -------------
+# Single layer of the decoder stack
+# Three sublayers with residual connections and layer normalization:
+#   1. Masked multi-head self-attention (on decoder input)
+#   2. Multi-head cross-attention (attends to encoder output)
+#   3. Position-wise feed-forward network
+#
+# Key differences from encoder:
+# - Masked self-attention prevents looking ahead
+# - Cross-attention connects encoder and decoder
+# - Three sublayers instead of two
+define DecoderLayer(num_heads, d_model, d_ff, dropout) {
+  # Sublayer 1: Masked Multi-Head Self-Attention
+  # ---------------------------------------------
+  # Self-attention on decoder input with causal mask
+  # Position i can only attend to positions ≤ i
+  # Prevents information flow from future tokens
+  # Essential for autoregressive generation
+  #
+  # Mask implementation:
+  # mask[i, j] = -inf if j > i, else 0
+  # Applied before softmax in attention scores
+  
+  # Masked multi-head self-attention
+  MultiHeadAttention(num_heads=$num_heads, d_model=$d_model, dropout=$dropout)
+  
+  # Residual connection
+  Add()
+  
+  # Layer normalization
+  LayerNormalization(epsilon=1e-6)
+  
+  # Sublayer 2: Multi-Head Cross-Attention
+  # ---------------------------------------
+  # Attends to encoder output (encoder-decoder attention)
+  # Q: from decoder (what decoder is looking for)
+  # K, V: from encoder (information available from source)
+  # Allows decoder to focus on relevant parts of input
+  #
+  # This is the key connection between encoder and decoder
+  # Decoder can "attend" to different parts of source sequence
+  
+  # Multi-head cross-attention
+  # In implementation: Q from decoder, K and V from encoder
+  MultiHeadAttention(num_heads=$num_heads, d_model=$d_model, dropout=$dropout)
+  
+  # Residual connection
+  Add()
+  
+  # Layer normalization
+  LayerNormalization(epsilon=1e-6)
+  
+  # Sublayer 3: Position-wise Feed-Forward
+  # ---------------------------------------
+  # Same as encoder FFN
+  # Processes each position independently
+  
+  # Feed-forward network
+  PositionwiseFeedForward(d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Residual connection
+  Add()
+  
+  # Layer normalization
+  LayerNormalization(epsilon=1e-6)
+}
+
+# Full Decoder Stack
+# ------------------
+# Stacks N decoder layers
+# Original paper uses N=6 (same as encoder)
+define DecoderStack(num_layers, num_heads, d_model, d_ff, dropout) {
+  # Repeat decoder layer N times
+  # Each layer refines target representation
+  # Each layer attends to encoder output
+  
+  # Layer 1
+  DecoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Layer 2
+  DecoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Layer 3
+  DecoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Layer 4
+  DecoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Layer 5
+  DecoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+  
+  # Layer 6
+  DecoderLayer(num_heads=$num_heads, d_model=$d_model, d_ff=$d_ff, dropout=$dropout)
+}
+
+# --------------------------------------------------------------------
+# MAIN NETWORK DEFINITION
+# --------------------------------------------------------------------
+
+network EncoderDecoderTransformer {
+  # --------------------------------------------------------------------
+  # INPUT SPECIFICATION
+  # --------------------------------------------------------------------
+  # Two separate inputs: source sequence and target sequence
+  input: {
+    encoder_input: (256,)  # Source sequence (e.g., English)
+    decoder_input: (256,)  # Target sequence (e.g., French)
+  }
+  
+  # --------------------------------------------------------------------
+  # MODEL CONFIGURATION
+  # --------------------------------------------------------------------
+  # Base Model (65M parameters):
+  #   - d_model=512 (embedding/hidden dimension)
+  #   - n_heads=8 (attention heads)
+  #   - d_ff=2048 (feed-forward dimension)
+  #   - n_layers=6 (encoder and decoder layers)
+  #   - dropout=0.1
+  #
+  # Big Model (213M parameters):
+  #   - d_model=1024
+  #   - n_heads=16
+  #   - d_ff=4096
+  #   - n_layers=6
+  #   - dropout=0.3
+  
+  # --------------------------------------------------------------------
+  # NETWORK LAYERS
+  # --------------------------------------------------------------------
+  layers:
+    # ================================================================
+    # ENCODER PIPELINE
+    # ================================================================
+    
+    # Input Embedding Layer
+    # ---------------------
+    # Converts token indices to dense vectors
+    # vocab_size: Size of source vocabulary
+    # output_dim: d_model (512 in base configuration)
+    #
+    # Shared properties:
+    # - Learned during training
+    # - Each token gets unique embedding vector
+    # - Similar tokens should have similar embeddings
+    Embedding(input_dim=37000, output_dim=512, mask_zero=True)
+    
+    # Embedding Scaling
+    # -----------------
+    # Original paper multiplies embeddings by √d_model
+    # Prevents embeddings from being too small relative to positional encodings
+    # In implementation: embedding_output = embedding * sqrt(d_model)
+    
+    # Positional Encoding
+    # -------------------
+    # Adds position information to embeddings
+    # Transformers have no inherent notion of order (permutation invariant)
+    # Must explicitly encode position
+    #
+    # Original paper uses sinusoidal functions:
+    # PE(pos, 2i) = sin(pos / 10000^(2i/d_model))
+    # PE(pos, 2i+1) = cos(pos / 10000^(2i/d_model))
+    #
+    # Why sinusoidal?
+    # - Allows model to attend to relative positions
+    # - Can extrapolate to longer sequences than seen in training
+    # - Doesn't require learning additional parameters
+    #
+    # Alternative: Learned positional embeddings (used in BERT, GPT)
+    # Embedding(input_dim=max_seq_len, output_dim=d_model)
+    
+    # Position Dropout
+    # ----------------
+    # Apply dropout to sum of embeddings and positional encodings
+    Dropout(rate=0.1)
+    
+    # Encoder Stack
+    # -------------
+    # N layers of encoder
+    # Each layer has:
+    #   - Multi-head self-attention
+    #   - Position-wise feed-forward network
+    #   - Residual connections and layer normalization
+    EncoderStack(num_layers=6, num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # ================================================================
+    # DECODER PIPELINE
+    # ================================================================
+    
+    # Target Embedding Layer
+    # ----------------------
+    # Converts target token indices to dense vectors
+    # Usually same vocabulary size as encoder (for translation)
+    # Separate embedding matrix from encoder
+    Embedding(input_dim=37000, output_dim=512, mask_zero=True)
+    
+    # Embedding Scaling
+    # -----------------
+    # Same scaling as encoder: multiply by √d_model
+    
+    # Positional Encoding
+    # -------------------
+    # Same positional encoding scheme as encoder
+    # Can share encoding if using sinusoidal (no parameters)
+    # Separate if using learned embeddings
+    
+    # Position Dropout
+    # ----------------
+    Dropout(rate=0.1)
+    
+    # Decoder Stack
+    # -------------
+    # N layers of decoder
+    # Each layer has:
+    #   - Masked multi-head self-attention
+    #   - Multi-head cross-attention to encoder
+    #   - Position-wise feed-forward network
+    #   - Residual connections and layer normalization
+    DecoderStack(num_layers=6, num_heads=8, d_model=512, d_ff=2048, dropout=0.1)
+    
+    # ================================================================
+    # OUTPUT PROJECTION
+    # ================================================================
+    
+    # Final Linear Layer
+    # ------------------
+    # Projects decoder output to vocabulary size
+    # Output: logits for each token in vocabulary
+    # Shape: (batch_size, seq_len, vocab_size)
+    Dense(units=37000, activation="linear")
+    
+    # Weight Tying (optional but recommended)
+    # ---------------------------------------
+    # Share weights between:
+    # - Target embedding matrix
+    # - Output projection matrix
+    # Benefits:
+    # - Reduces parameters by ~30%
+    # - Improves performance (especially with small data)
+    # - Provides regularization
+    # Note: Requires vocab_size == d_model or scaling
+    
+    # Softmax Layer
+    # -------------
+    # Converts logits to probability distribution
+    # P(word_i | context) for each position
+    # Used during training (with teacher forcing)
+    # During inference, sample from this distribution
+    Output(units=37000, activation="softmax")
+  
+  # --------------------------------------------------------------------
+  # TRAINING CONFIGURATION
+  # --------------------------------------------------------------------
+  
+  # Loss Function
+  # -------------
+  # Label smoothing cross-entropy loss
+  # Standard: Cross-entropy between predictions and true labels
+  # Label smoothing: Mix true label with uniform distribution
+  #
+  # Without smoothing: [0, 0, 1, 0, 0] (one-hot)
+  # With smoothing (ε=0.1): [0.02, 0.02, 0.9, 0.02, 0.02]
+  #
+  # Benefits:
+  # - Prevents overconfidence
+  # - Better generalization
+  # - Improves BLEU score by ~0.5-1.0
+  #
+  # loss = (1-ε) * CE(pred, true) + ε * CE(pred, uniform)
+  loss: "sparse_categorical_crossentropy"
+  # Note: Add label_smoothing=0.1 in implementation
+  
+  # Optimizer
+  # ---------
+  # Adam with custom learning rate schedule
+  # Original paper schedule:
+  # lr = d_model^(-0.5) * min(step^(-0.5), step * warmup_steps^(-1.5))
+  #
+  # Two phases:
+  # 1. Warmup: Linear increase from 0 to peak (4000 steps)
+  # 2. Decay: Inverse square root decay
+  #
+  # Why warmup?
+  # - Prevents large gradients early in training
+  # - Allows model to stabilize before large updates
+  # - Critical for training deep transformers
+  #
+  # Why inverse sqrt decay?
+  # - Gradual reduction as model converges
+  # - Continues learning but with smaller steps
+  optimizer: Adam(
+    learning_rate=0.0001,  # Peak learning rate
+    beta_1=0.9,            # Momentum term
+    beta_2=0.98,           # RMSprop term (higher than default 0.999)
+    epsilon=1e-9           # Numerical stability
+  )
+  
+  # Learning Rate Schedule (implement separately)
+  # lr_schedule: TransformerSchedule(
+  #   d_model=512,
+  #   warmup_steps=4000
+  # )
+  
+  # Evaluation Metrics
+  # ------------------
+  # Track multiple metrics for comprehensive evaluation
+  metrics: ["accuracy", "sparse_categorical_crossentropy"]
+  
+  # For translation:
+  # - Accuracy: Token-level accuracy
+  # - Perplexity: exp(cross_entropy_loss)
+  # - BLEU: Compare generated text to references (post-training metric)
+  
+  # Training Parameters
+  # -------------------
+  train {
+    # Training steps
+    # Original paper: 100,000 steps (base), 300,000 (big)
+    # 1 epoch on large dataset ≈ 100,000 steps
+    epochs: 20
+    
+    # Batch size
+    # Original paper: ~25,000 source + target tokens per batch
+    # Actual batch_size depends on sequence length
+    # For seq_len=256: batch_size ≈ 50
+    # For seq_len=100: batch_size ≈ 125
+    batch_size: 32
+    
+    # Gradient accumulation (if memory limited)
+    # Simulate larger batches by accumulating gradients
+    # Effective batch size = batch_size * accumulation_steps
+    # accumulation_steps: 4
+    
+    # Validation split
+    validation_split: 0.05
+    
+    # Gradient clipping
+    # Prevents exploding gradients
+    # Clip by global norm
+    gradient_clip: 5.0
+    
+    # Regularization
+    # dropout: 0.1 (already specified in layers)
+    # label_smoothing: 0.1
+    
+    # Mixed precision training (optional)
+    # Speeds up training by 2-3x on modern GPUs
+    # use_mixed_precision: True
+    
+    # Checkpointing
+    # Save model every N steps
+    # Keep best model based on validation loss
+    # checkpoint_interval: 1000
+    
+    # Early stopping (optional)
+    # Stop if validation loss doesn't improve
+    # early_stopping_patience: 10
+  }
+}
+
+# ============================================================================
+# DETAILED ARCHITECTURE EXPLANATION
+# ============================================================================
+#
+# Information Flow:
+# -----------------
+#
+# 1. ENCODER PATH:
+#    Source tokens → Embedding → +Positional Encoding → Dropout
+#    → Encoder Layer 1 (Self-Attention + FFN)
+#    → Encoder Layer 2 (Self-Attention + FFN)
+#    → ...
+#    → Encoder Layer N (Self-Attention + FFN)
+#    → Encoder output (used by decoder)
+#
+# 2. DECODER PATH:
+#    Target tokens → Embedding → +Positional Encoding → Dropout
+#    → Decoder Layer 1 (Masked Self-Attn + Cross-Attn + FFN)
+#    → Decoder Layer 2 (Masked Self-Attn + Cross-Attn + FFN)
+#    → ...
+#    → Decoder Layer N (Masked Self-Attn + Cross-Attn + FFN)
+#    → Linear projection → Softmax
+#    → Token probabilities
+#
+# 3. TRAINING (Teacher Forcing):
+#    - Encoder: Processes full source sequence
+#    - Decoder: Processes full target sequence (shifted right)
+#    - Loss: Compare predictions with true next tokens
+#    - Parallel: All positions predicted simultaneously
+#
+# 4. INFERENCE (Autoregressive):
+#    - Encoder: Processes source sequence once
+#    - Decoder: Generates one token at a time
+#    - Each new token added to decoder input
+#    - Repeat until <EOS> or max length
+#    - Sequential: One position predicted per step
+#
+# Attention Patterns:
+# -------------------
+#
+# 1. Encoder Self-Attention:
+#    - Each position attends to all positions
+#    - Bidirectional: can see entire sequence
+#    - Example: word "bank" attends to "river" (not "money")
+#
+# 2. Decoder Self-Attention (Masked):
+#    - Each position attends to earlier positions only
+#    - Causal: cannot see future
+#    - Position i can see positions 0 to i
+#
+# 3. Decoder Cross-Attention:
+#    - Each decoder position attends to all encoder positions
+#    - Allows decoder to focus on relevant source parts
+#    - Example: French "chat" attends to English "cat"
+#
+# Mask Types:
+# -----------
+#
+# 1. Padding Mask:
+#    - Prevents attending to padding tokens
+#    - Applied in encoder and decoder self-attention
+#    - Binary mask: 0 for real tokens, -inf for padding
+#
+# 2. Look-Ahead (Causal) Mask:
+#    - Prevents attending to future tokens
+#    - Applied in decoder self-attention only
+#    - Upper triangular matrix of -inf
+#
+# 3. Combined Mask:
+#    - Decoder self-attention uses both masks
+#    - mask = padding_mask ∧ look_ahead_mask
+#
+# ============================================================================
+# DATA PREPARATION AND TRAINING
+# ============================================================================
+#
+# Tokenization:
+# -------------
+# Use subword tokenization (BPE, SentencePiece, WordPiece):
+#
+# ```python
+# import sentencepiece as spm
+#
+# # Train tokenizer
+# spm.SentencePieceTrainer.train(
+#     input='corpus.txt',
+#     model_prefix='tokenizer',
+#     vocab_size=37000,
+#     character_coverage=0.9995,
+#     model_type='bpe'
+# )
+#
+# # Load tokenizer
+# sp = spm.SentencePieceProcessor(model_file='tokenizer.model')
+#
+# # Tokenize
+# tokens = sp.encode('Hello, world!', out_type=int)
+# text = sp.decode(tokens)
+# ```
+#
+# Data Format:
+# ------------
+# Parallel corpus: pairs of (source, target) sentences
+#
+# Training example:
+# - Source: [BOS] How are you ? [EOS] [PAD] [PAD]
+# - Target Input: [BOS] Comment allez vous ?
+# - Target Output: Comment allez vous ? [EOS]
+#
+# Important: Target is shifted right by 1 position
+# - Decoder input: ground truth (teacher forcing)
+# - Decoder output: next token prediction
+#
+# Batching:
+# ---------
+# Group sequences of similar length for efficiency
+# Pad to maximum length in batch (not global maximum)
+#
+# ```python
+# def create_batch(examples, batch_size):
+#     # Sort by length
+#     examples = sorted(examples, key=lambda x: len(x[0]))
+#     
+#     batches = []
+#     for i in range(0, len(examples), batch_size):
+#         batch = examples[i:i+batch_size]
+#         
+#         # Find max length in batch
+#         max_src_len = max(len(ex[0]) for ex in batch)
+#         max_tgt_len = max(len(ex[1]) for ex in batch)
+#         
+#         # Pad sequences
+#         src_batch = [pad(ex[0], max_src_len) for ex in batch]
+#         tgt_batch = [pad(ex[1], max_tgt_len) for ex in batch]
+#         
+#         batches.append((src_batch, tgt_batch))
+#     
+#     return batches
+# ```
+#
+# ============================================================================
+# INFERENCE AND DECODING
+# ============================================================================
+#
+# Beam Search Decoding:
+# ---------------------
+# Standard decoding algorithm for sequence-to-sequence models
+#
+# ```python
+# def beam_search(model, source, beam_width=4, max_length=256):
+#     # Encode source
+#     encoder_output = model.encode(source)
+#     
+#     # Initialize beams
+#     beams = [Beam([BOS_ID], 0.0, encoder_output)]
+#     completed = []
+#     
+#     for step in range(max_length):
+#         candidates = []
+#         
+#         for beam in beams:
+#             if beam.tokens[-1] == EOS_ID:
+#                 completed.append(beam)
+#                 continue
+#             
+#             # Get predictions for next token
+#             logits = model.decode(beam.tokens, encoder_output)
+#             log_probs = log_softmax(logits[-1])
+#             
+#             # Get top-k tokens
+#             top_k_probs, top_k_tokens = top_k(log_probs, beam_width)
+#             
+#             # Create new beams
+#             for prob, token in zip(top_k_probs, top_k_tokens):
+#                 new_beam = Beam(
+#                     tokens=beam.tokens + [token],
+#                     score=beam.score + prob,
+#                     encoder_output=encoder_output
+#                 )
+#                 candidates.append(new_beam)
+#         
+#         # Keep top beam_width beams
+#         beams = sorted(candidates, key=lambda x: x.score / len(x.tokens), reverse=True)[:beam_width]
+#         
+#         if len(completed) >= beam_width:
+#             break
+#     
+#     # Return best beam
+#     best = max(completed + beams, key=lambda x: x.score / len(x.tokens))
+#     return best.tokens
+# ```
+#
+# Length Normalization:
+# ---------------------
+# Beam search favors shorter sequences (more token probabilities multiplied)
+# Normalize by length: score / len(sequence)^α
+# α=0.6-0.7 works well in practice
+#
+# Coverage Penalty:
+# -----------------
+# Prevents repeatedly attending to same source positions
+# Encourages model to cover entire source
+#
+# ============================================================================
+# PERFORMANCE BENCHMARKS
+# ============================================================================
+#
+# WMT 2014 English-to-German:
+# ---------------------------
+# - Base model (65M params): BLEU 27.3
+# - Big model (213M params): BLEU 28.4
+# - Training time: ~12 hours (base), 3.5 days (big) on 8 P100 GPUs
+#
+# WMT 2014 English-to-French:
+# ---------------------------
+# - Base model: BLEU 38.1
+# - Big model: BLEU 41.8
+# - Training time: ~3.5 days (big) on 8 P100 GPUs
+#
+# Inference Speed:
+# ----------------
+# - Encoder: Parallel, O(1) passes
+# - Decoder: Sequential, O(n) passes for n tokens
+# - Beam search: Multiply by beam_width
+# - Base model: ~10-20 tokens/sec per sequence (beam_width=4)
+#
+# ============================================================================
+# OPTIMIZATIONS AND VARIANTS
+# ============================================================================
+#
+# 1. Relative Position Representations:
+#    - Attend to relative distances instead of absolute positions
+#    - Better extrapolation to longer sequences
+#    - Used in: Transformer-XL, T5
+#
+# 2. Universal Transformer:
+#    - Share parameters across layers
+#    - Adaptive computation (variable depth)
+#    - More parameter efficient
+#
+# 3. Sparse Attention:
+#    - Reduce O(n²) complexity of attention
+#    - Local attention, strided attention, global attention
+#    - Used in: Longformer, BigBird
+#
+# 4. Efficient Attention:
+#    - Linear attention approximations
+#    - Kernelized attention
+#    - Used in: Performer, Linformer
+#
+# 5. Pre-trained Models:
+#    - mBART: Multilingual denoising pre-training
+#    - mT5: Multilingual T5
+#    - Transfer learning for low-resource languages
+#
+# ============================================================================
+# COMPILATION
+# ============================================================================
+#
+# Compile to TensorFlow:
+#   neural compile examples/encoder_decoder_transformer.neural --backend tensorflow
+#
+# Compile to PyTorch:
+#   neural compile examples/encoder_decoder_transformer.neural --backend pytorch
+#
+# Visualize:
+#   neural visualize examples/encoder_decoder_transformer.neural
+#
+# Debug:
+#   neural debug examples/encoder_decoder_transformer.neural
+#
+# ============================================================================

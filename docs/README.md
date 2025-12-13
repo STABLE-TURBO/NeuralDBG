@@ -116,6 +116,23 @@ Comprehensive learning resources for all skill levels:
 - [Deployment Guide](guides/deployment.md)
 - [Contributing Guide](guides/contributing.md)
 
+### 9. Transformer Documentation ⭐ NEW
+
+Comprehensive guides for building and training transformer models:
+
+- **[Transformers Overview](transformers_README.md)** - Quick start and complete reference
+- **[Architecture Guide](transformer_architecture.md)** - Build BERT, GPT, ViT, and Seq2Seq models
+- **[Attention Mechanism](transformer_attention.md)** - Deep dive into attention mechanisms
+- **[Training Best Practices](transformer_training.md)** - Optimize transformer training
+- **[Migration Guide](transformer_migration.md)** - Convert from raw TensorFlow/PyTorch (50-75% less code)
+
+**Covers:**
+- ✅ TransformerEncoder and TransformerDecoder layers
+- ✅ Multi-head attention patterns
+- ✅ Common architectures (BERT, GPT, Vision Transformer)
+- ✅ Learning rate strategies and optimization
+- ✅ Code migration examples with side-by-side comparisons
+
 ### 9. Blog & Releases
 
 - **[Release Notes](releases/)** - Detailed release documentation

@@ -1,0 +1,128 @@
+.quickstart-templates {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.templates-header {
+  margin-bottom: 30px;
+}
+
+.templates-header h2 {
+  margin: 0 0 10px 0;
+  font-size: 26px;
+  color: #fff;
+}
+
+.templates-header p {
+  margin: 0;
+  font-size: 15px;
+  color: #aaa;
+}
+
+.templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.template-card {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 20px;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.template-card:hover {
+  border-color: #61dafb;
+  box-shadow: 0 4px 16px rgba(97, 218, 251, 0.2);
+  transform: translateY(-2px);
+}
+
+.template-icon {
+  font-size: 48px;
+  text-align: center;
+}
+
+.template-content {
+  flex: 1;
+}
+
+.template-header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.template-content h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #fff;
+  flex: 1;
+}
+
+.difficulty-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.template-category {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  color: #61dafb;
+  font-weight: 500;
+}
+
+.template-description {
+  margin: 0;
+  font-size: 14px;
+  color: #ccc;
+  line-height: 1.5;
+}
+
+.template-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.load-template-btn,
+.preview-template-btn {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.load-template-btn {
+  background: #61dafb;
+  color: #000;
+}
+
+.load-template-btn:hover {
+  background: #4fa8c5;
+  transform: translateY(-1px);
+}
+
+.preview-template-btn {
+  background: transparent;
+  color: #61dafb;
+  border: 1px solid #61dafb;
+}
+
+.preview-template-btn:hover {
+  background: rgba(97, 218, 251, 0.1);
+  transform: translateY(-1px);
+}

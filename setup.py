@@ -27,10 +27,10 @@ DISTRIBUTED_DEPS = [
 ]
 
 CLOUD_DEPS = [
+FOUND_DEPS = [
     "pygithub>=1.59",
     "selenium>=4.0",
     "webdriver-manager",
-    "tweepy>=4.15.0",
     "requests>=2.28.0",
 ]
 
@@ -100,6 +100,10 @@ API_DEPS = [
     "websockets>=10.0",
 ]
 
+COLLABORATION_DEPS = [
+    "websockets>=10.0",
+]
+
 MONITORING_DEPS = [
     "prometheus-client>=0.16.0",
     "requests>=2.28.0",
@@ -108,6 +112,11 @@ MONITORING_DEPS = [
 DATA_DEPS = [
     "dvc>=2.0",
     "pandas>=1.3",
+]
+
+TEAMS_DEPS = [
+    "click>=8.1.3",
+    "pyyaml>=6.0.1",
 ]
 
 setup(
@@ -131,6 +140,7 @@ setup(
         "ml-extras": ML_EXTRAS_DEPS,
         "api": API_DEPS,
         "data": DATA_DEPS,
+        "teams": TEAMS_DEPS,
         # Convenience bundles
         "dev": [
             "pytest>=7.0.0",
@@ -157,6 +167,7 @@ setup(
             + ML_EXTRAS_DEPS
             + API_DEPS
             + DATA_DEPS
+            + TEAMS_DEPS
         ),
         "docs": [
             "sphinx>=5.0",

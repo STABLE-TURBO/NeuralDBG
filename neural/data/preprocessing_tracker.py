@@ -7,6 +7,15 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 
 class PreprocessingStep:
+    """
+    Represents a single step in a preprocessing pipeline.
+    
+    Attributes:
+        name: Step name
+        function: Callable function
+        params: Function parameters
+        description: Step description
+    """
     def __init__(
         self,
         name: str,
@@ -54,6 +63,14 @@ class PreprocessingStep:
 
 
 class PreprocessingPipeline:
+    """
+    Represents a sequence of preprocessing steps.
+    
+    Attributes:
+        name: Pipeline name
+        steps: List of steps
+        description: Description
+    """
     def __init__(self, name: str, description: Optional[str] = None):
         self.name = name
         self.description = description or ""
@@ -106,6 +123,9 @@ class PreprocessingPipeline:
 
 
 class PreprocessingTracker:
+    """
+    Tracks preprocessing pipelines and their executions.
+    """
     def __init__(self, base_dir: Union[str, Path] = ".neural_data"):
         self.base_dir = Path(base_dir)
         self.pipelines_dir = self.base_dir / "preprocessing_pipelines"

@@ -1,0 +1,173 @@
+.update-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  max-width: 400px;
+  min-width: 320px;
+  background: #2d2d2d;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  z-index: 10000;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.update-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.update-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.update-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.update-message {
+  font-size: 13px;
+  color: #aaa;
+  line-height: 1.4;
+}
+
+.update-stats {
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.update-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: #404040;
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.update-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #007acc, #0098ff);
+  transition: width 0.3s ease;
+}
+
+.update-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.update-button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.update-install {
+  background: #007acc;
+  color: #fff;
+}
+
+.update-install:hover {
+  background: #0098ff;
+}
+
+.update-later {
+  background: transparent;
+  color: #aaa;
+  border: 1px solid #555;
+}
+
+.update-later:hover {
+  background: #333;
+  color: #fff;
+}
+
+.update-dismiss {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.update-dismiss:hover {
+  background: #404040;
+  color: #fff;
+}
+
+.update-ready {
+  border-color: #4caf50;
+}
+
+.update-ready .update-icon {
+  color: #4caf50;
+}
+
+.update-downloading {
+  border-color: #007acc;
+}
+
+.update-downloading .update-icon {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.update-error {
+  border-color: #f44336;
+}
+
+.update-error .update-icon {
+  color: #f44336;
+}
+
+.update-available {
+  border-color: #ff9800;
+}
+
+.update-available .update-icon {
+  color: #ff9800;
+}

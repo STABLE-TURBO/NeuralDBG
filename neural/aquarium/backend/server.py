@@ -1,11 +1,14 @@
 """FastAPI server for Neural DSL backend bridge."""
 
 import asyncio
+import json
 import logging
 from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from neural.code_generation.code_generator import generate_code
@@ -14,6 +17,7 @@ from neural.shape_propagation.shape_propagator import ShapePropagator
 
 from .process_manager import ProcessManager
 from .websocket_manager import ConnectionManager
+from .terminal_handler import TerminalManager
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -111,6 +115,7 @@ def create_app() -> FastAPI:
 
     process_manager = ProcessManager()
     websocket_manager = ConnectionManager()
+    terminal_manager = TerminalManager()
 
     @app.on_event("startup")
     async def startup_event():
@@ -120,6 +125,7 @@ def create_app() -> FastAPI:
     async def shutdown_event():
         logger.info("Neural DSL Backend Bridge shutting down...")
         await process_manager.cleanup()
+        terminal_manager.cleanup_all()
 
     @app.get("/")
     async def root():
@@ -359,6 +365,186 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.error(f"WebSocket error: {e}", exc_info=True)
             await websocket.close()
+
+    @app.websocket("/terminal/{session_id}")
+    async def terminal_websocket(websocket: WebSocket, session_id: str):
+        """WebSocket endpoint for terminal sessions."""
+        await websocket.accept()
+        
+        try:
+            session = terminal_manager.get_session(session_id)
+            if not session:
+                session = terminal_manager.create_session(session_id, shell="bash")
+            
+            logger.info(f"Terminal WebSocket connected for session: {session_id}")
+            
+            while True:
+                try:
+                    data = await websocket.receive_text()
+                    message = json.loads(data)
+                    
+                    if message["type"] == "command":
+                        command = message["data"]
+                        output = await session.execute_command(command)
+                        
+                        await websocket.send_text(json.dumps({
+                            "type": "output",
+                            "data": output
+                        }))
+                        
+                        await websocket.send_text(json.dumps({
+                            "type": "prompt",
+                            "data": "$ "
+                        }))
+                    
+                    elif message["type"] == "autocomplete":
+                        partial = message["data"]
+                        suggestions = session.get_autocomplete_suggestions(partial)
+                        
+                        await websocket.send_text(json.dumps({
+                            "type": "autocomplete",
+                            "suggestions": suggestions
+                        }))
+                    
+                    elif message["type"] == "change_shell":
+                        new_shell = message["shell"]
+                        success = session.change_shell(new_shell)
+                        
+                        if success:
+                            await websocket.send_text(json.dumps({
+                                "type": "shell_change",
+                                "shell": new_shell
+                            }))
+                        else:
+                            await websocket.send_text(json.dumps({
+                                "type": "output",
+                                "data": f"\x1b[1;31mFailed to change shell to {new_shell}\x1b[0m\r\n"
+                            }))
+                
+                except WebSocketDisconnect:
+                    break
+                except Exception as e:
+                    logger.error(f"Terminal command error: {e}", exc_info=True)
+                    await websocket.send_text(json.dumps({
+                        "type": "output",
+                        "data": f"\x1b[1;31mError: {str(e)}\x1b[0m\r\n"
+                    }))
+        
+        except Exception as e:
+            logger.error(f"Terminal WebSocket error: {e}", exc_info=True)
+        finally:
+            logger.info(f"Terminal WebSocket disconnected for session: {session_id}")
+
+    @app.get("/api/examples/list")
+    async def list_examples():
+        """List available example models."""
+        try:
+            examples_dir = Path(__file__).parent.parent / 'examples'
+            examples = []
+            
+            if not examples_dir.exists():
+                return JSONResponse(content={'examples': [], 'count': 0})
+            
+            for example_file in examples_dir.glob('*.neural'):
+                with open(example_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                name = example_file.stem.replace('_', ' ').title()
+                category = 'General'
+                tags = []
+                complexity = 'Intermediate'
+                
+                if 'cnn' in example_file.stem.lower() or 'conv' in content.lower():
+                    category = 'Computer Vision'
+                    tags.extend(['cnn', 'computer-vision'])
+                elif 'lstm' in content.lower() or 'rnn' in content.lower():
+                    category = 'NLP'
+                    tags.extend(['nlp', 'recurrent'])
+                elif 'gan' in example_file.stem.lower() or 'vae' in example_file.stem.lower():
+                    category = 'Generative'
+                    tags.extend(['generative'])
+                
+                if 'mnist' in example_file.stem.lower():
+                    description = 'Convolutional Neural Network for MNIST digit classification'
+                    tags.append('mnist')
+                    complexity = 'Beginner'
+                elif 'text' in example_file.stem.lower():
+                    description = 'LSTM network for text classification and sentiment analysis'
+                    tags.append('text')
+                    complexity = 'Beginner'
+                else:
+                    description = f'Neural network model: {name}'
+                
+                examples.append({
+                    'name': name,
+                    'path': str(example_file.relative_to(examples_dir.parent)),
+                    'description': description,
+                    'category': category,
+                    'tags': tags,
+                    'complexity': complexity
+                })
+            
+            return JSONResponse(content={'examples': examples, 'count': len(examples)})
+        except Exception as e:
+            logger.error(f"Failed to list examples: {e}", exc_info=True)
+            return JSONResponse(content={'error': str(e), 'examples': []}, status_code=500)
+
+    @app.get("/api/examples/load")
+    async def load_example(path: str):
+        """Load an example model file."""
+        try:
+            full_path = Path(__file__).parent.parent / path
+            
+            if not full_path.exists():
+                raise HTTPException(status_code=404, detail='Example file not found')
+            
+            if not full_path.is_file() or not str(full_path).endswith('.neural'):
+                raise HTTPException(status_code=400, detail='Invalid example file')
+            
+            with open(full_path, 'r', encoding='utf-8') as f:
+                code = f.read()
+            
+            return JSONResponse(content={
+                'code': code,
+                'path': path,
+                'name': full_path.stem
+            })
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to load example: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/docs/{doc_path:path}")
+    async def get_documentation(doc_path: str):
+        """Serve documentation files."""
+        try:
+            docs_dir = Path(__file__).parent.parent
+            search_paths = [
+                docs_dir / doc_path,
+                docs_dir / doc_path.upper(),
+                docs_dir.parent.parent / 'docs' / doc_path,
+                docs_dir.parent.parent / 'docs' / doc_path.upper(),
+            ]
+            
+            file_path = None
+            for path in search_paths:
+                if path.exists() and path.is_file():
+                    file_path = path
+                    break
+            
+            if not file_path:
+                raise HTTPException(status_code=404, detail='Documentation file not found')
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            return PlainTextResponse(content=content)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to load documentation: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
 
     return app
 

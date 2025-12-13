@@ -1,0 +1,27 @@
+profiles:
+  - strictness_medium
+
+tools:
+  pylint:
+    disable:
+      - too-many-branches
+      - too-many-statements
+      - too-many-locals
+      - too-many-instance-attributes
+      - invalid-name
+      - line-too-long
+      - import-outside-toplevel
+    max-line-length: 100
+  pyflakes: { }
+  pep8:
+    ignore:
+      - E501
+
+ignore-paths:
+  - tests
+  - docs
+  - build
+  - dist
+  - neural/src
+
+test-warnings: false
