@@ -1,62 +1,78 @@
 # Neural DSL Blog
 
-This directory contains the blog posts for the Neural DSL website.
+**Status**: 🧹 Cleaned up - Auto-generated release posts removed
 
-## Adding a New Blog Post
+This directory previously contained auto-generated blog posts for various releases. These have been removed as part of documentation cleanup.
 
-1. Create a new markdown file in this directory with a descriptive name, e.g., `website_v0.2.6_release.md`.
-   - Use the `website_` prefix for posts that will appear on the website.
-   - Use the `devto_` prefix for posts that are formatted for Dev.to.
+## What Was Removed
 
-2. Format your blog post with the following structure:
-   ```markdown
-   # Title of Your Blog Post
+The following auto-generated release announcement files were removed:
+- 7 Dev.to release posts (`devto_v*.md`)
+- 1 GitHub release post (`github_v*.md`)
+- 1 Medium release post (`medium_v*.md`)
+- 6 Website release posts (`website_v*.md`)
+- Blog index.html
 
-   ![Optional Image](../assets/images/your-image.png)
+**Reason**: These were auto-generated files that are no longer needed. Release notes are better maintained in:
+- `docs/releases/` directory
+- GitHub Releases page
+- `CHANGELOG.md`
 
-   *Posted on Month Day, Year by Your Name*
+## Current Status
 
-   First paragraph of your blog post...
+This directory is preserved for future blog infrastructure but currently contains minimal files:
+- `README.md` (this file)
+- `blog-list.json` (blog metadata, preserved for future use)
 
-   ## Section Heading
+## Future Blog Posts
 
-   Content of your section...
+If you want to add blog posts in the future, consider these options:
 
-   ```
+### Option 1: Use Docusaurus Blog (Recommended)
 
-3. Run the blog generation script to create the HTML files and update the blog list:
-   ```bash
-   python scripts/generate_blog_list.py
-   ```
+The Docusaurus website (`website/`) has built-in blog functionality:
 
-4. The script will:
-   - Generate an HTML version of your markdown file
-   - Update the `blog-list.json` file with your new post
-   - Your post will automatically appear on the website
+```bash
+# Create a blog post in the Docusaurus blog
+# Location: website/blog/
+# Format: YYYY-MM-DD-post-title.md
+```
 
-## Blog Post Guidelines
+Benefits:
+- Integrated with the main documentation site
+- Automatic blog index generation
+- RSS feed support
+- Better SEO and navigation
+
+### Option 2: Manual Blog Posts Here
+
+If you prefer to keep blog posts in this directory:
+
+1. Create a markdown file with a descriptive name
+2. Follow standard markdown formatting
+3. Manually update `blog-list.json` if needed
+
+**Note**: This approach requires manual integration with the website.
+
+## Blog Post Guidelines (If Adding New Posts)
 
 - Keep titles concise and descriptive
-- Include a clear date in the format `Month Day, Year` (e.g., `March 24, 2025`)
-- For release announcements, emphasize one main feature plus other fixes
+- Include a clear date in the format `Month Day, Year`
 - Include code examples when relevant
-- Use proper markdown formatting for headings, lists, and code blocks
-- Keep images to a reasonable size (max width 900px recommended)
+- Use proper markdown formatting
+- Keep images to a reasonable size (max width 900px)
 
-## Dev.to Posts
+## Recommended Approach
 
-For posts that will also be published on Dev.to:
+**For release announcements**: Use GitHub Releases and `CHANGELOG.md`
 
-1. Create a file with the `devto_` prefix
-2. Include the Dev.to frontmatter at the top:
-   ```markdown
-   ---
-   title: "Your Title Here"
-   published: true
-   description: "Brief description of your post"
-   tags: tag1, tag2, tag3
-   cover_image: https://url-to-your-cover-image.png
-   ---
-   ```
+**For technical blog posts**: Use the Docusaurus blog in `website/blog/`
 
-3. These posts won't appear on the website but can be used as a reference for your Dev.to publications.
+**For social media**: Use dedicated social media management tools
+
+## See Also
+
+- `docs/releases/` - Release notes directory
+- `website/blog/` - Docusaurus blog (recommended for new posts)
+- `CHANGELOG.md` - Changelog file
+- `docs/README_CLEANUP.md` - Documentation cleanup summary
