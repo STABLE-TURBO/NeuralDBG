@@ -205,3 +205,12 @@ audit-*.json
 
 # git-secrets
 .git-secrets/
+
+# Website (Docusaurus)
+website/node_modules/
+website/.docusaurus/
+website/.cache-loader/
+website/build/
+website/npm-debug.log*
+website/yarn-debug.log*
+website/yarn-error.log*
