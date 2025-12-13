@@ -129,6 +129,20 @@ class PyTorchGenerator(BaseCodeGenerator):
                 layer_code = f"nn.Embedding(num_embeddings={num_embeddings}, embedding_dim={embedding_dim})"
                 layers_code.append(f"self.{layer_name} = {layer_code}")
                 forward_code_body.append(f"x = self.{layer_name}(x)")
+            elif layer_type == "TransformerEncoder":
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    use_attention_mask = params.get("use_attention_mask", False)
+                    if isinstance(use_attention_mask, dict):
+                        if 'value' in use_attention_mask:
+                            use_attention_mask = use_attention_mask['value']
+                    
+                    if use_attention_mask:
+                        forward_code_body.append(f"# Pass attention mask if available (set src_key_padding_mask for padding)")
+                        forward_code_body.append(f"x = self.{layer_name}(x, src_key_padding_mask=None)")
+                    else:
+                        forward_code_body.append(f"x = self.{layer_name}(x)")
             elif layer_type == "Output":
                 in_features = self.current_input_shape[-1]
                 if isinstance(in_features, dict):
@@ -510,7 +524,35 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {dropout}, using default")
                 dropout = 0.1
-        return f"nn.TransformerEncoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout})"
+        
+        num_layers = params.get("num_layers", 1)
+        if isinstance(num_layers, dict):
+            if 'value' in num_layers:
+                num_layers = num_layers['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {num_layers}, using default")
+                num_layers = 1
+        
+        activation = params.get("activation", "relu")
+        if isinstance(activation, dict):
+            if 'value' in activation:
+                activation = activation['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {activation}, using default")
+                activation = "relu"
+        
+        use_attention_mask = params.get("use_attention_mask", False)
+        if isinstance(use_attention_mask, dict):
+            if 'value' in use_attention_mask:
+                use_attention_mask = use_attention_mask['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {use_attention_mask}, using default")
+                use_attention_mask = False
+        
+        if num_layers > 1:
+            return f"nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout}, activation='{activation}'), num_layers={num_layers})"
+        else:
+            return f"nn.TransformerEncoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout}, activation='{activation}')"
     elif layer_type == "TransformerDecoder":
         d_model = params.get("d_model", 512)
         if isinstance(d_model, dict):

@@ -129,16 +129,33 @@ class TensorFlowGenerator(BaseCodeGenerator):
             num_heads = params.get("num_heads", 8)
             ff_dim = params.get("ff_dim", 512)
             dropout = params.get("dropout", 0.1)
-            code = [
-                "# TransformerEncoder block",
-                f"x = layers.LayerNormalization(epsilon=1e-6)(x)",
-                f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim})(x, x)",
-                f"x = layers.Add()([x, attn_output])",
-                f"x = layers.LayerNormalization(epsilon=1e-6)(x)",
-                f"x = layers.Dense({ff_dim}, activation='relu')(x)",
-                f"x = layers.Dense({ff_dim})(x)",
-                f"x = layers.Dropout({dropout})(x)"
-            ]
+            num_layers = params.get("num_layers", 1)
+            activation = params.get("activation", "relu")
+            use_attention_mask = params.get("use_attention_mask", False)
+            
+            code = ["# TransformerEncoder block"]
+            
+            if use_attention_mask:
+                code.append("# Attention mask should be provided as input")
+                code.append("attention_mask = None  # Set this to your mask tensor")
+            
+            for layer_idx in range(num_layers):
+                code.append(f"# Encoder Layer {layer_idx + 1}")
+                code.append(f"x = layers.LayerNormalization(epsilon=1e-6)(x)")
+                
+                if use_attention_mask:
+                    code.append(f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim})(x, x, attention_mask=attention_mask)")
+                else:
+                    code.append(f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim})(x, x)")
+                
+                code.append(f"attn_output = layers.Dropout({dropout})(attn_output)")
+                code.append(f"x = layers.Add()([x, attn_output])")
+                code.append(f"x = layers.LayerNormalization(epsilon=1e-6)(x)")
+                code.append(f"ffn_output = layers.Dense({ff_dim}, activation='{activation}')(x)")
+                code.append(f"ffn_output = layers.Dense({ff_dim})(ffn_output)")
+                code.append(f"ffn_output = layers.Dropout({dropout})(ffn_output)")
+                code.append(f"x = layers.Add()([x, ffn_output])")
+            
             return "\n".join(code)
         elif layer_type == "TransformerDecoder":
             num_heads = params.get("num_heads", 8)
