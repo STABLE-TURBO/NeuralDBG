@@ -65,18 +65,23 @@ def create_dynamic_model(
                 if isinstance(param_value, dict) and 'hpo' in param_value:
                     hpo = param_value['hpo']
                     if hpo['type'] == 'categorical':
-                        layer['params'][param_name] = trial.suggest_categorical(f"{layer['type']}_{param_name}", hpo['values'])
+                        values = validate_hpo_categorical(param_name, hpo['values'])
+                        layer['params'][param_name] = trial.suggest_categorical(f"{layer['type']}_{param_name}", values)
                     elif hpo['type'] == 'range':
+                        low = hpo['start']
+                        high = hpo['end']
+                        low, high = validate_hpo_bounds(param_name, low, high, 'range')
                         layer['params'][param_name] = trial.suggest_float(
                             f"{layer['type']}_{param_name}",
-                            hpo['start'],
-                            hpo['end'],
+                            low,
+                            high,
                             step=hpo.get('step', None)
                         )
                     elif hpo['type'] == 'log_range':
                         # Handle all naming conventions (start/end, low/high, min/max)
                         low = hpo.get('start', hpo.get('low', hpo.get('min')))
                         high = hpo.get('end', hpo.get('high', hpo.get('max')))
+                        low, high = validate_hpo_bounds(param_name, low, high, 'log_range')
                         layer['params'][param_name] = trial.suggest_float(
                             f"{layer['type']}_{param_name}",
                             low,

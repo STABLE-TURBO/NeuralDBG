@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """
 Main CLI implementation for Neural using Click.
 """
@@ -102,6 +102,184 @@ logger = logging.getLogger(__name__)
 
 # Supported datasets
 SUPPORTED_DATASETS = {"MNIST", "CIFAR10", "CIFAR100", "ImageNet"}
+
+# Input validation functions
+def sanitize_file_path(file_path: str, allow_absolute: bool = True) -> str:
+    """
+    Sanitize and validate a file path to prevent path traversal attacks.
+    
+    Args:
+        file_path: The file path to sanitize
+        allow_absolute: Whether to allow absolute paths
+        
+    Returns:
+        Sanitized file path
+        
+    Raises:
+        ValueError: If the path is invalid or contains malicious patterns
+    """
+    if not file_path or not isinstance(file_path, str):
+        raise ValueError("File path must be a non-empty string")
+    
+    # Remove null bytes
+    file_path = file_path.replace('\0', '')
+    
+    # Normalize the path
+    normalized = os.path.normpath(file_path)
+    
+    # Check for path traversal attempts
+    if '..' in normalized.split(os.sep):
+        raise ValueError(f"Path traversal detected in: {file_path}")
+    
+    # Check for absolute paths if not allowed
+    if not allow_absolute and os.path.isabs(normalized):
+        raise ValueError(f"Absolute paths not allowed: {file_path}")
+    
+    # Check for suspicious patterns
+    suspicious_patterns = [r'\.\./', r'\.\.$', r'^\.\.', r'~/', r'\$\{', r'%[A-Z_]+%']
+    for pattern in suspicious_patterns:
+        if re.search(pattern, file_path):
+            raise ValueError(f"Suspicious pattern detected in path: {file_path}")
+    
+    return normalized
+
+def validate_port(port: int, min_port: int = 1024, max_port: int = 65535) -> int:
+    """
+    Validate a port number.
+    
+    Args:
+        port: Port number to validate
+        min_port: Minimum allowed port (default: 1024 to avoid privileged ports)
+        max_port: Maximum allowed port
+        
+    Returns:
+        Validated port number
+        
+    Raises:
+        ValueError: If port is invalid
+    """
+    if not isinstance(port, int):
+        try:
+            port = int(port)
+        except (TypeError, ValueError):
+            raise ValueError(f"Port must be an integer, got: {type(port).__name__}")
+    
+    if port < min_port or port > max_port:
+        raise ValueError(f"Port must be between {min_port} and {max_port}, got: {port}")
+    
+    return port
+
+def validate_backend(backend: str) -> str:
+    """
+    Validate and normalize a backend name.
+    
+    Args:
+        backend: Backend name to validate
+        
+    Returns:
+        Normalized backend name
+        
+    Raises:
+        ValueError: If backend is invalid
+    """
+    if not backend or not isinstance(backend, str):
+        raise ValueError("Backend must be a non-empty string")
+    
+    backend = backend.lower().strip()
+    valid_backends = {'tensorflow', 'pytorch', 'onnx', 'jax'}
+    
+    if backend not in valid_backends:
+        raise ValueError(f"Invalid backend '{backend}'. Supported: {', '.join(sorted(valid_backends))}")
+    
+    return backend
+
+def validate_dataset_name(dataset: str) -> str:
+    """
+    Validate a dataset name.
+    
+    Args:
+        dataset: Dataset name to validate
+        
+    Returns:
+        Validated dataset name
+        
+    Raises:
+        ValueError: If dataset name is invalid
+    """
+    if not dataset or not isinstance(dataset, str):
+        raise ValueError("Dataset name must be a non-empty string")
+    
+    # Remove any potentially dangerous characters
+    dataset = dataset.strip()
+    
+    # Check for alphanumeric and basic separators only
+    if not re.match(r'^[a-zA-Z0-9_-]+$', dataset):
+        raise ValueError(f"Dataset name contains invalid characters: {dataset}")
+    
+    # Check length
+    if len(dataset) > 100:
+        raise ValueError(f"Dataset name too long (max 100 characters): {dataset}")
+    
+    return dataset
+
+def validate_json_input(json_str: str, max_size: int = 1024 * 1024) -> dict:
+    """
+    Validate and parse JSON input safely.
+    
+    Args:
+        json_str: JSON string to parse
+        max_size: Maximum allowed size in bytes
+        
+    Returns:
+        Parsed JSON as dictionary
+        
+    Raises:
+        ValueError: If JSON is invalid or too large
+    """
+    if not json_str or not isinstance(json_str, str):
+        raise ValueError("JSON input must be a non-empty string")
+    
+    if len(json_str.encode('utf-8')) > max_size:
+        raise ValueError(f"JSON input too large (max {max_size} bytes)")
+    
+    try:
+        data = json.loads(json_str)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON: {str(e)}")
+    
+    if not isinstance(data, dict):
+        raise ValueError("JSON must be a dictionary/object")
+    
+    return data
+
+def sanitize_experiment_name(name: str) -> str:
+    """
+    Sanitize an experiment or model name.
+    
+    Args:
+        name: Name to sanitize
+        
+    Returns:
+        Sanitized name
+        
+    Raises:
+        ValueError: If name is invalid
+    """
+    if not name or not isinstance(name, str):
+        raise ValueError("Name must be a non-empty string")
+    
+    # Remove leading/trailing whitespace
+    name = name.strip()
+    
+    # Check length
+    if len(name) < 1 or len(name) > 200:
+        raise ValueError(f"Name length must be between 1 and 200 characters, got: {len(name)}")
+    
+    # Allow alphanumeric, spaces, hyphens, underscores
+    if not re.match(r'^[a-zA-Z0-9_\- ]+$', name):
+        raise ValueError(f"Name contains invalid characters: {name}")
+    
+    return name
 
 # Global CLI context
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -250,6 +428,15 @@ def compile(ctx, file: str, backend: str, dataset: str, output: Optional[str], d
 def docs(ctx, file: str, output: str, pdf: bool):
     """Generate Markdown (and optionally PDF) documentation with math and shapes."""
     print_command_header("docs")
+    
+    # Input validation
+    try:
+        file = sanitize_file_path(file)
+        output = sanitize_file_path(output)
+    except ValueError as e:
+        print_error(f"Invalid input: {str(e)}")
+        sys.exit(1)
+    
     print_info(f"Generating documentation for {file}")
 
     # Parse the Neural DSL file (same start rule detection as compile)
@@ -295,7 +482,7 @@ def docs(ctx, file: str, output: str, pdf: bool):
 
 
 
-#### RUN COMMAND #####
+####Â RUN COMMAND #####
 
 @cli.command()
 @click.argument('file', type=click.Path(exists=True, file_okay=True, dir_okay=False))
@@ -307,6 +494,16 @@ def docs(ctx, file: str, output: str, pdf: bool):
 def run(ctx, file: str, backend: str, dataset: str, hpo: bool, device: str):
     """Run a compiled model or optimize and run a .neural file."""
     print_command_header("run")
+    
+    # Input validation
+    try:
+        file = sanitize_file_path(file)
+        backend = validate_backend(backend)
+        dataset = validate_dataset_name(dataset)
+    except ValueError as e:
+        print_error(f"Invalid input: {str(e)}")
+        sys.exit(1)
+    
     print_info(f"Running {file} with {backend} backend")
 
     # Set device mode
@@ -1027,14 +1224,14 @@ def cloud_connect(ctx, platform: str, interactive: bool, notebook: bool, port: i
     # Create a more aesthetic header
     if not quiet:
         platform_emoji = {
-            'kaggle': '🏆',
-            'colab': '🧪',
-            'sagemaker': '☁️'
-        }.get(platform.lower(), '🌐')
+            'kaggle': 'ðŸ†',
+            'colab': 'ðŸ§ª',
+            'sagemaker': 'â˜ï¸'
+        }.get(platform.lower(), 'ðŸŒ')
 
-        print("\n" + "─" * 60)
+        print("\n" + "â”€" * 60)
         print(f"  {platform_emoji}  Neural Cloud Connect: {platform.upper()}")
-        print("─" * 60 + "\n")
+        print("â”€" * 60 + "\n")
 
     try:
         # Import the remote connection module
@@ -1305,6 +1502,17 @@ print(f"Model visualization saved to: {{viz_path}}")
 def debug(ctx: click.Context, file: str, gradients: bool, dead_neurons: bool, anomalies: bool, step: bool, backend: str, dataset: str, dashboard: bool, port: int) -> None:
     """Debug a neural network model with NeuralDbg."""
     print_command_header("debug")
+    
+    # Input validation
+    try:
+        file = sanitize_file_path(file)
+        backend = validate_backend(backend)
+        dataset = validate_dataset_name(dataset)
+        port = validate_port(port)
+    except ValueError as e:
+        print_error(f"Invalid input: {str(e)}")
+        sys.exit(1)
+    
     print_info(f"Debugging {file} with NeuralDbg (backend: {backend})")
 
     ext = os.path.splitext(file)[1].lower()
