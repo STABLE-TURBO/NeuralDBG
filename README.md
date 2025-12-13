@@ -68,6 +68,7 @@
 ## 📋 Table of Contents
 - [Overview](#overview)
 - [Feature Showcase](#-feature-showcase)
+- [Aquarium IDE](#-aquarium-ide)
 - [Neural DSL vs Raw Frameworks](#-neural-dsl-vs-raw-frameworks)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -258,6 +259,190 @@ neural --no_code
 - 🔬 Rapid prototyping
 - 👥 Non-technical stakeholders
 - 🧪 Quick experiments
+
+---
+
+## 🎨 **Aquarium IDE**
+
+**A Modern Web-Based IDE for Neural DSL** - Write, compile, train, and debug models in your browser!
+
+<div align="center">
+
+![Aquarium IDE](https://github.com/user-attachments/assets/aquarium-ide-banner.png)
+
+**[📥 Download](#installation) • [📚 Documentation](docs/aquarium/README.md) • [🎥 Video Tutorials](docs/aquarium/video-tutorials.md) • [🚀 Quick Start](docs/aquarium/user-manual.md#getting-started)**
+
+</div>
+
+### ✨ **Key Features**
+
+🎨 **Intuitive DSL Editor**
+- Syntax-highlighted code editor
+- Real-time parse validation
+- 8+ built-in example models
+- Dark theme for comfort
+
+🔧 **Multi-Backend Support**
+- TensorFlow, PyTorch, ONNX
+- One-click backend switching
+- Consistent API across frameworks
+
+🚀 **One-Click Training**
+- Compile DSL to Python instantly
+- Execute training in-browser
+- Real-time console output
+- Live metrics monitoring
+
+📊 **Dataset Integration**
+- Built-in: MNIST, CIFAR10, CIFAR100, ImageNet
+- Custom dataset support
+- Auto-download on first use
+
+🐛 **Integrated Debugging**
+- NeuralDbg integration
+- Layer-by-layer inspection
+- Gradient flow visualization
+- Performance profiling
+
+📦 **Export & Share**
+- Save compiled scripts
+- Open in external IDE
+- Version control ready
+- Share with team
+
+### 🚀 **Quick Start**
+
+**1. Install Aquarium**:
+```bash
+# Install with dashboard support
+pip install neural-dsl[dashboard]
+
+# Or full package with all features
+pip install neural-dsl[full]
+```
+
+**2. Launch**:
+```bash
+# Start Aquarium IDE
+python -m neural.aquarium.aquarium
+
+# Custom port
+python -m neural.aquarium.aquarium --port 8053
+
+# Debug mode
+python -m neural.aquarium.aquarium --debug
+```
+
+**3. Open Browser**:
+```
+http://localhost:8052
+```
+
+**4. Build Your First Model**:
+- Click **"Load Example"** to insert a pre-built model
+- Click **"Parse DSL"** to validate syntax
+- Select **Backend**: TensorFlow, **Dataset**: MNIST, **Epochs**: 5
+- Click **"Compile"** to generate Python code
+- Click **"Run"** to start training
+- Watch real-time logs and metrics!
+
+### 📥 **Installation Options**
+
+| Method | Command | Use Case |
+|--------|---------|----------|
+| **Quick Install** | `pip install neural-dsl[dashboard]` | Most users (includes Aquarium) |
+| **Full Install** | `pip install neural-dsl[full]` | All features + backends |
+| **From Source** | `git clone ...` + `pip install -e ".[dashboard]"` | Development |
+
+### 📚 **Documentation**
+
+| Guide | Description | Link |
+|-------|-------------|------|
+| **Installation Guide** | Complete setup instructions | [📖 Read](docs/aquarium/installation.md) |
+| **User Manual** | Comprehensive usage guide | [📖 Read](docs/aquarium/user-manual.md) |
+| **Keyboard Shortcuts** | Productivity shortcuts | [📖 Read](docs/aquarium/keyboard-shortcuts.md) |
+| **Troubleshooting** | Common issues & solutions | [📖 Read](docs/aquarium/troubleshooting.md) |
+| **Architecture** | System design & components | [📖 Read](docs/aquarium/architecture.md) |
+| **Plugin Development** | Extend Aquarium | [📖 Read](docs/aquarium/plugin-development.md) |
+| **Video Tutorials** | Visual learning resources | [📖 Read](docs/aquarium/video-tutorials.md) |
+
+### 🎥 **Video Tutorials** (Coming Soon)
+
+Learn Aquarium through hands-on video tutorials:
+
+| Tutorial | Duration | Level | Link |
+|----------|----------|-------|------|
+| Installation & Setup | 5 min | Beginner | Coming Soon |
+| Your First Model | 10 min | Beginner | Coming Soon |
+| Compiling Models | 8 min | Beginner | Coming Soon |
+| Running Training | 12 min | Beginner | Coming Soon |
+| Debugging Techniques | 25 min | Intermediate | Coming Soon |
+| Plugin Development | 45 min | Advanced | Coming Soon |
+
+**Full tutorial library**: [Video Tutorials Guide](docs/aquarium/video-tutorials.md)
+
+### 🎯 **Use Cases**
+
+**For Students & Educators**:
+- Learn deep learning without framework complexity
+- Focus on concepts, not boilerplate
+- Visual feedback and debugging
+
+**For Researchers**:
+- Rapid prototyping
+- Easy architecture experimentation
+- Multi-framework compatibility
+
+**For Engineers**:
+- Quick model development
+- Production-ready code generation
+- Team collaboration
+
+### 💡 **Example Workflow**
+
+```neural
+# Write DSL in editor
+network MNISTClassifier {
+    input: (None, 28, 28, 1)
+    layers:
+        Conv2D(filters=32, kernel_size=(3, 3), activation=relu)
+        MaxPooling2D(pool_size=(2, 2))
+        Flatten()
+        Dense(units=128, activation=relu)
+        Output(units=10, activation=softmax)
+    loss: categorical_crossentropy
+    optimizer: Adam(learning_rate=0.001)
+}
+```
+
+**Then**:
+1. Parse DSL ✓
+2. Select TensorFlow backend ✓
+3. Choose MNIST dataset ✓
+4. Compile to Python ✓
+5. Run training ✓
+6. Export trained model ✓
+
+### 🔗 **Quick Links**
+
+- **Main Documentation**: [Aquarium README](docs/aquarium/README.md)
+- **5-Minute Quick Start**: [Getting Started](docs/aquarium/user-manual.md#getting-started)
+- **Troubleshooting**: [Common Issues](docs/aquarium/troubleshooting.md)
+- **GitHub Issues**: [Report Bugs](https://github.com/Lemniscate-world/Neural/issues)
+- **Discord**: [Join Community](https://discord.gg/KFku4KvS)
+
+### 🌟 **Why Aquarium?**
+
+| Traditional Approach | With Aquarium IDE |
+|---------------------|-------------------|
+| Install Python, TF/PyTorch, Jupyter | `pip install neural-dsl[dashboard]` |
+| Write 100+ lines of boilerplate | 15 lines of DSL |
+| Manual dataset loading | Built-in dataset integration |
+| Command-line compilation | One-click compile & run |
+| Scattered debugging tools | Integrated debugger |
+| Hours of setup | Minutes to first model |
+
+**Result**: Focus on models, not infrastructure!
 
 ---
 
