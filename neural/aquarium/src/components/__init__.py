@@ -1,1 +1,3 @@
-# Aquarium IDE components
+"""
+Neural Aquarium UI Components
+"""

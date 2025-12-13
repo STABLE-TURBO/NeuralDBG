@@ -1,317 +1,441 @@
-# Aquarium Backend Bridge - Implementation Summary
+# Neural Aquarium - Implementation Documentation
 
 ## Overview
 
-The Aquarium Backend Bridge is a comprehensive FastAPI-based backend service for Neural DSL that provides REST API endpoints and WebSocket support for DSL parsing, shape propagation, code generation, compilation, and training job management.
+Neural Aquarium is a comprehensive web-based IDE for the Neural DSL, providing model compilation, execution, and debugging capabilities. This document describes the complete implementation.
 
-## Implementation Details
+## Architecture
 
-### Core Components
-
-#### 1. Server (`server.py`)
-- **Framework**: FastAPI with async support
-- **Features**:
-  - REST API endpoints for all DSL operations
-  - WebSocket support for real-time updates
-  - CORS middleware for frontend integration
-  - Comprehensive error handling
-  - Automatic API documentation (OpenAPI/Swagger)
-
-#### 2. Process Manager (`process_manager.py`)
-- **Purpose**: Manage training job processes
-- **Features**:
-  - Async subprocess execution
-  - Real-time output capture
-  - Job status tracking
-  - Automatic cleanup
-  - Resource management
-
-#### 3. WebSocket Manager (`websocket_manager.py`)
-- **Purpose**: Handle WebSocket connections
-- **Features**:
-  - Connection lifecycle management
-  - Broadcasting to multiple clients
-  - Personal messaging
-  - Automatic disconnection handling
-
-#### 4. Client Library (`client.py`)
-- **Purpose**: Python SDK for the backend
-- **Features**:
-  - Simple API for all endpoints
-  - Job monitoring with polling
-  - Async WebSocket support
-  - Convenience methods (compile_and_run)
-
-#### 5. Configuration (`config.py`)
-- **Purpose**: Application settings
-- **Features**:
-  - Environment variable support
-  - Pydantic-based validation
-  - .env file loading
-  - Configurable defaults
-
-#### 6. Middleware (`middleware.py`)
-- **Purpose**: Request processing
-- **Features**:
-  - Request/response logging
-  - Optional API key authentication
-  - Performance tracking
-
-#### 7. Utilities (`utils.py`)
-- **Purpose**: Helper functions
-- **Features**:
-  - Code hashing
-  - Model data serialization
-  - Backend/parser validation
-  - Error formatting
-  - Parameter counting
-
-#### 8. Data Models (`models.py`)
-- **Purpose**: Type definitions
-- **Features**:
-  - Pydantic models for all API types
-  - Enumerations for constants
-  - Validation rules
-  - Documentation
-
-### API Endpoints
-
-#### Health & Info
-- `GET /` - Service information
-- `GET /health` - Health check
-
-#### DSL Operations
-- `POST /api/parse` - Parse DSL code
-- `POST /api/shape-propagation` - Analyze shapes
-- `POST /api/generate-code` - Generate code
-- `POST /api/compile` - Complete compilation
-
-#### Job Management
-- `POST /api/jobs/start` - Start training job
-- `GET /api/jobs/{job_id}/status` - Get job status
-- `POST /api/jobs/{job_id}/stop` - Stop job
-- `GET /api/jobs` - List all jobs
-
-#### WebSocket
-- `WS /ws` - General updates
-- `WS /ws/jobs/{job_id}` - Job-specific updates
-
-### Integration Points
-
-The backend integrates with three core Neural modules:
-
-1. **neural.parser.parser**
-   - `create_parser(start_rule)` - Create DSL parser
-   - `ModelTransformer.transform(tree)` - Transform parse tree to model data
-
-2. **neural.shape_propagation.shape_propagator**
-   - `ShapePropagator.propagate(shape, layer, framework)` - Propagate shapes
-   - `ShapePropagator.get_trace()` - Get execution trace
-   - `ShapePropagator.detect_issues()` - Detect problems
-   - `ShapePropagator.suggest_optimizations()` - Get suggestions
-
-3. **neural.code_generation.code_generator**
-   - `generate_code(model_data, backend, best_params, auto_flatten_output)` - Generate code
-
-### File Structure
+### Component Structure
 
 ```
 neural/aquarium/
-├── __init__.py                  # Package initialization
-├── README.md                    # Package documentation
-├── IMPLEMENTATION.md            # This file
-└── backend/
-    ├── __init__.py              # Backend module init
-    ├── __main__.py              # Main entry point
-    ├── server.py                # FastAPI application (368 lines)
-    ├── process_manager.py       # Job management (179 lines)
-    ├── websocket_manager.py     # WebSocket handling (80 lines)
-    ├── client.py                # Python client library (280 lines)
-    ├── config.py                # Configuration (30 lines)
-    ├── middleware.py            # Middleware (60 lines)
-    ├── utils.py                 # Helper functions (140 lines)
-    ├── models.py                # Data models (120 lines)
-    ├── cli.py                   # Command-line interface (50 lines)
-    ├── run.py                   # Server runner (15 lines)
-    ├── examples.py              # Usage examples (300 lines)
-    ├── test_server.py           # Unit tests (200 lines)
-    ├── integration_test.py      # Integration tests (240 lines)
-    ├── requirements.txt         # Dependencies
-    ├── Dockerfile               # Docker configuration
-    ├── docker-compose.yml       # Docker Compose
-    ├── .env.example             # Environment template
-    └── README.md                # Backend documentation
+├── aquarium.py                    # Main application (Dash app)
+├── __init__.py                    # Package exports
+├── __main__.py                    # Module entry point
+├── config.py                      # Configuration settings
+├── examples.py                    # Example DSL models
+├── README.md                      # User documentation
+├── QUICKSTART.md                  # Quick start guide
+├── CHANGELOG.md                   # Version history
+├── IMPLEMENTATION.md              # This file
+└── src/
+    ├── __init__.py
+    └── components/
+        ├── __init__.py
+        └── runner/
+            ├── __init__.py
+            ├── runner_panel.py       # Main UI component
+            ├── execution_manager.py  # Process management
+            ├── script_generator.py   # Training script generation
+            └── utils.py              # Utility functions
 ```
 
-### Dependencies
+## Core Components
 
-Added to `setup.py` API_DEPS:
-- `fastapi>=0.68` - Web framework
-- `uvicorn[standard]>=0.15` - ASGI server
-- `pydantic>=1.8` - Data validation
-- `python-multipart>=0.0.5` - Form data parsing
-- `websockets>=10.0` - WebSocket support
+### 1. Main Application (aquarium.py)
 
-### Key Features
+**Purpose**: Primary entry point and UI layout
 
-#### 1. Complete DSL Pipeline
-- Parse → Validate → Propagate → Generate → Execute
-- Single endpoint for full compilation
-- Error handling at each stage
+**Key Features**:
+- Dash application setup with dark theme
+- DSL editor with textarea component
+- Multi-tab interface (Runner, Debugger, Visualization, Documentation)
+- Model parsing and validation
+- Integration with runner panel
 
-#### 2. Process Isolation
-- Training jobs run in separate processes
-- Automatic cleanup on completion/failure
-- Resource monitoring
-- Output buffering
+**Callbacks**:
+- `parse_dsl`: Parses DSL content and extracts model information
+- `load_example`: Loads random example models
 
-#### 3. Real-time Updates
-- WebSocket connections for live monitoring
-- Job status broadcasting
-- Automatic reconnection handling
+**Technologies**:
+- Dash framework
+- Dash Bootstrap Components
+- Plotly for visualizations
 
-#### 4. Type Safety
-- Pydantic models for all API types
-- Request/response validation
-- Comprehensive type hints
+### 2. Runner Panel (runner_panel.py)
 
-#### 5. Developer Experience
-- Interactive API docs (Swagger UI)
-- Python client library
-- Comprehensive examples
-- Integration tests
+**Purpose**: Model compilation and execution interface
 
-#### 6. Production Ready
-- Docker support
-- Environment configuration
-- API key authentication
-- Request logging
-- Health checks
+**Components**:
 
-### Usage Patterns
+#### Backend Configuration
+- Backend selection dropdown (TensorFlow, PyTorch, ONNX)
+- Dataset selection (MNIST, CIFAR10, CIFAR100, ImageNet, Custom)
+- Custom dataset path input
+- Training parameters (epochs, batch size, validation split)
+- Options checklist (auto-flatten, HPO, verbose, save weights)
 
-#### 1. Quick Compilation
+#### Action Controls
+- **Compile**: Generate backend-specific Python code
+- **Run**: Execute compiled script
+- **Stop**: Terminate running process
+- **Export Script**: Save to custom location
+- **Open in IDE**: Launch in default editor
+- **Clear**: Reset console output
+
+#### Output Display
+- Console with real-time logs
+- Status badge (Idle/Compiled/Running/Error/Stopped)
+- Training metrics graph (placeholder)
+
+**Callbacks**:
+- `compile_model`: Generates code using Neural code generator
+- `run_model`: Starts script execution in separate process
+- `stop_execution`: Terminates running process
+- `update_logs`: Streams output from execution queue
+- `export_script`: Saves compiled script to file
+- `open_in_ide`: Opens script in system editor
+
+### 3. Execution Manager (execution_manager.py)
+
+**Purpose**: Process lifecycle and output management
+
+**Classes**:
+
+#### ExecutionManager
+- `compile_model()`: Wraps Neural code generation
+- `run_script()`: Executes Python scripts in subprocess
+- `stop_execution()`: Terminates processes
+- `get_output_lines()`: Retrieves queued output
+- `get_metrics()`: Extracts parsed metrics
+- `export_script()`: Exports scripts with metadata
+- `open_in_editor()`: System-specific file opening
+
+**Features**:
+- Threaded execution for non-blocking UI
+- Queue-based output streaming
+- Metrics parsing from training logs
+- Cross-platform editor integration
+
+#### DatasetManager
+- Dataset information lookup
+- Built-in dataset registry
+- Custom dataset validation
+- Dataset metadata (shape, classes, type)
+
+### 4. Script Generator (script_generator.py)
+
+**Purpose**: Generate complete training scripts
+
+**Methods**:
+- `generate_training_script()`: Main generation entry point
+- `_generate_tensorflow_script()`: TensorFlow-specific template
+- `_generate_pytorch_script()`: PyTorch-specific template
+- `wrap_model_code_*()`: Code wrapping utilities
+
+**Generated Script Components**:
+- Dataset loading code
+- Model building function
+- Training loop
+- Validation logic
+- Metrics logging
+- Model weight saving
+- Command-line friendly output
+
+### 5. Utilities (utils.py)
+
+**Purpose**: Helper functions for runner panel
+
+**Functions**:
+- `parse_log_line()`: Extract information from logs
+- `extract_metrics()`: Parse training metrics
+- `format_console_line()`: Format output with prefixes
+- `validate_training_config()`: Validate parameters
+- `format_file_size()`: Human-readable sizes
+- `estimate_training_time()`: Time estimation
+- `truncate_output()`: Console output management
+- Display name formatting functions
+
+### 6. Configuration (config.py)
+
+**Purpose**: Centralized configuration management
+
+**Settings**:
+- Application constants (name, version, ports)
+- Path configuration (cache, exports, temp)
+- Backend and dataset configuration
+- Training parameter defaults and limits
+- UI theme settings
+- Feature flags
+- Environment detection
+- Example models registry
+
+### 7. Examples (examples.py)
+
+**Purpose**: Pre-built example models
+
+**Available Examples**:
+- MNIST Classifier
+- CIFAR10 CNN
+- Simple Dense Network
+- LSTM Text Classifier
+- VGG-style Network
+- ResNet-style Block
+- Autoencoder
+- Transformer Encoder
+
+**Functions**:
+- `get_example()`: Retrieve by name
+- `list_examples()`: Get all names
+- `get_random_example()`: Random selection
+
+## Data Flow
+
+### 1. Compilation Flow
+
+```
+User writes DSL → Parse DSL → Validate → Configure backend →
+Click Compile → Generate code → Save to temp file → Update UI
+```
+
+**Steps**:
+1. User enters DSL in editor
+2. Clicks "Parse DSL" for validation
+3. Selects backend and dataset
+4. Clicks "Compile"
+5. `compile_model` callback triggered
+6. Neural code generator produces Python code
+7. Script saved to temporary location
+8. Console shows compilation logs
+9. Status updated to "Compiled"
+10. Run/Export buttons enabled
+
+### 2. Execution Flow
+
+```
+Compiled script → Configure training → Click Run → 
+Start process → Stream output → Parse metrics → Display results
+```
+
+**Steps**:
+1. User clicks "Run"
+2. `run_model` callback triggered
+3. ExecutionManager starts subprocess
+4. Output streaming thread created
+5. Log lines queued for UI update
+6. `update_logs` callback polls queue
+7. Metrics extracted and queued
+8. Console displays real-time output
+9. Process completes or stopped
+10. Final status displayed
+
+### 3. Export Flow
+
+```
+Compiled script → Click Export → Configure export →
+Copy file → Save metadata → Show confirmation
+```
+
+**Steps**:
+1. User clicks "Export Script"
+2. Modal opens with configuration
+3. User enters filename and location
+4. Clicks "Export"
+5. Script copied to destination
+6. Metadata saved (optional)
+7. Success notification shown
+
+## Key Design Decisions
+
+### 1. Separate Process Execution
+- **Reason**: Prevents blocking Dash callback thread
+- **Implementation**: Threading with subprocess
+- **Benefit**: Responsive UI during training
+
+### 2. Queue-Based Output Streaming
+- **Reason**: Thread-safe communication
+- **Implementation**: Python Queue with interval updates
+- **Benefit**: Real-time log display without race conditions
+
+### 3. Backend-Specific Script Generation
+- **Reason**: Different training patterns per backend
+- **Implementation**: Template-based generation
+- **Benefit**: Complete, runnable scripts for each backend
+
+### 4. Modular Component Design
+- **Reason**: Maintainability and extensibility
+- **Implementation**: Separate files for concerns
+- **Benefit**: Easy to add features or modify behavior
+
+### 5. Configuration Centralization
+- **Reason**: Single source of truth
+- **Implementation**: config.py module
+- **Benefit**: Easy deployment configuration
+
+## Integration Points
+
+### 1. Neural DSL Parser
+- **Location**: `neural.parser.parser`
+- **Usage**: DSL validation and AST generation
+- **Interface**: `create_parser()`, `ModelTransformer()`
+
+### 2. Neural Code Generator
+- **Location**: `neural.code_generation.code_generator`
+- **Usage**: Backend code generation
+- **Interface**: `generate_code(model_data, backend, ...)`
+
+### 3. Neural CLI
+- **Future Integration**: Add `aquarium` command
+- **Usage**: `neural aquarium [--port PORT]`
+- **Benefit**: Unified interface
+
+### 4. NeuralDbg
+- **Status**: Placeholder integration
+- **Future**: Real-time debugging panel
+- **Features**: Gradient flow, dead neurons, anomalies
+
+## Extension Points
+
+### 1. Adding New Backends
+
+**Location**: `script_generator.py`
+
 ```python
-from neural.aquarium.backend.client import create_client
-
-client = create_client()
-result = client.compile(dsl_code, backend="tensorflow")
-print(result["code"])
+def _generate_BACKEND_script(model_code, dataset, ...):
+    # Implement backend-specific template
+    pass
 ```
 
-#### 2. Shape Analysis
+### 2. Adding New Datasets
+
+**Location**: `config.py` and `execution_manager.py`
+
 ```python
-parse_result = client.parse(dsl_code)
-shapes = client.propagate_shapes(
-    parse_result["model_data"],
-    framework="tensorflow"
-)
+BUILTIN_DATASETS["NewDataset"] = {
+    "shape": (H, W, C),
+    "classes": N,
+    "type": "image"
+}
 ```
 
-#### 3. Training Job
-```python
-job = client.start_job(code, job_name="training")
-status = client.wait_for_job(job["job_id"])
-```
+### 3. Adding UI Components
 
-#### 4. WebSocket Monitoring
-```python
-async def monitor():
-    await client.watch_job(job_id, callback=print_status)
-```
+**Location**: `src/components/` directory
 
-### Testing
+Create new panel module similar to `runner/`
 
-#### Unit Tests (`test_server.py`)
-- Endpoint testing with TestClient
-- Request/response validation
-- Error handling
-- Job lifecycle
+### 4. Custom Metrics Visualization
 
-#### Integration Tests (`integration_test.py`)
-- End-to-end workflows
-- Multi-backend code generation
-- Job management
-- Error scenarios
+**Location**: `runner_panel.py`
 
-#### Examples (`examples.py`)
-- Complete usage demonstrations
-- All API endpoints
-- WebSocket examples
-- Error handling
+Connect `runner-metrics-graph` to real-time data
 
-### Deployment
+## Performance Considerations
 
-#### Local Development
+### 1. Output Buffering
+- Limit console lines to prevent memory issues
+- Truncate when exceeding threshold
+- Configurable via `config.CONSOLE_MAX_LINES`
+
+### 2. Process Timeouts
+- Maximum execution time limit
+- Configurable via `config.PROCESS_TIMEOUT`
+- Prevents hanging processes
+
+### 3. Queue Management
+- Non-blocking queue operations
+- Maximum item limits
+- Periodic cleanup
+
+### 4. File System
+- Temporary file cleanup
+- Cache management
+- Path validation
+
+## Security Considerations
+
+### 1. Code Execution
+- Scripts run in same environment
+- No sandboxing (local development tool)
+- User responsible for code review
+
+### 2. File Operations
+- Path validation for exports
+- Directory traversal prevention
+- Permission checks
+
+### 3. Input Validation
+- DSL syntax validation
+- Parameter range checking
+- Type validation
+
+## Future Enhancements
+
+### High Priority
+1. Real-time metrics visualization
+2. Syntax highlighting in editor
+3. Code completion
+4. Enhanced error messages
+
+### Medium Priority
+5. Model comparison tools
+6. Experiment tracking
+7. Custom dataset UI
+8. Batch execution
+
+### Low Priority
+9. Cloud execution
+10. Collaborative editing
+11. Plugin system
+12. Theme customization
+
+## Testing Strategy
+
+### Unit Tests
+- Test execution manager functions
+- Test script generation
+- Test utility functions
+- Mock subprocess calls
+
+### Integration Tests
+- Test compilation flow
+- Test execution flow
+- Test export functionality
+- Test callback chains
+
+### UI Tests
+- Test component rendering
+- Test user interactions
+- Test state management
+- Test error handling
+
+## Deployment
+
+### Local Development
 ```bash
-python -m neural.aquarium.backend.run
-# or
-python -m neural.aquarium.backend.cli serve --reload
+python -m neural.aquarium.aquarium --debug
 ```
 
-#### Docker
+### Production
 ```bash
-docker build -t neural-backend .
-docker run -p 8000:8000 neural-backend
+python -m neural.aquarium.aquarium --port 8052
 ```
 
-#### Production
-```bash
-uvicorn neural.aquarium.backend.server:app \
-  --host 0.0.0.0 --port 8000 --workers 4
+### Docker (Future)
+```dockerfile
+FROM python:3.8
+WORKDIR /app
+COPY . .
+RUN pip install -e ".[full]"
+EXPOSE 8052
+CMD ["python", "-m", "neural.aquarium.aquarium"]
 ```
 
-### Configuration
+## Troubleshooting
 
-Environment variables (prefix `NEURAL_`):
-- `NEURAL_HOST` - Server host
-- `NEURAL_PORT` - Server port
-- `NEURAL_LOG_LEVEL` - Logging level
-- `NEURAL_API_KEY` - API authentication
-- `NEURAL_MAX_JOB_OUTPUT_LINES` - Output buffer size
+### Common Issues
 
-### Security Considerations
+1. **Port already in use**: Change port with `--port` flag
+2. **Dependencies missing**: Run `pip install -e ".[full]"`
+3. **Process won't stop**: Check for zombie processes
+4. **Output not streaming**: Check queue polling interval
+5. **Script export fails**: Check directory permissions
 
-1. **Process Isolation**: Jobs run in separate processes
-2. **Resource Limits**: Configurable output buffering
-3. **API Authentication**: Optional API key middleware
-4. **CORS**: Configurable origins
-5. **Input Validation**: Pydantic models
-6. **Error Sanitization**: Safe error messages
+## Contributing
 
-### Performance
+See main repository CONTRIBUTING.md for guidelines.
 
-- **Async Execution**: Non-blocking job management
-- **WebSocket**: Efficient real-time updates
-- **Process Management**: Async subprocess handling
-- **Output Buffering**: Configurable memory usage
+## License
 
-### Future Enhancements
-
-1. Job queuing and scheduling
-2. Job priority management
-3. Resource quotas per job
-4. Distributed job execution
-5. Caching compiled models
-6. Metrics and monitoring
-7. Rate limiting
-8. User authentication
-9. Job persistence
-10. Result storage
-
-### Summary
-
-The Aquarium Backend Bridge provides a complete, production-ready API for Neural DSL with:
-
-- ✅ Complete DSL compilation pipeline
-- ✅ Shape propagation and analysis
-- ✅ Multi-backend code generation
-- ✅ Training job management
-- ✅ Real-time WebSocket updates
-- ✅ Python client library
-- ✅ Comprehensive testing
-- ✅ Docker deployment
-- ✅ API documentation
-- ✅ Type safety
-
-Total implementation: ~2,300 lines of code across 18 files.
+Same as Neural DSL package.

@@ -1,1 +1,3 @@
-# Aquarium IDE source code
+"""
+Neural Aquarium Source Components
+"""

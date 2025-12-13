@@ -1,220 +1,131 @@
 # Neural Aquarium - Quick Start Guide
 
-Get up and running with Neural Aquarium in 5 minutes!
-
-## Prerequisites
-
-- **Node.js** 16+ and npm ([Download](https://nodejs.org/))
-- **Python** 3.8+ ([Download](https://python.org/))
-- **Neural DSL** installed (from repo root: `pip install -e .`)
+Get started with Neural Aquarium IDE in 5 minutes!
 
 ## Installation
 
-### Step 1: Install Frontend Dependencies
+Make sure Neural DSL is installed with dashboard dependencies:
 
 ```bash
-cd neural/aquarium
-npm install
+pip install -e ".[full]"
 ```
 
-### Step 2: Install Backend Dependencies
+Or install just the dashboard dependencies:
 
 ```bash
-cd neural/aquarium/backend
-pip install -r requirements.txt
+pip install dash dash-bootstrap-components plotly
 ```
 
-## Running the Application
+## Launch Aquarium
 
-### Option A: Automated Start (Recommended)
-
-**Linux/Mac:**
 ```bash
-cd neural/aquarium
-chmod +x start-dev.sh
-./start-dev.sh
+python -m neural.aquarium.aquarium
 ```
 
-**Windows:**
-```cmd
-cd neural\aquarium
-start-dev.bat
+The IDE will open at `http://localhost:8052`
+
+## Your First Model
+
+### Step 1: Write DSL Code
+
+In the DSL Editor, enter:
+
+```neural
+network SimpleClassifier {
+    input: (None, 28, 28, 1)
+    layers:
+        Conv2D(filters=32, kernel_size=(3, 3), activation=relu)
+        MaxPooling2D(pool_size=(2, 2))
+        Flatten()
+        Dense(units=128, activation=relu)
+        Output(units=10, activation=softmax)
+    loss: categorical_crossentropy
+    optimizer: Adam(learning_rate=0.001)
+}
 ```
 
-This will start both frontend and backend automatically.
+### Step 2: Validate
 
-### Option B: Manual Start
+Click **"Parse DSL"** to validate your code. You should see a green success message.
 
-**Terminal 1 - Backend:**
-```bash
-cd neural/aquarium/backend
-python api.py
+### Step 3: Configure
+
+In the Runner panel:
+- Backend: **TensorFlow**
+- Dataset: **MNIST**
+- Epochs: **5**
+- Batch Size: **32**
+
+### Step 4: Compile
+
+Click **"Compile"** button. Watch the console for compilation logs.
+
+### Step 5: Run
+
+Click **"Run"** button. Training will start and you'll see:
+- Real-time logs in the console
+- Training progress (epochs, loss, accuracy)
+- Metrics visualization (when available)
+
+### Step 6: Export (Optional)
+
+After training:
+1. Click **"Export Script"**
+2. Choose a filename (e.g., `my_mnist_model.py`)
+3. Select export location (e.g., `./my_models`)
+4. Click **"Export"**
+
+Your trained model script is now saved!
+
+## Tips
+
+- **Load Examples**: Click "Load Example" for pre-built models
+- **Stop Training**: Use the "Stop" button to terminate long runs
+- **Clear Console**: Click "Clear" to reset the output view
+- **Open in IDE**: Click "Open in IDE" to edit scripts externally
+
+## Common Tasks
+
+### Training with Different Datasets
+
+```neural
+# For CIFAR10
+network CIFAR10Model {
+    input: (None, 32, 32, 3)
+    # ... layers ...
+}
 ```
 
-**Terminal 2 - Frontend:**
-```bash
-cd neural/aquarium
-npm start
-```
+Select "CIFAR10" from the dataset dropdown.
 
-## Access the Application
+### Using PyTorch Backend
 
-Open your browser and navigate to:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
+1. Write your DSL model
+2. Select "PyTorch" from backend dropdown
+3. Compile and run as usual
 
-## First Steps
+### Custom Training Parameters
 
-1. **Open the AI Assistant**: Look for the sidebar on the right side of the screen
+Adjust in the Runner panel:
+- **Epochs**: Number of training iterations
+- **Batch Size**: Samples per gradient update
+- **Validation Split**: Fraction of data for validation
 
-2. **Try a Simple Command**: Type in the chat:
-   ```
-   Create a CNN for MNIST classification with 10 classes
-   ```
+### Saving Model Weights
 
-3. **Review the Generated DSL**: The DSL code will appear in the code viewer below the chat
-
-4. **Edit if Needed**: Click the "Edit" button to modify the code
-
-5. **Apply to Workspace**: Click "Apply" to use the model
-
-6. **Continue Refining**: Add more layers or modify settings through conversation:
-   ```
-   Add a dense layer with 256 units
-   Add dropout with rate 0.5
-   Set optimizer to Adam with learning rate 0.001
-   ```
-
-## Example Session
-
-```
-You: Create a CNN for MNIST
-Assistant: I've created a CNN model for you...
-
-[DSL code appears]
-
-You: Add dropout with rate 0.3
-Assistant: Added layer: Dropout(0.3)
-
-You: Download the code
-[Click Download button in DSL viewer]
-
-You: Apply the model
-[Click Apply button]
-```
-
-## Common Commands
-
-### Create Models
-- "Create a CNN for image classification"
-- "Create an LSTM for text processing"
-- "Create a model for CIFAR-10"
-
-### Add Layers
-- "Add a convolutional layer with 64 filters"
-- "Add a dense layer with 128 units"
-- "Add dropout with rate 0.5"
-- "Add max pooling with pool size 2"
-- "Add batch normalization"
-
-### Configure Training
-- "Set optimizer to Adam"
-- "Set learning rate to 0.001"
-- "Set loss to categorical crossentropy"
-
-### Other Commands
-- "Reset conversation" - Start over
-- "Show current model" - Display full DSL
-- "Visualize architecture" - (coming soon)
-
-## Language Support
-
-1. Click the language dropdown at the top of the sidebar
-2. Select your preferred language (12+ supported)
-3. Type in your language - responses will be translated
-4. DSL code remains in standard syntax
-
-## Troubleshooting
-
-### Backend won't start
-```bash
-# Check Python installation
-python --version
-
-# Install dependencies again
-cd neural/aquarium/backend
-pip install -r requirements.txt
-
-# Check if port 5000 is available
-netstat -an | grep 5000
-```
-
-### Frontend won't start
-```bash
-# Check Node.js installation
-node --version
-npm --version
-
-# Clear cache and reinstall
-cd neural/aquarium
-rm -rf node_modules package-lock.json
-npm install
-
-# Try starting again
-npm start
-```
-
-### Connection Error
-- Ensure backend is running on port 5000
-- Check CORS settings if using different ports
-- Verify firewall isn't blocking connections
-
-### "I didn't understand that"
-- Be more specific in your prompts
-- Use technical terms (e.g., "convolutional layer" not just "layer")
-- Try example prompts from the suggestions
+Check the "Save model weights" option in Runner Options.
 
 ## Next Steps
 
-- Read [README.md](./README.md) for detailed features
-- Check [EXAMPLES.md](./EXAMPLES.md) for more usage examples
-- See [ARCHITECTURE.md](./ARCHITECTURE.md) to understand the system
-- Review [DEPLOYMENT.md](./DEPLOYMENT.md) for production setup
+- Explore the **Debugger** tab for NeuralDbg integration
+- Check the **Visualization** tab for model architecture
+- Read the **Documentation** tab for DSL syntax reference
+- Try the examples in the repository under `examples/`
 
-## Getting Help
+## Need Help?
 
-- Check the console for error messages
-- Review backend logs for API errors
-- Consult the main Neural DSL documentation
-- Report issues on GitHub
+- Check the full README: `neural/aquarium/README.md`
+- Review Neural DSL documentation: `docs/dsl.md`
+- Open an issue on GitHub for bugs or feature requests
 
-## Quick Reference
-
-| Action | Command |
-|--------|---------|
-| Start backend | `python neural/aquarium/backend/api.py` |
-| Start frontend | `npm start` (from neural/aquarium) |
-| Build frontend | `npm run build` |
-| Run tests | `npm test` |
-| Install deps | `npm install` |
-| Backend health | `curl http://localhost:5000/health` |
-
-## Development Tips
-
-1. **Keep both terminals open** to see logs in real-time
-2. **Use browser DevTools** to inspect network requests
-3. **Check backend logs** for AI processing details
-4. **Save your DSL code** frequently using the Download button
-5. **Experiment with prompts** to find what works best
-
-## What's Next?
-
-Now that you're up and running:
-
-1. Experiment with different model architectures
-2. Try multi-language support
-3. Export your models and use with Neural CLI
-4. Build more complex networks iteratively
-5. Share your DSL files with your team
-
-Happy building! 🚀
+Happy modeling! 🚀
