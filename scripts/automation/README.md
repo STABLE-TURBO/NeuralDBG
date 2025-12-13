@@ -88,12 +88,45 @@ automation.run_and_report(coverage=True)
 - `htmlcov/` (if coverage enabled)
 
 ### `social_media_generator.py`
-Generates social media posts from release information.
+Generates and publishes social media posts from release information.
+
+**Features:**
+- Twitter/X API v2 integration
+- Dev.to API integration
+- LinkedIn API integration
+- Automatic rate limit handling
+- Dry-run mode for testing
 
 **Usage:**
 ```bash
+# Generate posts only (save to files)
+python scripts/automation/social_media_generator.py [version]
+
+# Interactive mode (prompts for posting)
 python scripts/automation/social_media_generator.py
+
+# Programmatic posting
+from scripts.automation.social_media_generator import SocialMediaGenerator
+from scripts.automation.blog_generator import BlogGenerator
+
+generator = BlogGenerator(version="0.3.0")
+social_gen = SocialMediaGenerator(generator.version, generator.release_notes)
+
+# Post to all platforms
+results = social_gen.post_all()
+
+# Post to specific platforms
+results = social_gen.post_all(platforms=["twitter", "devto"])
 ```
+
+**Environment Variables:**
+- `TWITTER_API_KEY` - Twitter API key
+- `TWITTER_API_SECRET` - Twitter API secret
+- `TWITTER_ACCESS_TOKEN` - Twitter access token
+- `TWITTER_ACCESS_TOKEN_SECRET` - Twitter access token secret
+- `TWITTER_BEARER_TOKEN` - Twitter bearer token (optional)
+- `DEV_TO_API_KEY` - Dev.to API key
+- `LINKEDIN_ACCESS_TOKEN` - LinkedIn access token
 
 **Output:**
 - `docs/social/twitter_v{version}.txt`
@@ -368,6 +401,15 @@ Edit `social_media_generator.py` to customize:
 - Post length
 - Hashtags
 - Formatting
+- API endpoints
+- Rate limiting behavior
+
+### Twitter Bot
+Edit `../twitter_bot.py` to customize:
+- Tweet formatting
+- Changelog parsing
+- Character limits
+- Retry behavior
 
 ### Release Process
 Edit `release_automation.py` to customize:
@@ -408,6 +450,85 @@ pip install requests
 - For Dev.to: Check that article title matches exactly (case-sensitive)
 - For Medium: Medium API doesn't support updates; each publish creates a new post
 
+### API authentication errors
+Check that all required environment variables are set:
+- For Twitter: `TWITTER_API_KEY`, `TWITTER_API_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_TOKEN_SECRET`
+- For Dev.to: `DEV_TO_API_KEY`
+- For LinkedIn: `LINKEDIN_ACCESS_TOKEN`
+
+### Rate limiting
+The scripts include automatic rate limit handling with exponential backoff. If you hit rate limits:
+- Wait for the specified retry period
+- Use dry-run mode to test without consuming API quota
+- Check your API usage limits on the respective platforms
+
+## API Setup Guide
+
+### Twitter/X API Setup
+1. Go to https://developer.twitter.com/
+2. Create a new app or use an existing one
+3. Generate API keys and access tokens
+4. Set environment variables:
+   ```bash
+   export TWITTER_API_KEY="your_api_key"
+   export TWITTER_API_SECRET="your_api_secret"
+   export TWITTER_ACCESS_TOKEN="your_access_token"
+   export TWITTER_ACCESS_TOKEN_SECRET="your_access_token_secret"
+   ```
+
+### Dev.to API Setup
+1. Go to https://dev.to/settings/extensions
+2. Generate an API key
+3. Set environment variable:
+   ```bash
+   export DEV_TO_API_KEY="your_api_key"
+   ```
+
+### LinkedIn API Setup
+1. Create a LinkedIn app at https://www.linkedin.com/developers/
+2. Request appropriate permissions (w_member_social)
+3. Obtain an access token via OAuth 2.0 flow
+4. Set environment variable:
+   ```bash
+   export LINKEDIN_ACCESS_TOKEN="your_access_token"
+   ```
+
+## Example Usage
+
+### Complete Release Flow
+
+```python
+from scripts.automation.blog_generator import BlogGenerator
+from scripts.automation.social_media_generator import SocialMediaGenerator
+
+# Generate blog posts
+blog_gen = BlogGenerator(version="0.3.0")
+blog_paths = blog_gen.save_blog_posts()
+
+# Generate and post social media
+social_gen = SocialMediaGenerator(blog_gen.version, blog_gen.release_notes)
+social_paths = social_gen.save_posts()
+
+# Post to social media (requires API credentials)
+results = social_gen.post_all(platforms=["twitter", "devto"])
+
+for platform, result in results.items():
+    if result.get("success"):
+        print(f"✓ {platform}: {result['message']}")
+    else:
+        print(f"✗ {platform}: {result['error']}")
+```
+
+### Standalone Twitter Posting
+
+```bash
+# Test with dry run
+python scripts/twitter_bot.py 0.3.0 --dry-run
+
+# Post if dry run looks good
+python scripts/twitter_bot.py 0.3.0
+```
+
 ## Future Enhancements
 
 - [ ] Automated documentation generation
@@ -416,4 +537,7 @@ pip install requests
 - [ ] Automated security scanning
 - [ ] Automated performance benchmarking
 - [ ] Automated changelog generation from commits
+- [ ] Reddit API integration
+- [ ] Mastodon API integration
+- [ ] Discord webhook integration
 

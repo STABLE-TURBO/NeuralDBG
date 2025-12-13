@@ -61,8 +61,10 @@ venv*/
 .git.bak/
 *.pack
 
-# Social media content
+# Social media and blog content (marketing automation)
 social_media/
+docs/blog/
+docs/social/
 
 # Blog publishing - generated content
 docs/blog/*.md
