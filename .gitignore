@@ -369,3 +369,10 @@ example_audit_trail.json
 neural_organizations/
 team_dashboard.json
 *.billing.json
+
+# Cost optimization artifacts
+budget_data/
+carbon_data/
+test_budget_data/
+pricing.json
+*.cost.json

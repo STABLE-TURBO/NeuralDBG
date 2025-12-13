@@ -2370,6 +2370,120 @@ def marketplace_hub_download(ctx, repo_id, filename, output, revision):
 
 @cli.group()
 @click.pass_context
+def cost(ctx):
+    """Commands for cost optimization and tracking."""
+    pass
+
+@cost.command('estimate')
+@click.option('--provider', type=click.Choice(['aws', 'gcp', 'azure']), required=True, help='Cloud provider')
+@click.option('--instance', required=True, help='Instance type name')
+@click.option('--hours', type=float, required=True, help='Training hours')
+@click.option('--storage-gb', type=float, default=100.0, help='Storage in GB')
+@click.option('--spot/--on-demand', default=True, help='Use spot instances')
+@click.pass_context
+def cost_estimate(ctx, provider, instance, hours, storage_gb, spot):
+    """Estimate training costs."""
+    print_command_header("cost estimate")
+    
+    try:
+        from neural.cost import CostEstimator, CloudProvider
+        
+        estimator = CostEstimator()
+        cloud_provider = CloudProvider(provider)
+        
+        with Spinner("Calculating cost estimate") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            
+            estimate = estimator.estimate_cost(
+                provider=cloud_provider,
+                instance_name=instance,
+                training_hours=hours,
+                storage_gb=storage_gb,
+                use_spot=spot
+            )
+        
+        print_success("Cost estimation complete!")
+        print(f"\n{Colors.CYAN}Cost Breakdown:{Colors.ENDC}")
+        print(f"  {Colors.BOLD}Provider:{Colors.ENDC}      {estimate.provider.value}")
+        print(f"  {Colors.BOLD}Instance:{Colors.ENDC}      {estimate.instance_type.name}")
+        print(f"  {Colors.BOLD}Duration:{Colors.ENDC}      {estimate.estimated_hours:.2f} hours")
+        print(f"\n  {Colors.BOLD}Compute (On-Demand):{Colors.ENDC} ${estimate.on_demand_cost:.2f}")
+        print(f"  {Colors.BOLD}Compute (Spot):{Colors.ENDC}      ${estimate.spot_cost:.2f}")
+        print(f"  {Colors.BOLD}Storage:{Colors.ENDC}             ${estimate.storage_cost:.2f}")
+        print(f"  {Colors.BOLD}Data Transfer:{Colors.ENDC}       ${estimate.data_transfer_cost:.2f}")
+        print(f"\n  {Colors.GREEN}{Colors.BOLD}Total (Spot):{Colors.ENDC}        ${estimate.total_spot_cost:.2f}")
+        print(f"  {Colors.BOLD}Potential Savings:{Colors.ENDC}   ${estimate.potential_savings:.2f}")
+        
+    except Exception as e:
+        print_error(f"Cost estimation failed: {str(e)}")
+        sys.exit(1)
+
+@cost.command('compare')
+@click.option('--gpu-count', type=int, default=1, help='Number of GPUs')
+@click.option('--hours', type=float, required=True, help='Training hours')
+@click.option('--max-cost', type=float, help='Maximum acceptable cost')
+@click.pass_context
+def cost_compare(ctx, gpu_count, hours, max_cost):
+    """Compare costs across cloud providers."""
+    print_command_header("cost compare")
+    print_info(f"Comparing costs for {gpu_count} GPU(s), {hours:.1f} hours")
+    
+    try:
+        from neural.cost import CostEstimator
+        
+        estimator = CostEstimator()
+        
+        with Spinner("Analyzing provider costs") as spinner:
+            if ctx.obj.get('NO_ANIMATIONS'):
+                spinner.stop()
+            
+            estimates = estimator.compare_providers(
+                gpu_count=gpu_count,
+                training_hours=hours
+            )
+        
+        if max_cost:
+            estimates = [e for e in estimates if e.total_spot_cost <= max_cost]
+        
+        print_success(f"Found {len(estimates)} matching configurations")
+        print(f"\n{Colors.CYAN}{'Provider':<10} {'Instance':<25} {'Spot Cost':<12} {'Savings':<10}{Colors.ENDC}")
+        print(f"{'-' * 60}")
+        
+        for est in estimates[:10]:
+            savings_pct = (est.potential_savings / est.total_on_demand_cost * 100) if est.total_on_demand_cost > 0 else 0
+            print(f"{est.provider.value:<10} {est.instance_type.name:<25} ${est.total_spot_cost:<11.2f} {savings_pct:<9.1f}%")
+        
+    except Exception as e:
+        print_error(f"Cost comparison failed: {str(e)}")
+        sys.exit(1)
+
+@cost.command('dashboard')
+@click.option('--port', type=int, default=8052, help='Dashboard port')
+@click.pass_context
+def cost_dashboard(ctx, port):
+    """Launch interactive cost dashboard."""
+    print_command_header("cost dashboard")
+    print_info(f"Starting cost dashboard on port {port}")
+    
+    try:
+        from neural.cost.dashboard import create_dashboard
+        
+        dashboard = create_dashboard(port=port)
+        print_success(f"Dashboard running at http://localhost:{port}")
+        print(f"{Colors.YELLOW}Press Ctrl+C to stop the server{Colors.ENDC}")
+        
+        dashboard.run(debug=False)
+        
+    except ImportError as e:
+        print_error("Dashboard dependencies not available")
+        print_info("Install with: pip install neural-dsl[dashboard]")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print_info("\nDashboard stopped by user")
+
+@cli.group()
+@click.pass_context
 def data(ctx):
     """Commands for data versioning and lineage tracking."""
     pass
