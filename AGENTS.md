@@ -21,9 +21,10 @@ pip install -r requirements-dev.txt     # Install development dependencies (reco
 - **Integrations**: requests, boto3, google-cloud, azure (ML platform connectors)
 - **Teams**: click, pyyaml (multi-tenancy and team management)
 - **Federated**: numpy, pyyaml (federated learning with privacy and compression)
+- **AI**: langdetect (natural language processing and language detection)
 - **Dev**: pytest, ruff, pylint, mypy, pre-commit (development tools)
 
-Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[automl]"`, `pip install -e ".[integrations]"`, `pip install -e ".[distributed]"`, `pip install -e ".[teams]"`, or `pip install -e ".[federated]"`
+Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[automl]"`, `pip install -e ".[integrations]"`, `pip install -e ".[distributed]"`, `pip install -e ".[teams]"`, `pip install -e ".[federated]"`, or `pip install -e ".[ai]"`
 
 ## Commands
 - **Build**: N/A (pure Python, no build step)

@@ -82,6 +82,7 @@ UTILS_DEPS = [
 ML_EXTRAS_DEPS = [
     "huggingface_hub>=0.16",
     "transformers>=4.30",
+    "langdetect>=1.0.9",
 ]
 
 API_DEPS = [
@@ -123,6 +124,10 @@ FEDERATED_DEPS = [
     "pyyaml>=6.0.1",
 ]
 
+AI_DEPS = [
+    "langdetect>=1.0.9",
+]
+
 setup(
     name="neural-dsl",
     version="0.3.0",
@@ -146,6 +151,7 @@ setup(
         "data": DATA_DEPS,
         "teams": TEAMS_DEPS,
         "federated": FEDERATED_DEPS,
+        "ai": AI_DEPS,
         # Convenience bundles
         "dev": [
             "pytest>=7.0.0",
@@ -174,6 +180,7 @@ setup(
             + DATA_DEPS
             + TEAMS_DEPS
             + FEDERATED_DEPS
+            + AI_DEPS
         ),
         "docs": [
             "sphinx>=5.0",

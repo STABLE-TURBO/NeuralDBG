@@ -397,13 +397,14 @@ def compile(ctx, file: str, backend: str, dataset: str, output: Optional[str], d
         sys.exit(1)
 
     # Output the generated code
-    output_file = output or f"{os.path.splitext(file)[0]}_{backend}.py"
     if dry_run:
         print_info("Generated code (dry run)")
         print(f"\n{Colors.CYAN}{'='*50}{Colors.ENDC}")
         print(code)
         print(f"{Colors.CYAN}{'='*50}{Colors.ENDC}")
+        print_success("Dry run complete! No files were created.")
     else:
+        output_file = output or f"{os.path.splitext(file)[0]}_{backend}.py"
         try:
             with Spinner(f"Writing code to {output_file}") as spinner:
                 if ctx.obj.get('NO_ANIMATIONS'):

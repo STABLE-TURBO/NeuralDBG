@@ -75,23 +75,27 @@ class NaturalLanguageProcessor:
         """
         Detect the language of the input text.
         
-        Simple implementation - can be enhanced with proper language detection library.
+        Uses langdetect library if available, falls back to heuristic detection.
         
         Args:
             text: Input text
             
         Returns:
-            Detected language code (e.g., 'en', 'fr', 'es')
+            Detected language code (e.g., 'en', 'fr', 'es', 'de', 'it')
         """
-        # Simple heuristic-based detection
-        # TODO: Use proper language detection library (langdetect, polyglot, etc.)
+        try:
+            from langdetect import detect, LangDetectException
+            try:
+                detected = detect(text)
+                return detected
+            except LangDetectException:
+                pass
+        except ImportError:
+            pass
         
-        # Check for non-ASCII characters that might indicate non-English
         non_ascii = sum(1 for c in text if ord(c) > 127)
         if non_ascii > len(text) * 0.3:
-            # Likely non-English, but we'll default to English for now
-            # In future, use proper language detection
-            return 'auto'  # Will be translated to English
+            return 'auto'
         
         return 'en'
     

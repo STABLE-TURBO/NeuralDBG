@@ -71,7 +71,21 @@ Neural DSL now embodies this principle, focusing on what it does best rather tha
   - Seamless CloudExecutor integration
   - Support for GPU/TPU acceleration
   - One-click access via Colab badge
+
+- **Enhanced Language Detection**: Improved natural language processor with langdetect library support
+  - Automatic language detection for multi-language DSL generation
+  - Fallback to heuristic detection when langdetect is unavailable
+  - Added AI dependency group: `pip install -e ".[ai]"`
   
+### Fixed
+- **Dry-run File Creation**: Fixed `neural compile --dry-run` to not create output files
+  - Dry-run now correctly previews code without writing to disk
+  - Added confirmation message: "Dry run complete! No files were created."
+  - Test assertions re-enabled to verify no file creation
+  
+- **Missing Import**: Added missing `re` module import in CLI for path validation
+
+### Added
 - **TransformerDecoder Layer**: Fully implemented transformer decoder layer with cross-attention support
   - Self-attention with optional causal masking for autoregressive decoding
   - Cross-attention mechanism for encoder-decoder architectures

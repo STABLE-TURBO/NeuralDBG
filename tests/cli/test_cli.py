@@ -71,8 +71,9 @@ def test_compile_dry_run(runner, sample_neural):
     result = runner.invoke(cli, ["compile", sample_neural, "--backend", "tensorflow", "--dry-run"])
     assert result.exit_code == 0
     assert "Generated code (dry run)" in result.output
-    # TODO: Fix dry run to not create file
-    # assert not os.path.exists("sample_tensorflow.py"), "Dry run should not create output file"
+    assert "Dry run complete! No files were created." in result.output
+    output_file = f"{os.path.splitext(sample_neural)[0]}_tensorflow.py"
+    assert not os.path.exists(output_file), "Dry run should not create output file"
 
 def test_compile_invalid_file(runner):
     """Test compile with a non-existent file."""
