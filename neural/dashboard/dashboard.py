@@ -23,6 +23,12 @@ from neural.dashboard.tensor_flow import (
 from neural.shape_propagation.shape_propagator import ShapePropagator
 from neural.config.health import HealthChecker
 from neural.utils.logging import get_logger
+from neural.security import (
+    load_security_config,
+    apply_security_middleware,
+    create_jwt_auth,
+    create_basic_auth,
+)
 
 logger = get_logger(__name__)
 
@@ -129,6 +135,14 @@ UPDATE_INTERVAL = config.get("websocket_interval", 1000) # Use default if config
 _trace_data_list: List[Dict[str, Any]] = []
 trace_data: List[Dict[str, Any]] = _trace_data_list
 TRACE_DATA: List[Dict[str, Any]] = _trace_data_list  # Export for test compatibility - both point to same list
+
+def get_trace_data() -> List[Dict[str, Any]]:
+    """Retrieves the current trace data, supporting mock injection for tests."""
+    import sys
+    dashboard_module = sys.modules.get(__name__)
+    if dashboard_module and hasattr(dashboard_module, 'TRACE_DATA'):
+        return getattr(dashboard_module, 'TRACE_DATA')
+    return trace_data
 model_data: Optional[Dict[str, Any]] = None
 backend: str = 'tensorflow'
 shape_history: List[Tuple[str, Tuple[int, ...]]] = []
@@ -389,12 +403,13 @@ def update_trace_graph(n: int, viz_type: str, selected_layers: Optional[List[str
 )
 def update_flops_memory_chart(n: int) -> List[go.Figure]:
     """Update FLOPs and memory usage visualization."""
-    if not trace_data:
+    trace_source = get_trace_data()
+    if not trace_source:
         return go.Figure()
 
-    layers = [entry["layer"] for entry in trace_data]
-    flops = [entry["flops"] for entry in trace_data]
-    memory = [entry["memory"] for entry in trace_data]
+    layers = [entry["layer"] for entry in trace_source]
+    flops = [entry["flops"] for entry in trace_source]
+    memory = [entry["memory"] for entry in trace_source]
 
     # Create Dual Bar Graph (FLOPs & Memory)
     fig = go.Figure([
@@ -403,7 +418,7 @@ def update_flops_memory_chart(n: int) -> List[go.Figure]:
     ])
     fig.update_layout(title="FLOPs & Memory Usage", xaxis_title="Layers", yaxis_title="Values", barmode="group")
 
-    return [fig]
+    return fig
 
 ##################
 ### Loss Graph ###
@@ -606,11 +621,13 @@ def update_gradient_chart(n: int) -> go.Figure:
     """Visualizes gradient flow per layer."""
     global trace_data
 
-    if not trace_data:
+    trace_source = get_trace_data()
+
+    if not trace_source:
         return go.Figure()
 
-    layers = [entry["layer"] for entry in trace_data]
-    grad_norms = [entry.get("grad_norm", 0) for entry in trace_data]
+    layers = [entry["layer"] for entry in trace_source]
+    grad_norms = [entry.get("grad_norm", 0) for entry in trace_source]
 
     fig = go.Figure([go.Bar(x=layers, y=grad_norms, name="Gradient Magnitude")])
     fig.update_layout(title="Gradient Flow", xaxis_title="Layers", yaxis_title="Gradient Magnitude")
@@ -628,11 +645,13 @@ def update_dead_neurons(n: int) -> go.Figure:
     """Displays percentage of dead neurons per layer."""
     global trace_data
 
-    if not trace_data:
+    trace_source = get_trace_data()
+
+    if not trace_source:
         return go.Figure()
 
-    layers = [entry["layer"] for entry in trace_data]
-    dead_ratios = [entry.get("dead_ratio", 0) for entry in trace_data]
+    layers = [entry["layer"] for entry in trace_source]
+    dead_ratios = [entry.get("dead_ratio", 0) for entry in trace_source]
 
     fig = go.Figure([go.Bar(x=layers, y=dead_ratios, name="Dead Neurons (%)")])
     fig.update_layout(title="Dead Neuron Detection", xaxis_title="Layers", yaxis_title="Dead Ratio", yaxis_range=[0, 1])
@@ -650,12 +669,14 @@ def update_anomaly_chart(n: int) -> go.Figure:
     """Visualizes unusual activations per layer."""
     global trace_data
 
-    if not trace_data:
+    trace_source = get_trace_data()
+
+    if not trace_source:
         return go.Figure()
 
-    layers = [entry["layer"] for entry in trace_data]
-    activations = [entry.get("mean_activation", 0) for entry in trace_data]
-    anomalies = [1 if entry.get("anomaly", False) else 0 for entry in trace_data]
+    layers = [entry["layer"] for entry in trace_source]
+    activations = [entry.get("mean_activation", 0) for entry in trace_source]
+    anomalies = [1 if entry.get("anomaly", False) else 0 for entry in trace_source]
 
     fig = go.Figure([
         go.Bar(x=layers, y=activations, name="Mean Activation"),
