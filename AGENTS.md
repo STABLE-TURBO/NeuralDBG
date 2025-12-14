@@ -81,3 +81,11 @@ pip install -e ".[integrations]"   # Add cloud platform support
 - Docstrings with numpy-style parameters
 - No comments unless complex logic requires context
 - Functional over classes where reasonable
+
+## Repository Hygiene
+- **IMPORTANT**: Do NOT create `*IMPLEMENTATION_SUMMARY.md`, `*QUICK_REFERENCE.md`, or similar files
+- Keep documentation in `docs/`, not scattered throughout the repo
+- Remove temporary scripts (`fix_*.py`, `repro_*.py`) after use
+- Use standard venv names (`.venv` or `venv` only)
+- See `REPOSITORY_HYGIENE.md` for full guidelines
+- Run cleanup scripts: `python scripts/cleanup_repository.py` or `.\scripts\cleanup_repository.ps1`

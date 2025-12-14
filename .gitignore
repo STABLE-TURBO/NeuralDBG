@@ -434,3 +434,48 @@ carbon_data/
 test_budget_data/
 pricing.json
 *.cost.json
+
+# Federated Learning artifacts
+federated_models/
+federated_checkpoints/
+federated_metrics.json
+federated_config.yaml
+client_data/
+*.federated.db
+
+# Repository hygiene - implementation summaries and duplicate docs
+*IMPLEMENTATION_SUMMARY.md
+*IMPLEMENTATION_COMPLETE.md
+*IMPLEMENTATION_CHECKLIST.md
+*IMPLEMENTATION.md
+*_SUMMARY.md
+*QUICK_REFERENCE.md
+*QUICK_REF.md
+*_QUICK_START.md
+PROJECT_SUMMARY.md
+REFACTORING_SUMMARY.md
+PACKAGING_SUMMARY.md
+
+# Exclude important summary/implementation docs that should be kept
+!CHANGELOG.md
+!README.md
+!CONTRIBUTING.md
+!SECURITY.md
+!LICENSE.md
+!REPOSITORY_STRUCTURE.md
+!GETTING_STARTED.md
+!INSTALL.md
+
+# Temporary scripts and reproductions
+repro_*.py
+reproduce_*.py
+fix_*.py
+skip_*.py
+temp_*.py
+_temp_*.py
+
+# Duplicate venvs
+.venv*/
+venv*/
+!.venv/
+!venv/

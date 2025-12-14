@@ -312,6 +312,26 @@ pytest tests/ -v
 
 Check out [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines. Look for [good first issue](https://github.com/Lemniscate-world/Neural/labels/good%20first%20issue) tags if you're new.
 
+## Repository Hygiene
+
+The repository recently underwent a major cleanup to remove 200+ redundant files. To maintain cleanliness:
+
+```bash
+# Quick cleanup (Windows)
+.\cleanup.bat
+
+# Quick cleanup (Linux/macOS)
+make clean-dry    # Preview
+make clean        # Execute
+
+# Or use scripts directly
+python scripts/cleanup_repository.py
+.\scripts\cleanup_repository.ps1 -DryRun
+bash scripts/cleanup_repository.sh --dry-run
+```
+
+See [REPOSITORY_HYGIENE.md](REPOSITORY_HYGIENE.md) for guidelines on what to avoid (implementation summaries, quick reference docs, temp scripts, etc.).
+
 ## Development Workflow
 
 Quick reference for common dev tasks:
