@@ -4,6 +4,11 @@ Neural Collaboration Module - Real-time collaborative DSL editing.
 This module provides infrastructure for real-time collaborative editing of Neural DSL files
 with conflict resolution, access control, and version control integration.
 
+.. deprecated:: 0.3.0
+    The collaboration module will be removed in v0.4.0.
+    Use Git and GitHub/GitLab for version control and collaboration instead.
+    See docs/DEPRECATIONS.md for migration guide.
+
 Features:
 - Real-time DSL editing using WebSockets
 - Conflict resolution for concurrent edits
@@ -22,7 +27,16 @@ Usage:
     workspace = manager.create_workspace('my-project', owner='user1')
 """
 
+import warnings
 from typing import Optional
+
+warnings.warn(
+    "neural.collaboration is deprecated and will be removed in v0.4.0. "
+    "Use Git and GitHub/GitLab for version control and collaboration instead. "
+    "See docs/DEPRECATIONS.md for migration guide.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 try:
     from .server import CollaborationServer

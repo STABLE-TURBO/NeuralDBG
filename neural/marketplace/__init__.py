@@ -1,7 +1,21 @@
 """
-Neural Marketplace - Model upload/download, semantic search, HuggingFace Hub integration,
-and community features.
+Neural Marketplace - Model upload/download, semantic search, and HuggingFace Hub integration.
+
+.. deprecated:: 0.3.0
+    The marketplace module will be removed in v0.4.0.
+    Use HuggingFace Hub directly for model sharing and discovery.
+    See docs/DEPRECATIONS.md for migration guide.
 """
+
+import warnings
+
+warnings.warn(
+    "neural.marketplace is deprecated and will be removed in v0.4.0. "
+    "Use HuggingFace Hub directly for model sharing and discovery. "
+    "See docs/DEPRECATIONS.md for migration guide.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 from .api import MarketplaceAPI
 from .community_features import CommunityFeatures

@@ -407,6 +407,11 @@ profiling_report.json
 profile_*.json
 *.pstats
 
+# Cleanup artifacts (keep the scripts, ignore outputs)
+docs/archive/moved_*.md
+scripts/cleanup/*.log
+scripts/cleanup/backup/
+
 # MLOps artifacts
 models/
 ab_tests/

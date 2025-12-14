@@ -18,21 +18,35 @@ pip install -r requirements-dev.txt     # Recommended for contributors
 ```
 
 ## Dependency Groups
+
+### Core Features (Maintained)
 - **Core**: click, lark, numpy, pyyaml (minimal DSL functionality)
 - **Backends**: torch, tensorflow, onnx (ML framework support)
-- **HPO**: optuna, scikit-learn (hyperparameter optimization)
-- **AutoML**: optuna, scikit-learn, scipy (automated ML and NAS)
-- **Distributed**: ray, dask (distributed computing for AutoML)
 - **Visualization**: matplotlib, graphviz, plotly, networkx (charts and diagrams)
 - **Dashboard**: dash, flask (NeuralDbg interface)
-- **Cloud**: pygithub, selenium (cloud integrations)
-- **Integrations**: requests, boto3, google-cloud, azure (ML platform connectors)
-- **Teams**: click, pyyaml (multi-tenancy and team management)
-- **Federated**: numpy, pyyaml (federated learning with privacy and compression)
-- **Education**: nbformat, jupyter, dash, plotly (interactive tutorials, assignments, grading, LMS integration)
+- **HPO**: optuna, scikit-learn (hyperparameter optimization)
+- **AutoML**: optuna, scikit-learn, scipy (architecture search - simplified)
+- **Integrations**: boto3, google-cloud, azure (AWS/GCP/Azure only)
 - **Dev**: pytest, ruff, pylint, mypy, pre-commit (development tools)
 
-Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[automl]"`, `pip install -e ".[integrations]"`, `pip install -e ".[education]"`, `pip install -e ".[distributed]"`, `pip install -e ".[teams]"`, or `pip install -e ".[federated]"`
+### Deprecated Features (Will Be Removed/Extracted)
+- ~~**Collaboration**~~: Use Git instead (DEPRECATED v0.3.0)
+- ~~**Federated**~~: Will be extracted to separate repo (DEPRECATED v0.3.0)
+- ~~**Aquarium IDE**~~: Will be extracted to separate repo (DEPRECATED v0.3.0)
+- ~~**Marketplace**~~: Use HuggingFace Hub (DEPRECATED v0.3.0)
+
+### Experimental Features (Limited Support)
+- **Monitoring**: Basic Prometheus integration (experimental)
+- **API**: REST API interface (experimental)
+- **Cloud**: Being simplified (use with caution)
+
+Install examples:
+```bash
+pip install -e ".[core]"           # Recommended starting point
+pip install -e ".[hpo]"            # Add HPO support
+pip install -e ".[automl]"         # Add AutoML support
+pip install -e ".[integrations]"   # Add cloud platform support
+```
 
 ## Commands
 - **Build**: N/A (pure Python, no build step)

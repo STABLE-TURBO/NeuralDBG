@@ -1,339 +1,199 @@
 # Neural DSL Documentation
 
-This directory contains the complete documentation for Neural DSL, including user guides, API reference, and development documentation.
+Welcome to the Neural DSL documentation directory. This guide helps you navigate the organized documentation structure.
 
-## Documentation Structure
+## Quick Navigation
+
+### Essential Reading
+- [Getting Started](../GETTING_STARTED.md) - Installation and first steps
+- [Contributing Guide](../CONTRIBUTING.md) - How to contribute
+- [Changelog](../CHANGELOG.md) - Version history and changes
+
+### Project Guidance
+- [**FOCUS.md**](FOCUS.md) - **Start here!** Project scope, boundaries, and philosophy
+- [DEPRECATIONS.md](DEPRECATIONS.md) - Deprecated features and migration paths
+- [TYPE_SAFETY.md](TYPE_SAFETY.md) - Type checking guidelines and standards
+
+### Feature Documentation
+- [DSL Language Reference](dsl.md) - Complete syntax guide
+- [Deployment Guide](deployment.md) - Production export options
+- [AI Integration Guide](ai_integration_guide.md) - Natural language model generation
+
+## Directory Structure
 
 ```
 docs/
-├── conf.py                 # Sphinx configuration
-├── index.rst              # Main documentation index
-├── requirements.txt       # Documentation build dependencies
-├── Makefile              # Unix/Linux/Mac build scripts
-├── make.bat              # Windows build scripts
-├── BUILD_DOCS.md         # Build instructions
-├── API_DOCUMENTATION.md  # API documentation guide
-├── DOCSTRING_GUIDE.md    # Docstring style guide
-├── api/                  # API reference documentation
-│   ├── index.rst
-│   ├── neural.rst
-│   ├── parser.rst
-│   ├── code_generation.rst
-│   ├── shape_propagation.rst
-│   ├── cli.rst
-│   ├── dashboard.rst
-│   ├── hpo.rst
-│   ├── cloud.rst
-│   ├── utils.rst
-│   ├── visualization.rst
-│   └── README.md
-├── _static/              # Static files (CSS, images)
-├── _templates/           # Custom Sphinx templates
-└── _build/               # Generated documentation (gitignored)
+├── README.md                    # This file
+├── FOCUS.md                     # Project scope and boundaries ⭐
+├── DEPRECATIONS.md              # Deprecated features
+├── TYPE_SAFETY.md               # Type checking guidelines
+│
+├── archive/                     # Historical documents
+│   ├── *_IMPLEMENTATION*.md     # Implementation summaries
+│   ├── RELEASE_*.md            # Old release notes
+│   └── MIGRATION_*.md          # Historical migrations
+│
+├── automation/                  # Automation guides
+│   └── AUTOMATION_GUIDE.md     # CI/CD and automation
+│
+├── dependencies/                # Dependency management
+│   ├── DEPENDENCY_GUIDE.md     # Dependency documentation
+│   └── DEPENDENCY_*.md         # Specific dependency docs
+│
+├── distribution/                # Distribution and publishing
+│   ├── DISTRIBUTION_PLAN.md    # Release planning
+│   └── GITHUB_PUBLISHING_GUIDE.md
+│
+├── setup/                       # Installation and setup
+│   ├── INSTALL.md              # Installation guide
+│   └── ERROR_MESSAGES_GUIDE.md # Troubleshooting
+│
+└── features/                    # Feature-specific docs
+    ├── DEPLOYMENT_FEATURES.md  # Deployment options
+    └── TRANSFORMER_*.md        # Transformer docs
 ```
 
-## User Documentation
+## Documentation Philosophy
 
-### 1. Getting Started
+Our documentation follows these principles:
 
-- [Installation Guide](installation.md) - Setup and dependencies
-- [Quick Start Tutorial](tutorials/quickstart_tutorial.ipynb) - Interactive first model (NEW!)
-- [Troubleshooting Guide](troubleshooting.md) - Fix common issues (NEW!)
-- [Migration Guide](migration.md) - Version upgrades and framework migration (NEW!)
+1. **Clarity First**: Clear, concise explanations over comprehensiveness
+2. **Examples Driven**: Show, don't just tell
+3. **Up-to-Date**: If it's documented, it should work
+4. **Organized**: Easy to find what you need
+5. **Honest**: Clear about limitations and deprecated features
 
-### 2. Marketing Automation ⭐ NEW
+## Core vs Peripheral
 
-Complete marketing automation for release announcements across multiple platforms.
+### Core Documentation (Priority 1)
+These docs cover essential, actively maintained features:
+- DSL syntax and parser
+- Code generation (TensorFlow, PyTorch, ONNX)
+- Shape propagation and validation
+- CLI commands
+- NeuralDbg dashboard
 
-- [📘 Marketing Automation Guide](MARKETING_AUTOMATION_GUIDE.md) - Complete documentation
-- [⚡ Quick Reference](MARKETING_AUTOMATION_QUICK_REF.md) - Quick commands and tips
-- [🔧 Setup Guide](MARKETING_AUTOMATION_SETUP.md) - Step-by-step API setup
-- [📊 Workflow Diagram](MARKETING_AUTOMATION_DIAGRAM.md) - Visual workflow overview
-- [✅ Setup Checklist](../.github/MARKETING_AUTOMATION_CHECKLIST.md) - Track your setup progress
+### Semi-Core Documentation (Priority 2)
+Supported but not the primary focus:
+- HPO (hyperparameter optimization)
+- AutoML (simplified architecture search)
+- Cloud integrations (AWS, GCP, Azure)
+- Experiment tracking
 
-**Features:**
-- ✅ Automatic blog publishing (Dev.to, Medium)
-- ✅ Social media posting (Twitter/X, LinkedIn)
-- ✅ GitHub Discussions updates
-- ✅ Comprehensive error handling
-- ✅ One-click deployment
+### Deprecated/Experimental (Priority 3)
+Features being phased out or experimental:
+- See [DEPRECATIONS.md](DEPRECATIONS.md) for full list
+- Aquarium IDE (extracting to separate repo)
+- Collaboration tools (use Git instead)
+- Marketplace (use HuggingFace Hub)
+- Federated learning (extracting to separate repo)
 
-### 3. Neural DSL Reference
+## Finding What You Need
 
-- [DSL Syntax](DSL.md)
-- [Layer Reference](layers.md)
-- [Optimizer Reference](optimizers.md)
-- [Training Configuration](training.md)
-- [Hyperparameter Specification](hyperparameters.md)
+### "I want to..."
 
-### 4. CLI Reference
+**...get started quickly**
+→ [GETTING_STARTED.md](../GETTING_STARTED.md)
 
-- [Command-Line Interface](cli-reference.md)
-- [Command Reference](commands.md)
-- [Configuration Options](configuration.md)
-- [Environment Variables](environment.md)
+**...understand the DSL syntax**
+→ [dsl.md](dsl.md)
 
-### 5. API Reference
+**...compile my model to PyTorch/TensorFlow**
+→ [CLI Commands](#) or [deployment.md](deployment.md)
 
-- [Parser API](api/parser.md)
-- [Code Generation API](api/code-generation.md)
-- [Shape Propagation API](api/shape-propagation.md)
-- [Visualization API](api/visualization.md)
-- [Dashboard API](api/dashboard.md)
-- [HPO API](api/hpo.md)
+**...debug my model**
+→ NeuralDbg section in main README
 
-### 6. Tutorials
+**...deploy to production**
+→ [deployment.md](deployment.md)
 
-Comprehensive learning resources for all skill levels:
+**...contribute code**
+→ [CONTRIBUTING.md](../CONTRIBUTING.md) + [TYPE_SAFETY.md](TYPE_SAFETY.md)
 
-- **[Tutorial Hub](tutorials/README.md)** - Complete tutorial directory with learning paths
-- **Interactive Notebooks:**
-  - [Quickstart Tutorial](tutorials/quickstart_tutorial.ipynb) - Your first model in 15 minutes (NEW!)
-  - [HPO Tutorial](tutorials/hpo_tutorial.ipynb) - Hyperparameter optimization (NEW!)
-- **Video Tutorials:**
-  - [Video Scripts & Storyboards](tutorials/video_scripts.md) - Complete production guide (NEW!)
-  - Getting Started (5 min) - Coming soon
-  - Building Your First Model (10 min) - Coming soon
-  - Hyperparameter Optimization (8 min) - Coming soon
-  - Debugging with NeuralDbg (7 min) - Coming soon
-- **Annotated Examples:**
-  - [MNIST with Comments](../examples/mnist_commented.neural) - Line-by-line CNN guide (NEW!)
-  - [Sentiment Analysis with Comments](../examples/sentiment_analysis_commented.neural) - LSTM tutorial (NEW!)
+**...understand project scope**
+→ [FOCUS.md](FOCUS.md) ⭐
 
-### 7. Examples
+**...migrate from deprecated feature**
+→ [DEPRECATIONS.md](DEPRECATIONS.md)
 
-- [Basic Examples](examples/basic/)
-- [Computer Vision Examples](examples/computer-vision/)
-- [Natural Language Processing Examples](examples/nlp/)
-- [Reinforcement Learning Examples](examples/reinforcement-learning/)
-- [Generative Models Examples](examples/generative/)
+**...optimize hyperparameters**
+→ HPO documentation (coming soon)
 
-### 8. Guides
-
-- [Best Practices](guides/best-practices.md)
-- [Performance Optimization](guides/performance.md)
-- [Debugging Guide](guides/debugging.md)
-- [Deployment Guide](guides/deployment.md)
-- [Contributing Guide](guides/contributing.md)
-
-### 9. Transformer Documentation ⭐ NEW
-
-Comprehensive guides for building and training transformer models:
-
-- **[Transformers Overview](transformers_README.md)** - Quick start and complete reference
-- **[Architecture Guide](transformer_architecture.md)** - Build BERT, GPT, ViT, and Seq2Seq models
-- **[Attention Mechanism](transformer_attention.md)** - Deep dive into attention mechanisms
-- **[Training Best Practices](transformer_training.md)** - Optimize transformer training
-- **[Migration Guide](transformer_migration.md)** - Convert from raw TensorFlow/PyTorch (50-75% less code)
-
-**Covers:**
-- ✅ TransformerEncoder and TransformerDecoder layers
-- ✅ Multi-head attention patterns
-- ✅ Common architectures (BERT, GPT, Vision Transformer)
-- ✅ Learning rate strategies and optimization
-- ✅ Code migration examples with side-by-side comparisons
-
-### 9. Blog & Releases
-
-- **[Release Notes](releases/)** - Detailed release documentation
-  - [v0.3.0 Release Notes](releases/v0.3.0.md) - Latest release (NEW!)
-- [Feature Spotlights](blog/features/)
-- [Case Studies](blog/case-studies/)
-- [Tutorials](blog/tutorials/)
-
-## Documentation Formats
-
-The documentation is available in multiple formats:
-
-- **Markdown**: The primary format for all documentation
-- **HTML**: Generated from Markdown for web viewing
-- **PDF**: Generated from Markdown for offline reading
-- **Interactive Notebooks**: Jupyter notebooks for tutorials and examples
-
-## Quick Start
-
-### Install Dependencies
-
-```bash
-pip install -e ".[docs]"
-```
-
-### Build HTML Documentation
-
-```bash
-cd docs
-make html  # Unix/Linux/Mac
-.\make.bat html  # Windows
-```
-
-### View Documentation
-
-```bash
-open _build/html/index.html  # Mac
-xdg-open _build/html/index.html  # Linux
-start _build/html/index.html  # Windows
-```
-
-## Writing Documentation
-
-### Adding API Documentation
-
-1. Write NumPy-style docstrings in your code:
-   ```python
-   def my_function(param: int) -> str:
-       """
-       Brief description.
-       
-       Parameters
-       ----------
-       param : int
-           Parameter description
-           
-       Returns
-       -------
-       str
-           Return value description
-       """
-   ```
-
-2. Add module to appropriate `.rst` file in `api/`
-
-3. Rebuild documentation
-
-### Docstring Style
-
-Follow the NumPy docstring convention:
-- Brief one-line description
-- Parameters section with types
-- Returns section with type
-- Examples section with code
-- See `DOCSTRING_GUIDE.md` for details
-
-### Building Locally
-
-```bash
-# Clean build
-make clean
-make html
-
-# Live preview with auto-reload
-pip install sphinx-autobuild
-sphinx-autobuild . _build/html
-# Opens at http://localhost:8000
-```
-
-## Documentation Standards
-
-### Quality Checklist
-
-- [ ] All public APIs documented
-- [ ] Docstrings follow NumPy style
-- [ ] Type hints on all parameters
-- [ ] Examples provided where helpful
-- [ ] No Sphinx build warnings
-- [ ] Links between modules work
-- [ ] Code examples are tested
-
-### Testing Documentation
-
-```bash
-# Build and check for errors
-cd docs
-make html
-
-# Check docstring coverage
-pip install interrogate
-interrogate neural/
-
-# Validate docstrings
-pip install pydocstyle
-pydocstyle neural/
-```
+**...integrate with cloud platforms**
+→ Cloud integration guides (coming soon)
 
 ## Contributing to Documentation
 
-We welcome contributions to the documentation! Here's how you can help:
+### Guidelines
 
-1. **Fix Typos and Errors**: If you find a typo or error, please submit a pull request with the fix.
-2. **Improve Existing Documentation**: If you think a section could be clearer or more detailed, feel free to improve it.
-3. **Add New Documentation**: If you'd like to add new tutorials, examples, or guides, please submit a pull request.
-4. **Translate Documentation**: Help make Neural accessible to more people by translating documentation.
+1. **Location**: Put docs in the appropriate subdirectory
+2. **Format**: Use Markdown with clear headers
+3. **Examples**: Include working code examples
+4. **Links**: Use relative links within docs
+5. **Updates**: Update this README when adding major docs
 
-Please follow these guidelines when contributing:
+### Documentation PRs
 
-- Use clear, concise language
-- Include code examples where appropriate
-- Add diagrams and images to illustrate complex concepts
-- Follow the existing documentation structure
-- Test code examples to ensure they work
+When submitting documentation:
+- Test all code examples
+- Check links work
+- Add entry to this README if appropriate
+- Follow the existing style and tone
+- Keep it concise
 
-When contributing code:
+## Archive Policy
 
-1. **Always add docstrings** to public functions/classes
-2. **Follow NumPy style** for consistency
-3. **Include type hints** in signatures
-4. **Test your examples** to ensure they work
-5. **Update .rst files** if adding new modules
-6. **Build docs locally** before submitting PR
+Documents are moved to `archive/` when:
+- They describe deprecated features
+- They're superseded by newer docs
+- They're historical implementation notes
+- They're old release notes (>2 versions old)
 
-See `DOCSTRING_GUIDE.md` for detailed guidelines.
+Archived docs are kept for reference but not actively maintained.
 
-## Documentation Tools
+## Getting Help
 
-The documentation is built using the following tools:
+If you can't find what you need:
 
-- **MkDocs**: Static site generator for documentation
-- **Material for MkDocs**: Theme for MkDocs
-- **Mermaid**: Diagramming and charting tool
-- **Jupyter Book**: For interactive notebooks
-- **Sphinx**: For API documentation
+1. **Search the docs**: Use GitHub's search or grep
+2. **Check examples**: Look in `examples/` directory
+3. **Ask on Discord**: [Join our Discord](https://discord.gg/KFku4KvS)
+4. **Open a discussion**: [GitHub Discussions](https://github.com/Lemniscate-world/Neural/discussions)
+5. **Report missing docs**: Open an issue with "documentation" label
 
-## Continuous Integration
+## Documentation Roadmap
 
-Documentation is automatically built and published:
-- On every push to main branch
-- Published to Read the Docs (if configured)
-- Checked for warnings in CI
+### Short Term
+- [ ] Complete DSL language reference
+- [ ] Add HPO tutorial
+- [ ] Expand deployment guide
+- [ ] Create video tutorials
 
-## Troubleshooting
+### Medium Term
+- [ ] Interactive documentation site
+- [ ] API reference (auto-generated)
+- [ ] Best practices guide
+- [ ] Performance tuning guide
 
-### Import Errors
-```bash
-# Ensure Neural DSL is installed
-pip install -e .
-```
+### Long Term
+- [ ] Comprehensive examples library
+- [ ] Architecture patterns catalog
+- [ ] Integration cookbook
+- [ ] Educational curriculum
 
-### Missing Dependencies
-```bash
-# Install documentation dependencies
-pip install -e ".[docs]"
-```
+## Maintenance
 
-### Build Warnings
-Check the warning messages and fix:
-- Missing docstrings
-- Broken cross-references
-- Invalid reStructuredText syntax
+This documentation is maintained by the Neural DSL team and community contributors. 
 
-### Theme Not Found
-```bash
-pip install sphinx-rtd-theme
-```
+**Last major reorganization**: December 2025 (v0.3.0 cleanup)
 
-## Resources
+**Next review scheduled**: Q1 2026
 
-- [Sphinx Documentation](https://www.sphinx-doc.org/)
-- [NumPy Docstring Guide](https://numpydoc.readthedocs.io/en/latest/format.html)
-- [reStructuredText Primer](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
-- [Sphinx autodoc](https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html)
+---
 
-## Support
-
-For documentation issues:
-- Open an issue on GitHub
-- Check existing documentation
-- Refer to Sphinx documentation
-
-## License
-
-Documentation is released under the same license as Neural DSL (MIT License).
+**Quick Links**:
+[Home](../README.md) |
+[Focus](FOCUS.md) |
+[Getting Started](../GETTING_STARTED.md) |
+[Contributing](../CONTRIBUTING.md) |
+[Discord](https://discord.gg/KFku4KvS)
