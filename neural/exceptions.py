@@ -6,6 +6,7 @@ This module defines a comprehensive exception hierarchy that provides:
 - Rich error context with helpful messages
 - Line/column information for parsing errors
 - Suggestions for common mistakes
+- Integration with error suggestion system
 
 Example Usage:
     
@@ -50,6 +51,8 @@ Example Usage:
         install_hint='pip install torch'
     )
 """
+
+from __future__ import annotations
 
 from typing import Optional, Any, Dict
 from enum import Enum
@@ -324,6 +327,9 @@ class InvalidParameterError(NeuralException):
         - Zero or negative units
         - Invalid activation function names
         - Missing required parameters
+    
+    This exception automatically provides suggestions for common mistakes
+    by integrating with the error suggestion system.
     """
     
     def __init__(
@@ -332,7 +338,8 @@ class InvalidParameterError(NeuralException):
         value: Any,
         layer_type: Optional[str] = None,
         expected: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
+        suggestion: Optional[str] = None
     ):
         self.parameter = parameter
         self.value = value
@@ -343,6 +350,20 @@ class InvalidParameterError(NeuralException):
             message = f"Invalid parameter '{parameter}' for layer '{layer_type}': {value}"
         if expected:
             message += f". Expected: {expected}"
+        
+        # Add automatic suggestion if not provided
+        if not suggestion and layer_type:
+            try:
+                from neural.error_suggestions import ErrorSuggestion
+                auto_suggestion = ErrorSuggestion.suggest_parameter_value_fix(
+                    parameter, value, layer_type
+                )
+                if auto_suggestion:
+                    message += f"\n\n💡 Suggestion: {auto_suggestion}"
+            except ImportError:
+                pass
+        elif suggestion:
+            message += f"\n\n💡 Suggestion: {suggestion}"
         
         context = context or {}
         context['parameter'] = parameter
