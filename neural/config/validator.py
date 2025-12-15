@@ -75,9 +75,6 @@ class ConfigValidator:
         'aquarium': [
             'SECRET_KEY',
         ],
-        'marketplace': [
-            'SECRET_KEY',
-        ],
         'celery': [
             'REDIS_HOST',
             'CELERY_BROKER_URL',
@@ -111,12 +108,6 @@ class ConfigValidator:
             'AQUARIUM_HOST': '0.0.0.0',
             'AQUARIUM_PORT': '8051',
             'DEBUG': 'false',
-        },
-        'marketplace': {
-            'MARKETPLACE_HOST': '0.0.0.0',
-            'MARKETPLACE_PORT': '5000',
-            'DEBUG': 'false',
-            'REGISTRY_DIR': 'neural_marketplace_registry',
         },
         'redis': {
             'REDIS_PORT': '6379',
@@ -215,7 +206,7 @@ class ConfigValidator:
         ----------
         services : list of str, optional
             List of services to validate. If None, validates all services.
-            Valid services: 'api', 'dashboard', 'aquarium', 'marketplace', 'celery'
+            Valid services: 'api', 'dashboard', 'aquarium', 'celery'
         
         Returns
         -------

@@ -77,7 +77,6 @@ Moved to `docs/archive/`:
 - neural/cost/QUICK_REFERENCE.md
 - neural/data/QUICKSTART.md
 - neural/integrations/QUICK_REFERENCE.md
-- neural/marketplace/QUICK_START.md
 - neural/monitoring/QUICKSTART.md
 - neural/teams/QUICK_START.md
 - neural/tracking/QUICK_REFERENCE.md

@@ -432,17 +432,6 @@ class SettingsPanel:
                 
                 html.H6("Plugin Configuration", className="mt-3 mb-2"),
                 
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Label("Marketplace URL"),
-                        dbc.Input(
-                            id="plugins-marketplace-url",
-                            type="text",
-                            value=plugin_config.get('marketplace_url', 'https://neural-dsl.org/plugins')
-                        )
-                    ], width=12)
-                ], className="mb-3"),
-                
                 dbc.Checklist(
                     id="plugins-auto-install",
                     options=[{'label': 'Auto-install plugin dependencies', 'value': True}],
@@ -701,7 +690,6 @@ class SettingsPanel:
              State("autosave-interval", "value"),
              State("autosave-options", "value"),
              State("extensions-auto-update", "value"),
-             State("plugins-marketplace-url", "value"),
              State("plugins-auto-install", "value"),
              State("ui-sidebar-width", "value"),
              State("ui-panel-height", "value"),
@@ -724,7 +712,7 @@ class SettingsPanel:
              python_default_interpreter, python_use_system, python_venv_path, 
              python_conda_env, backend_default, backend_auto_detect, backend_preferences,
              autosave_enabled, autosave_interval, autosave_options, extensions_auto_update,
-             plugins_marketplace_url, plugins_auto_install, ui_sidebar_width, ui_panel_height,
+             plugins_auto_install, ui_sidebar_width, ui_panel_height,
              ui_features, terminal_shell, terminal_font_size, terminal_cursor_style,
              neuraldbg_auto_launch, neuraldbg_port, neuraldbg_host) = args
             
@@ -778,7 +766,6 @@ class SettingsPanel:
             
             # Update plugins settings
             self.config_manager.update_section('plugins', {
-                'marketplace_url': plugins_marketplace_url,
                 'auto_install_dependencies': bool(plugins_auto_install)
             })
             

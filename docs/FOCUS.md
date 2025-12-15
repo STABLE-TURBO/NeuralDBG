@@ -257,7 +257,6 @@ Neural DSL is **not** trying to be:
 - An MLOps platform
 - A data pipeline tool
 - A collaboration suite
-- A model marketplace
 
 Neural DSL **is**:
 - A powerful DSL for neural networks

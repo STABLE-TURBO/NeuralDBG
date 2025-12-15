@@ -370,21 +370,21 @@ Optional: Collaboration Server (Port 8080)
 │  • Parser • Code Gen • Shape Propagation • CLI • HPO • AutoML  │
 └─────────────────────────────────────────────────────────────────┘
                                 │
-        ┌───────────────────────┼───────────────────────┐
-        │                       │                       │
-        ▼                       ▼                       ▼
-┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-│ neural-dsl   │      │ neural-      │      │ neural-      │
-│ (unified     │      │ aquarium     │      │ marketplace  │
-│  server)     │      │ (IDE)        │      │ (sharing)    │
-└──────────────┘      └──────────────┘      └──────────────┘
-                                │
-                                ▼
-                      ┌──────────────┐
-                      │ neural-      │
-                      │ federated    │
-                      │ (distributed)│
-                      └──────────────┘
+                ┌───────────────┴───────────────┐
+                │                               │
+                ▼                               ▼
+        ┌──────────────┐              ┌──────────────┐
+        │ neural-dsl   │              │ neural-      │
+        │ (unified     │              │ aquarium     │
+        │  server)     │              │ (IDE)        │
+        └──────────────┘              └──────────────┘
+                                              │
+                                              ▼
+                                    ┌──────────────┐
+                                    │ neural-      │
+                                    │ federated    │
+                                    │ (distributed)│
+                                    └──────────────┘
 
         Modular architecture with separate packages
         for complex features that can be composed as needed

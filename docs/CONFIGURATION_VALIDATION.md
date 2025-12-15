@@ -245,8 +245,6 @@ Service Health Status:
       Response time: 2.45ms
   ✓ aquarium     healthy     Aquarium is healthy
       Response time: 3.12ms
-  ✓ marketplace  healthy     Marketplace is healthy
-      Response time: 1.89ms
   ✓ redis        healthy     Redis is healthy
       version: 7.0.0
       uptime_days: 5
@@ -357,7 +355,6 @@ spec:
    kubectl apply -f kubernetes/neural-api-deployment.yaml
    kubectl apply -f kubernetes/neural-dashboard-deployment.yaml
    kubectl apply -f kubernetes/neural-aquarium-deployment.yaml
-   kubectl apply -f kubernetes/neural-marketplace-deployment.yaml
    ```
 
 4. **Check health:**
@@ -466,15 +463,6 @@ SECRET_KEY=<secure-random-key>
 AQUARIUM_HOST=0.0.0.0
 AQUARIUM_PORT=8051
 SECRET_KEY=<secure-random-key>
-```
-
-### Marketplace Service
-
-```bash
-MARKETPLACE_HOST=0.0.0.0
-MARKETPLACE_PORT=5000
-SECRET_KEY=<secure-random-key>
-REGISTRY_DIR=neural_marketplace_registry
 ```
 
 ### Redis & Celery

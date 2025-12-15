@@ -34,7 +34,6 @@ This directory contains Kubernetes manifests for deploying Neural DSL services.
    kubectl apply -f neural-api-deployment.yaml
    kubectl apply -f neural-dashboard-deployment.yaml
    kubectl apply -f neural-aquarium-deployment.yaml
-   kubectl apply -f neural-marketplace-deployment.yaml
    ```
 
 5. **Verify deployment:**
@@ -63,12 +62,6 @@ This directory contains Kubernetes manifests for deploying Neural DSL services.
 - **Port:** 8051
 - **Replicas:** 2
 - **Purpose:** Visual IDE for Neural DSL
-
-### Marketplace Service
-- **Port:** 5000
-- **Replicas:** 2
-- **Purpose:** Model marketplace API
-- **Storage:** Requires PersistentVolume for registry data
 
 ### Redis Service
 - **Port:** 6379
@@ -125,11 +118,6 @@ curl http://localhost:8000/health/detailed
 - Size: 5Gi
 - Access Mode: ReadWriteOnce
 
-### Marketplace PVC
-- Name: `marketplace-registry-pvc`
-- Size: 10Gi
-- Access Mode: ReadWriteMany
-
 ## Secrets
 
 The `neural-secrets` Secret contains:
@@ -158,7 +146,6 @@ spec:
     - api.neural.example.com
     - dashboard.neural.example.com
     - aquarium.neural.example.com
-    - marketplace.neural.example.com
     secretName: neural-tls
   rules:
   - host: api.neural.example.com
@@ -191,16 +178,6 @@ spec:
             name: neural-aquarium
             port:
               number: 8051
-  - host: marketplace.neural.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: neural-marketplace
-            port:
-              number: 5000
 ```
 
 ## Monitoring
@@ -368,14 +345,13 @@ Remove all Neural DSL resources:
 kubectl delete -f neural-api-deployment.yaml
 kubectl delete -f neural-dashboard-deployment.yaml
 kubectl delete -f neural-aquarium-deployment.yaml
-kubectl delete -f neural-marketplace-deployment.yaml
 kubectl delete -f neural-redis-deployment.yaml
 
 # Delete secrets
 kubectl delete -f neural-secrets.yaml
 
 # Delete PVCs (warning: this deletes data!)
-kubectl delete pvc redis-data-pvc marketplace-registry-pvc
+kubectl delete pvc redis-data-pvc
 
 # Delete namespace
 kubectl delete namespace neural

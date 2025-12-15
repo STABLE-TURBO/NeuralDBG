@@ -167,10 +167,7 @@ monitoring_data_*/
 *.monitoring.db
 monitoring_logs/
 
-# Marketplace registry
-neural_marketplace_registry/
-demo_registry/
-downloaded_models/
+
 
 # No-code interface artifacts
 neural/no_code/saved_models/

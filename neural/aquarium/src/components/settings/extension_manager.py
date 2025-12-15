@@ -135,12 +135,12 @@ class ExtensionManager:
         """Get all installed extensions"""
         return list(self.extensions.values())
     
-    def check_updates(self, marketplace_url: str) -> list[dict[str, Any]]:
+    def check_updates(self) -> list[dict[str, Any]]:
         """Check for extension updates"""
         available_updates = []
         
         for ext in self.extensions.values():
-            # In a real implementation, this would query the marketplace API
+            # In a real implementation, this would query an extensions registry
             # For now, return empty list
             pass
         

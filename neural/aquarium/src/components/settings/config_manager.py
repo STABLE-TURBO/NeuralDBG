@@ -98,7 +98,6 @@ class ConfigManager:
             },
             'plugins': {
                 'installed': [],
-                'marketplace_url': 'https://neural-dsl.org/plugins',
                 'auto_install_dependencies': True
             },
             'ui': {
