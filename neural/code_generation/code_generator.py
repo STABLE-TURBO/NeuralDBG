@@ -22,6 +22,27 @@ logger = logging.getLogger(__name__)
 # Set the logger level to WARNING to reduce debug output
 logger.setLevel(logging.WARNING)
 
+# Supported layer types for code generation
+SUPPORTED_LAYERS = {
+    'Embedding',
+    'PositionalEncoding',
+    'GlobalAveragePooling1D',
+    'TransformerEncoder',
+    'TransformerDecoder',
+    'BatchNormalization',
+    'Conv2D',
+    'Dense',
+    'MaxPooling2D',
+    'AveragePooling2D',
+    'Flatten',
+    'LSTM',
+    'GRU',
+    'Dropout',
+    'Output',
+    'Residual',
+    'Add',
+    'Concatenate',
+}
 
 def to_number(x: str) -> Union[int, float]:
     try:
@@ -174,6 +195,14 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
             layer_type = layer['type']
             params = layer.get('params', {})
 
+            # Emit warning for unsupported layer types
+            if layer_type not in SUPPORTED_LAYERS:
+                warnings.warn(
+                    f"Layer type '{layer_type}' is not officially supported and may not generate correct code.",
+                    UserWarning,
+                    stacklevel=2
+                )
+
             # Policy: Dense/Output require 2D input (batch, features). Use helper for TF policy.
             try:
                 rank_non_batch = max(0, len(current_input_shape) - 1)
@@ -313,6 +342,14 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
                 params = params.copy()
             else:
                 params = {}
+
+            # Emit warning for unsupported layer types
+            if layer_type not in SUPPORTED_LAYERS:
+                warnings.warn(
+                    f"Layer type '{layer_type}' is not officially supported and may not generate correct code.",
+                    UserWarning,
+                    stacklevel=2
+                )
 
             # Policy: Dense/Output require 2D input (batch, features). Use helper for PT policy.
             try:
