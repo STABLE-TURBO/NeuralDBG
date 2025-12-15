@@ -2,7 +2,7 @@
 Experiment tracking for Neural models.
 """
 
-from .experiment_tracker import ExperimentManager, ExperimentTracker
+from .experiment_tracker import ExperimentManager, ExperimentTracker, ArtifactVersion
 from .integrations import (
     BaseIntegration,
     MLflowIntegration,
@@ -15,7 +15,7 @@ from .integrations import (
 try:
     from .comparison_component import ComparisonComponent
     from .export_manager import ExportManager
-    from .metrics_visualizer import MetricsVisualizerComponent
+    from .metrics_visualizer import MetricsVisualizerComponent, MetricVisualizer
 
     _components_available = True
 except ImportError:
@@ -35,7 +35,9 @@ __all__ = [
 ]
 
 if _components_available:
-    __all__.extend(["ComparisonComponent", "ExportManager", "MetricsVisualizerComponent"])
+    __all__.extend(["ComparisonComponent", "ExportManager", "MetricsVisualizerComponent", "MetricVisualizer", "ArtifactVersion"])
+else:
+    __all__.extend(["ArtifactVersion"])
 
 
 def launch_comparison_ui(

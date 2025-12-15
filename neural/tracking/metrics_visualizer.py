@@ -8,6 +8,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
 
 from neural.tracking.experiment_tracker import ExperimentTracker
 
@@ -184,6 +185,65 @@ class MetricsVisualizerComponent:
         )
 
         return fig
+ 
+class MetricVisualizer:
+    """Lightweight matplotlib-based visualizer for tests."""
+    @staticmethod
+    def create_metric_plots(metrics_history: List[Dict[str, Any]]) -> Dict[str, plt.Figure]:
+        """
+        Create simple line plots for each metric using matplotlib.
+        Returns a dict mapping metric name to figure.
+        """
+        if not metrics_history:
+            return {}
+        # Determine metric names excluding timestamp and step
+        metric_names = set()
+        for entry in metrics_history:
+            metric_names.update([k for k in entry.keys() if k not in ["timestamp", "step"]])
+        plots: Dict[str, plt.Figure] = {}
+        # Build steps
+        steps = []
+        for entry in metrics_history:
+            s = entry.get("step")
+            steps.append(s if s is not None else len(steps))
+        for name in sorted(metric_names):
+            values = [entry.get(name) for entry in metrics_history]
+            valid_idx = [i for i, v in enumerate(values) if v is not None]
+            if not valid_idx:
+                continue
+            fig, ax = plt.subplots(figsize=(8, 5))
+            ax.plot([steps[i] for i in valid_idx], [values[i] for i in valid_idx], marker="o", linestyle="-")
+            ax.set_title(f"{name} over time")
+            ax.set_xlabel("Step")
+            ax.set_ylabel(name)
+            ax.grid(True)
+            plots[name] = fig
+        return plots
+
+    @staticmethod
+    def create_distribution_plots(metrics_history: List[Dict[str, Any]]) -> Dict[str, plt.Figure]:
+        """
+        Create histogram plots for each metric using matplotlib.
+        Returns a dict mapping metric name to figure.
+        """
+        if not metrics_history:
+            return {}
+        metric_names = set()
+        for entry in metrics_history:
+            metric_names.update([k for k in entry.keys() if k not in ["timestamp", "step"]])
+        plots: Dict[str, plt.Figure] = {}
+        for name in sorted(metric_names):
+            values = [entry.get(name) for entry in metrics_history if entry.get(name) is not None]
+            if not values:
+                continue
+            fig, ax = plt.subplots(figsize=(8, 5))
+            ax.hist(values, bins=min(10, max(3, int(len(values) / 2))), color="steelblue", edgecolor="white")
+            ax.set_title(f"{name} distribution")
+            ax.set_xlabel(name)
+            ax.set_ylabel("Frequency")
+            ax.grid(True)
+            plots[name] = fig
+        return plots
 
     def create_distribution_plot(self, metric_name: str) -> go.Figure:
         """
