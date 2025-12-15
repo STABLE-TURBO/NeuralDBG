@@ -484,42 +484,14 @@ class ShapePropagator:
         
         # Generate optimization suggestions
         self.optimizations = suggest_optimizations(self.shape_history)
-
-        # Then check for internal handlers
-        handler_name = f"_handle_{layer_type.lower()}"
-        if hasattr(self, handler_name):
-            output_shape = getattr(self, handler_name)(input_shape, params)
-        else:
-            # Try to use imported handlers
-            if layer_type == 'Conv1D':
-                output_shape = handle_conv1d(input_shape, params)
-            elif layer_type == 'Conv3D':
-                output_shape = handle_conv3d(input_shape, params)
-            elif layer_type == 'LSTM':
-                output_shape = handle_lstm(input_shape, params)
-            elif layer_type == 'GRU':
-                output_shape = self._handle_gru(input_shape, params)
-            elif layer_type == 'Dropout':
-                output_shape = handle_dropout(input_shape, params)
-            elif layer_type == 'BatchNormalization':
-                output_shape = handle_batch_normalization(input_shape, params)
-            elif layer_type == 'Reshape':
-                output_shape = handle_reshape(input_shape, params)
-            elif layer_type == 'Permute':
-                output_shape = handle_permute(input_shape, params)
-            elif layer_type == 'ZeroPadding2D':
-                output_shape = handle_zero_padding2d(input_shape, params)
-            elif layer_type == 'Cropping2D':
-                output_shape = handle_cropping2d(input_shape, params)
-            elif layer_type == 'GlobalAveragePooling1D':
-                output_shape = handle_global_average_pooling1d(input_shape, params)
-            elif layer_type == 'MultiHeadAttention':
-                output_shape = self._handle_multiheadattention(input_shape, params)
-            elif layer_type == 'PositionalEncoding':
-                output_shape = handle_positional_encoding(input_shape, params)
-            else:
-                # Fall back to default handler
-                output_shape = self._handle_default(input_shape, params)
+        
+        return {
+            'dot_graph': self.dot,
+            'plotly_chart': fig,
+            'shape_history': self.shape_history,
+            'issues': self.issues,
+            'optimizations': self.optimizations
+        }
 
 ##################################
 ### Parameter Validation Logic ###
@@ -867,6 +839,9 @@ class ShapePropagator:
 
         print(f"DEBUG: _handle_upsampling2d - size after processing: {size}")
 
+        # Get data format
+        data_format = params.get('data_format', 'channels_last')
+        
         # Calculate new spatial dimensions, handling None
         if data_format == 'channels_last':
             # TensorFlow: input_shape = (batch, height, width, channels)
