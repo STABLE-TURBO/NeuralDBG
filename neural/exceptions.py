@@ -157,7 +157,7 @@ class ParserException(NeuralException):
             msg += f"\n\n{self.location.code_snippet}"
         
         if self.location.suggestion:
-            msg += f"\n\n💡 Suggestion: {self.location.suggestion}"
+            msg += f"\n\nSuggestion: {self.location.suggestion}"
         
         return msg
 
@@ -359,11 +359,11 @@ class InvalidParameterError(NeuralException):
                     parameter, value, layer_type
                 )
                 if auto_suggestion:
-                    message += f"\n\n💡 Suggestion: {auto_suggestion}"
+                    message += f"\n\nSuggestion: {auto_suggestion}"
             except ImportError:
                 pass
         elif suggestion:
-            message += f"\n\n💡 Suggestion: {suggestion}"
+            message += f"\n\nSuggestion: {suggestion}"
         
         context = context or {}
         context['parameter'] = parameter
