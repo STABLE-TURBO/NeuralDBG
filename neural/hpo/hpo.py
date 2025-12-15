@@ -696,7 +696,3 @@ def optimize_and_return(
         normalized_params['learning_rate'] = 0.001  # Default from optimizer_config
 
     return normalized_params
-ate'] = 0.001  # Default from optimizer_config
-
-    return normalized_params
-ms

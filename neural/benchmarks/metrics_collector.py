@@ -214,6 +214,7 @@ class PerformanceTimer:
         self.start_time: Optional[float] = None
         self.end_time: Optional[float] = None
         self.elapsed: Optional[float] = None
+        self.duration: Optional[float] = None  # Alias for elapsed (compatibility)
     
     def __enter__(self):
         """Start timing."""
@@ -224,14 +225,23 @@ class PerformanceTimer:
         """Stop timing."""
         self.end_time = time.perf_counter()
         self.elapsed = self.end_time - self.start_time
+        self.duration = self.elapsed  # Set duration for compatibility
     
     def get_elapsed(self) -> float:
         """Get elapsed time in seconds."""
         if self.elapsed is None:
             if self.start_time is None:
                 return 0.0
-            return time.perf_counter() - self.start_time
+            elapsed = time.perf_counter() - self.start_time
+            self.elapsed = elapsed
+            self.duration = elapsed
+            return elapsed
         return self.elapsed
+    
+    def get_duration_ms(self) -> float:
+        """Get duration in milliseconds (compatibility method for tests)."""
+        elapsed = self.get_elapsed()
+        return elapsed * 1000.0
 
 
 class MetricsCollector:
@@ -249,6 +259,10 @@ class MetricsCollector:
         self.system_info = SystemInfo.collect()
         self.resource_monitor = ResourceMonitor()
         self.timers: Dict[str, PerformanceTimer] = {}
+        # Compatibility attributes for test API
+        self.metrics_history: List[Dict[str, Any]] = []
+        self.start_time: Optional[float] = None
+        self.peak_memory = 0.0
     
     def start_monitoring(self):
         """Start resource monitoring."""
@@ -281,8 +295,55 @@ class MetricsCollector:
         """Analyze code metrics."""
         return CodeMetrics.calculate_complexity(code)
     
+    def start_collection(self):
+        """Start collecting metrics (compatibility method for tests)."""
+        self.start_time = time.time()
+        self.metrics_history = []
+        self.peak_memory = 0.0
+        self.start_monitoring()
+    
+    def collect_snapshot(self) -> Dict[str, Any]:
+        """Collect a snapshot of current metrics (compatibility method for tests)."""
+        if not self.resource_monitor.monitoring:
+            self.start_monitoring()
+        
+        self.sample_resources()
+        
+        memory_mb = 0.0
+        cpu_percent = 0.0
+        
+        if PSUTIL_AVAILABLE:
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / (1024 * 1024)
+            cpu_percent = process.cpu_percent()
+            self.peak_memory = max(self.peak_memory, memory_mb)
+        
+        timestamp = (time.time() - self.start_time) if self.start_time else 0.0
+        
+        snapshot = {
+            "timestamp": timestamp,
+            "memory_mb": memory_mb,
+            "cpu_percent": cpu_percent,
+        }
+        
+        self.metrics_history.append(snapshot)
+        return snapshot
+    
+    def get_system_info(self) -> Dict[str, Any]:
+        """Get system information (compatibility method for tests)."""
+        info = self.system_info.to_dict()
+        # Map to expected format
+        return {
+            "platform": info.get("platform", ""),
+            "processor": info.get("processor", ""),
+            "python_version": info.get("python_version", ""),
+            "cpu_count": info.get("cpu_count", 0),
+            "total_memory_gb": info.get("memory_total_gb", 0.0),
+        }
+    
     def get_summary(self) -> Dict[str, Any]:
         """Get a summary of all collected metrics."""
+        # New comprehensive API
         resource_stats = self.resource_monitor.stop()
         
         timer_stats = {
@@ -290,11 +351,33 @@ class MetricsCollector:
             for name, timer in self.timers.items()
         }
         
-        return {
+        summary = {
             "system_info": self.system_info.to_dict(),
             "resources": resource_stats,
             "timings": timer_stats,
         }
+        
+        # Compatibility with test API
+        if self.metrics_history:
+            memory_values = [s["memory_mb"] for s in self.metrics_history]
+            cpu_values = [s["cpu_percent"] for s in self.metrics_history]
+            
+            summary.update({
+                "peak_memory_mb": max(memory_values) if memory_values else 0.0,
+                "avg_memory_mb": sum(memory_values) / len(memory_values) if memory_values else 0.0,
+                "avg_cpu_percent": sum(cpu_values) / len(cpu_values) if cpu_values else 0.0,
+                "total_time_seconds": (time.time() - self.start_time) if self.start_time else 0.0,
+            })
+        else:
+            # Fallback to resource_monitor data
+            summary.update({
+                "peak_memory_mb": resource_stats.get("peak_memory_mb", 0.0),
+                "avg_memory_mb": resource_stats.get("avg_memory_mb", 0.0),
+                "avg_cpu_percent": resource_stats.get("avg_cpu_percent", 0.0),
+                "total_time_seconds": 0.0,
+            })
+        
+        return summary
 
 
 def compare_metrics(
@@ -361,3 +444,62 @@ def compare_metrics(
     comparison.append("="*60)
     
     return "\n".join(comparison)
+
+
+class ThroughputMeter:
+    """Measure throughput (samples per second)."""
+    
+    def __init__(self):
+        self.start_time: Optional[float] = None
+        self.samples_processed = 0
+    
+    def start(self):
+        """Start measuring throughput."""
+        self.start_time = time.time()
+        self.samples_processed = 0
+    
+    def update(self, samples: int):
+        """Update the number of samples processed."""
+        self.samples_processed += samples
+    
+    def get_throughput(self) -> float:
+        """Get current throughput in samples per second."""
+        if self.start_time is None or self.samples_processed == 0:
+            return 0.0
+        elapsed = time.time() - self.start_time
+        if elapsed == 0:
+            return 0.0
+        return self.samples_processed / elapsed
+
+
+class MemoryProfiler:
+    """Profile memory usage."""
+    
+    def __init__(self):
+        self.baseline_memory = 0.0
+        self.peak_memory = 0.0
+    
+    def start_profiling(self):
+        """Start memory profiling."""
+        if PSUTIL_AVAILABLE:
+            process = psutil.Process()
+            self.baseline_memory = process.memory_info().rss / (1024 * 1024)  # MB
+            self.peak_memory = self.baseline_memory
+        else:
+            self.baseline_memory = 0.0
+            self.peak_memory = 0.0
+    
+    def update(self):
+        """Update peak memory measurement."""
+        if PSUTIL_AVAILABLE:
+            process = psutil.Process()
+            current_memory = process.memory_info().rss / (1024 * 1024)  # MB
+            self.peak_memory = max(self.peak_memory, current_memory)
+    
+    def get_peak_memory_mb(self) -> float:
+        """Get peak memory usage in MB."""
+        return self.peak_memory
+    
+    def get_memory_increase_mb(self) -> float:
+        """Get memory increase from baseline in MB."""
+        return max(0.0, self.peak_memory - self.baseline_memory)
