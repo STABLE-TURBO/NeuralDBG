@@ -34,7 +34,7 @@ if os.environ.get('NEURAL_SUPPRESS_STDERR') == '1':
         pass
 
 # Import the CLI after setting up the environment
-from neural.cli.cli import cli
+from neural.cli import cli
 
 if __name__ == '__main__':
     # Run the CLI

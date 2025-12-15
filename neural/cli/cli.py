@@ -303,11 +303,13 @@ def cli(ctx: click.Context, verbose: bool, cpu: bool, no_animations: bool) -> No
         logger.info("Running in CPU mode")
 
     # Show welcome message if not disabled
-    if not os.environ.get('NEURAL_SKIP_WELCOME') and not hasattr(cli, '_welcome_shown'):
-        show_welcome_message()
-        setattr(cli, '_welcome_shown', True)
-    elif not show_welcome_message():
-        print_neural_logo(__version__)
+    if not os.environ.get('NEURAL_SKIP_WELCOME'):
+        # Use the context to track if welcome was shown, not the cli object itself
+        if not ctx.obj.get('_WELCOME_SHOWN'):
+            show_welcome_message()
+            ctx.obj['_WELCOME_SHOWN'] = True
+        elif not show_welcome_message():
+            print_neural_logo(__version__)
 
 @cli.command()
 @click.pass_context
