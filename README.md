@@ -299,6 +299,9 @@ This uses a language model under the hood (requires API key setup—see [docs/ai
 
 ## Documentation
 
+📚 **[Full Documentation Website](https://lemniscate-world.github.io/Neural/)** – Interactive guides, tutorials, and API reference
+
+Quick links:
 - [Quick Reference](docs/quick_reference.md) – Essential commands and quick-start guide
 - [DSL Language Reference](docs/dsl.md) – Complete syntax guide
 - [Deployment Guide](docs/deployment.md) – Production export options

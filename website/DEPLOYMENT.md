@@ -1,14 +1,87 @@
 # Deployment Guide
 
-This guide covers deploying the Neural DSL website to Netlify or Vercel.
+This guide covers deploying the Neural DSL website to GitHub Pages, Netlify, or Vercel.
 
 ## Prerequisites
 
 - GitHub repository with website code
-- Netlify or Vercel account
 - Node.js 18+ installed locally
+- GitHub Pages, Netlify, or Vercel account
 
-## Option 1: Deploy to Netlify
+## Option 1: Deploy to GitHub Pages (Recommended)
+
+### Automated Deployment with GitHub Actions
+
+The repository includes a GitHub Actions workflow (`.github/workflows/deploy-docs.yml`) that automatically deploys to GitHub Pages.
+
+**Prerequisites:**
+1. Enable GitHub Pages in repository settings:
+   - Go to repository Settings > Pages
+   - Source: GitHub Actions
+   - No branch selection needed (Actions handles it)
+
+2. The workflow triggers automatically on:
+   - Push to `main` branch (when `website/` files change)
+   - Manual trigger via Actions tab
+
+**Deployment URL:**
+- Site will be available at: `https://lemniscate-world.github.io/Neural/`
+
+**Configuration:**
+The `docusaurus.config.js` is already configured with:
+```js
+url: 'https://lemniscate-world.github.io',
+baseUrl: '/Neural/',
+organizationName: 'Lemniscate-world',
+projectName: 'Neural',
+```
+
+**Manual Trigger:**
+1. Go to repository Actions tab
+2. Select "Deploy Docusaurus to GitHub Pages"
+3. Click "Run workflow"
+4. Select `main` branch
+5. Click "Run workflow"
+
+**Local Testing:**
+```bash
+cd website
+npm install
+npm run build
+npm run serve
+```
+
+### Custom Domain (Optional)
+
+To use a custom domain with GitHub Pages:
+
+1. **Add Domain File:**
+   - Edit `website/static/CNAME`
+   - Uncomment and set your domain (e.g., `neuraldsl.com`)
+
+2. **Configure DNS:**
+   ```
+   # Apex domain
+   A     @    185.199.108.153
+   A     @    185.199.109.153
+   A     @    185.199.110.153
+   A     @    185.199.111.153
+   
+   # Subdomain (www)
+   CNAME www  lemniscate-world.github.io
+   ```
+
+3. **Update Config:**
+   - Edit `website/docusaurus.config.js`
+   - Change `url` to your custom domain
+   - Keep `baseUrl: '/'` for custom domain
+
+4. **Enable in GitHub:**
+   - Go to Settings > Pages
+   - Add custom domain
+   - Check "Enforce HTTPS"
+
+## Option 2: Deploy to Netlify
 
 ### Method A: Netlify UI
 
@@ -67,7 +140,7 @@ The site uses `netlify.toml` for configuration:
   status = 200
 ```
 
-## Option 2: Deploy to Vercel
+## Option 3: Deploy to Vercel
 
 ### Method A: Vercel UI
 
@@ -240,6 +313,7 @@ Docusaurus includes:
 ### Build Fails
 
 **Check build logs:**
+- GitHub Pages: Actions tab > Workflow runs
 - Netlify: Deploys > Deploy log
 - Vercel: Deployments > Build logs
 
@@ -247,6 +321,7 @@ Docusaurus includes:
 - Node version mismatch: Set to 18 in settings
 - Missing dependencies: Ensure `package.json` is up to date
 - Build command error: Verify command works locally
+- GitHub Pages: Ensure Pages is enabled in repository settings with "GitHub Actions" source
 
 ### 404 Errors
 
@@ -263,6 +338,12 @@ Docusaurus includes:
 
 ## Rollback
 
+### GitHub Pages
+1. Go to Actions tab
+2. Find previous successful workflow run
+3. Re-run the workflow
+4. Or revert the commit and push
+
 ### Netlify
 1. Go to Deploys
 2. Find previous working deploy
@@ -276,6 +357,7 @@ Docusaurus includes:
 ## Support
 
 For deployment issues:
+- [GitHub Pages Docs](https://docs.github.com/en/pages)
 - [Netlify Docs](https://docs.netlify.com/)
 - [Vercel Docs](https://vercel.com/docs)
 - [Docusaurus Deployment](https://docusaurus.io/docs/deployment)
@@ -283,7 +365,7 @@ For deployment issues:
 
 ## Security
 
-Both platforms provide:
+All platforms provide:
 - Automatic HTTPS
 - DDoS protection
 - CDN distribution
@@ -292,3 +374,4 @@ Both platforms provide:
 Review security headers in:
 - `netlify.toml` → `[[headers]]`
 - `vercel.json` → `headers`
+- GitHub Pages: Automatic HTTPS enforcement

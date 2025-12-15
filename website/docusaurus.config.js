@@ -18,6 +18,7 @@ const config = {
   // GitHub pages deployment config
   organizationName: 'Lemniscate-world',
   projectName: 'Neural',
+  trailingSlash: false,
 
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',

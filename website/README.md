@@ -45,19 +45,30 @@ This generates static content into the `build` directory.
 
 ### Deployment
 
+#### GitHub Pages (Recommended)
+
+The site is configured for automatic deployment to GitHub Pages via GitHub Actions:
+
+1. **Enable GitHub Pages:**
+   - Go to repository Settings > Pages
+   - Source: GitHub Actions
+
+2. **Automatic Deployment:**
+   - Push to `main` branch triggers deployment
+   - Or manually trigger via Actions tab
+
+3. **Live URL:**
+   - https://lemniscate-world.github.io/Neural/
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
+
 #### Netlify
 
-The site is configured for automatic deployment on Netlify:
+The site is also configured for Netlify:
 
 ```bash
 # Deploy to Netlify
 npm run build
-# Upload the build/ directory to Netlify
-```
-
-Or use the Netlify CLI:
-
-```bash
 netlify deploy --prod
 ```
 
