@@ -136,13 +136,6 @@ _trace_data_list: List[Dict[str, Any]] = []
 trace_data: List[Dict[str, Any]] = _trace_data_list
 TRACE_DATA: List[Dict[str, Any]] = _trace_data_list  # Export for test compatibility - both point to same list
 
-def get_trace_data() -> List[Dict[str, Any]]:
-    """Retrieves the current trace data, supporting mock injection for tests."""
-    import sys
-    dashboard_module = sys.modules.get(__name__)
-    if dashboard_module and hasattr(dashboard_module, 'TRACE_DATA'):
-        return getattr(dashboard_module, 'TRACE_DATA')
-    return trace_data
 model_data: Optional[Dict[str, Any]] = None
 backend: str = 'tensorflow'
 shape_history: List[Tuple[str, Tuple[int, ...]]] = []
