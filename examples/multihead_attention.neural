@@ -15,14 +15,14 @@
 network SelfAttentionModel {
   input: (128, 512)  // Sequence length: 128, embedding dimension: 512
   layers:
-    MultiHeadAttention(num_heads:8, key_dim:64, dropout:0.1)
+    MultiHeadAttention(num_heads=8, key_dim=64, dropout=0.1)
     LayerNormalization()
-    Dense(units:256, activation:"relu")
-    Dropout(rate:0.1)
-    Output(units:10, activation:"softmax")
+    Dense(units=256, activation="relu")
+    Dropout(rate=0.1)
+    Output(units=10, activation="softmax")
 
   loss: "categorical_crossentropy"
-  optimizer: Adam(learning_rate:0.001)
+  optimizer: Adam(learning_rate=0.001)
   train {
     epochs: 20
     batch_size: 32
@@ -33,13 +33,13 @@ network SelfAttentionModel {
 network CrossAttentionModel {
   input: (64, 256)  // Query sequence
   layers:
-    MultiHeadAttention(num_heads:4, key_dim:32, mode:"cross", dropout:0.1)
+    MultiHeadAttention(num_heads=4, key_dim=32, mode="cross", dropout=0.1)
     LayerNormalization()
-    Dense(units:128, activation:"relu")
-    Output(units:5, activation:"softmax")
+    Dense(units=128, activation="relu")
+    Output(units=5, activation="softmax")
 
   loss: "sparse_categorical_crossentropy"
-  optimizer: Adam(learning_rate:0.0005)
+  optimizer: Adam(learning_rate=0.0005)
   train {
     epochs: 15
     batch_size: 16
@@ -50,17 +50,17 @@ network CrossAttentionModel {
 network StackedAttentionModel {
   input: (100, 384)
   layers:
-    MultiHeadAttention(num_heads:6, key_dim:64, value_dim:64, dropout:0.1)
+    MultiHeadAttention(num_heads=6, key_dim=64, value_dim=64, dropout=0.1)
     LayerNormalization()
-    Dense(units:384, activation:"gelu")
-    Dropout(rate:0.1)
-    MultiHeadAttention(num_heads:6, key_dim:64, dropout:0.1)
+    Dense(units=384, activation="gelu")
+    Dropout(rate=0.1)
+    MultiHeadAttention(num_heads=6, key_dim=64, dropout=0.1)
     LayerNormalization()
-    Dense(units:192, activation:"relu")
-    Output(units:20, activation:"softmax")
+    Dense(units=192, activation="relu")
+    Output(units=20, activation="softmax")
 
   loss: "categorical_crossentropy"
-  optimizer: Adam(learning_rate:0.0001)
+  optimizer: Adam(learning_rate=0.0001)
   train {
     epochs: 30
     batch_size: 64
@@ -71,10 +71,10 @@ network StackedAttentionModel {
 network MinimalAttentionModel {
   input: (32, 128)
   layers:
-    MultiHeadAttention(num_heads:2, key_dim:32)
-    Dense(units:64, activation:"relu")
-    Output(units:3, activation:"softmax")
+    MultiHeadAttention(num_heads=2, key_dim=32)
+    Dense(units=64, activation="relu")
+    Output(units=3, activation="softmax")
 
   loss: "categorical_crossentropy"
-  optimizer: Adam(learning_rate:0.01)
+  optimizer: Adam(learning_rate=0.01)
 }

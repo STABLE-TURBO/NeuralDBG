@@ -165,6 +165,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         CONV3D: "conv3d"i
         DROPOUT: "dropout"i
         FLATTEN: "flatten"i
+        RESHAPE: "reshape"i
         LSTM: "lstm"i
         GRU: "gru"i
         SIMPLE_RNN_DROPOUT_WRAPPER.2: "simplernndropoutwrapper"i
@@ -198,7 +199,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         EMBEDDING: "embedding"i
 
         // Layer type tokens (case-insensitive)
-        LAYER_TYPE.2: "dense"i | "conv2d"i | "conv1d"i | "conv3d"i | "dropout"i | "embedding"i | "flatten"i | "lstm"i | "gru"i | "simplernndropoutwrapper"i | "simplernn"i | "output"i| "transformer"i | "transformerencoder"i | "transformerdecoder"i | "conv2dtranspose"i | "maxpooling2d"i | "maxpooling1d"i | "maxpooling3d"i | "batchnormalization"i | "gaussiannoise"i | "instancenormalization"i | "groupnormalization"i | "activation"i | "add"i | "subtract"i | "multiply"i | "average"i | "maximum"i | "concatenate"i | "dot"i | "timedistributed"i | "residualconnection"i | "globalaveragepooling2d"i | "globalaveragepooling1d"i | "multiheadattention"i | "positionalencoding"i
+        LAYER_TYPE.2: "dense"i | "conv2d"i | "conv1d"i | "conv3d"i | "dropout"i | "embedding"i | "flatten"i | "reshape"i | "lstm"i | "gru"i | "simplernndropoutwrapper"i | "simplernn"i | "output"i| "transformer"i | "transformerencoder"i | "transformerdecoder"i | "conv2dtranspose"i | "maxpooling2d"i | "maxpooling1d"i | "maxpooling3d"i | "batchnormalization"i | "gaussiannoise"i | "instancenormalization"i | "groupnormalization"i | "activation"i | "add"i | "subtract"i | "multiply"i | "average"i | "maximum"i | "concatenate"i | "dot"i | "timedistributed"i | "residualconnection"i | "globalaveragepooling2d"i | "globalaveragepooling1d"i | "multiheadattention"i | "positionalencoding"i
 
         // Basic tokens
         NAME: /[a-zA-Z_][a-zA-Z0-9_]*/
@@ -361,7 +362,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
 
         layer_or_repeated: layer ["*" INT]
         branch_spec: NAME ":" "{" (layer_or_repeated)* "}"
-        ?layer: basic_layer | dense | flatten | dropout | conv | pooling | advanced_layer | special_layer | branch_spec
+        ?layer: basic_layer | dense | flatten | dropout | reshape | conv | pooling | advanced_layer | special_layer | branch_spec
         config: training_config | execution_config
 
 
@@ -378,6 +379,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         dropout: "Dropout" "(" dropout_params ")"
         dropout_params: FLOAT | param_style1
         flatten: "Flatten" "(" [param_style1] ")" [device_spec]
+        reshape: "Reshape" "(" param_style1 ")"
 
 
         regularization: spatial_dropout1d | spatial_dropout2d | spatial_dropout3d | activity_regularization | l1 | l2 | l1_l2
@@ -512,7 +514,7 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
         macro_ref: MACRO_NAME "(" [param_style1] ")" [layer_block]
 
         basic_layer: layer_type "(" [param_style1] ")" [device_spec] [layer_block]
-        layer_type: DENSE | CONV2D | CONV1D | CONV3D | DROPOUT | FLATTEN | LSTM | GRU | SIMPLE_RNN_DROPOUT_WRAPPER | SIMPLERNN | OUTPUT | TRANSFORMER | TRANSFORMER_ENCODER | TRANSFORMER_DECODER | CONV2DTRANSPOSE | LSTMCELL | GRUCELL | MAXPOOLING1D | MAXPOOLING2D | MAXPOOLING3D | BATCHNORMALIZATION | GAUSSIANNOISE | LAYERNORMALIZATION | INSTANCENORMALIZATION | GROUPNORMALIZATION | ACTIVATION | ADD | SUBSTRACT | MULTIPLY | AVERAGE | MAXIMUM | CONCATENATE | DOT | TIMEDISTRIBUTED | RESIDUALCONNECTION | GLOBALAVERAGEPOOLING2D | GLOBALAVERAGEPOOLING1D | MULTIHEADATTENTION | POSITIONALENCODING | OUTPUT
+        layer_type: DENSE | CONV2D | CONV1D | CONV3D | DROPOUT | FLATTEN | RESHAPE | LSTM | GRU | SIMPLE_RNN_DROPOUT_WRAPPER | SIMPLERNN | OUTPUT | TRANSFORMER | TRANSFORMER_ENCODER | TRANSFORMER_DECODER | CONV2DTRANSPOSE | LSTMCELL | GRUCELL | MAXPOOLING1D | MAXPOOLING2D | MAXPOOLING3D | BATCHNORMALIZATION | GAUSSIANNOISE | LAYERNORMALIZATION | INSTANCENORMALIZATION | GROUPNORMALIZATION | ACTIVATION | ADD | SUBSTRACT | MULTIPLY | AVERAGE | MAXIMUM | CONCATENATE | DOT | TIMEDISTRIBUTED | RESIDUALCONNECTION | GLOBALAVERAGEPOOLING2D | GLOBALAVERAGEPOOLING1D | MULTIHEADATTENTION | POSITIONALENCODING | OUTPUT
         ?param_style1:  hpo_param | params
         hpo_param: hpo_expr | hpo_with_params
         params: param ("," param)*
@@ -754,6 +756,7 @@ class ModelTransformer(lark.Transformer):
             'MULTIHEADATTENTION': 'multiheadattention',
             'POSITIONALENCODING': 'positional_encoding',
             'EMBEDDING': 'embedding',
+            'RESHAPE': 'reshape',
             'INCEPTION': 'inception',
             'SQUEEZEEXCITATION': 'squeeze_excitation',
         }
@@ -995,6 +998,120 @@ class ModelTransformer(lark.Transformer):
                 sub_layers.append(item)
         return sub_layers
 
+    def macro_definition(self, items: List[Any]) -> None:
+        """Process a macro definition and store it."""
+        name = items[0].value
+        params = []
+        if len(items) > 1 and items[1] is not None:
+            if hasattr(items[1], 'children'):
+                params = [p.value for p in items[1].children if hasattr(p, 'value')]
+            else:
+                params = self._extract_value(items[1])
+                if not isinstance(params, list):
+                    params = [params] if params else []
+        
+        # Get layers (last item)
+        layers = []
+        if len(items) > 2:
+            layers = self._extract_value(items[-1])
+            if not isinstance(layers, list):
+                layers = [layers] if layers else []
+        
+        self.macros[name] = {
+            'params': params,
+            'layers': layers
+        }
+        return None  # Macros don't return anything, they're stored
+
+    def macro_invocation(self, items: List[Any]) -> LayerConfig:
+        """Process a macro invocation."""
+        name = items[0].value
+        args = {}
+        
+        if len(items) > 1 and items[1] is not None:
+            arg_values = self._extract_value(items[1])
+            if isinstance(arg_values, list):
+                for arg in arg_values:
+                    if isinstance(arg, dict):
+                        args.update(arg)
+            elif isinstance(arg_values, dict):
+                args = arg_values
+        
+        # Check if macro is defined
+        if name not in self.macros:
+            # Treat as custom layer if not a defined macro
+            return {
+                'type': name,
+                'params': args,
+                'sublayers': []
+            }
+        
+        # Expand macro with parameters substituted
+        macro = self.macros[name]
+        # For now, just return the macro invocation
+        # Full macro expansion would substitute params
+        return {
+            'type': name,
+            'params': args,
+            'sublayers': macro.get('layers', []),
+            'is_macro': True
+        }
+
+    def macro_params(self, items: List[Any]) -> List[str]:
+        """Process macro parameter list."""
+        return [item.value for item in items if hasattr(item, 'value')]
+
+    def macro_invocation_args(self, items: List[Any]) -> List[Dict[str, Any]]:
+        """Process macro invocation arguments."""
+        args = []
+        for item in items:
+            arg = self._extract_value(item)
+            if arg is not None:
+                args.append(arg)
+        return args
+
+    def macro_var(self, items: List[Any]) -> Dict[str, str]:
+        """Process a macro variable reference ($var)."""
+        var_name = items[0].value[1:]  # Remove $ prefix
+        return {'macro_var': var_name}
+
+    def expr(self, items: List[Any]) -> Any:
+        """Process arithmetic expressions."""
+        if len(items) == 1:
+            return self._extract_value(items[0])
+        
+        # Simple left-to-right evaluation
+        result = self._extract_value(items[0])
+        for i in range(1, len(items), 2):
+            op = items[i]
+            right = self._extract_value(items[i + 1])
+            
+            if isinstance(op, Token):
+                op_str = op.value
+            else:
+                op_str = str(op)
+            
+            if op_str == '/':
+                result = result / right
+            elif op_str == '*':
+                result = result * right
+            elif op_str == '+':
+                result = result + right
+            elif op_str == '-':
+                result = result - right
+        
+        return result
+
+    def start(self, items: List[Any]) -> Any:
+        """Process the start rule (top-level with macros and networks)."""
+        # Filter out None items (from macro definitions)
+        networks = [item for item in items if item is not None]
+        # If single network, return it directly
+        if len(networks) == 1:
+            return networks[0]
+        # If multiple networks, return list
+        return networks
+
     def basic_layer(self, items: List[Any]) -> LayerConfig:
         layer_type_node = items[0]
         layer_type = layer_type_node.children[0].value.upper()
@@ -1170,6 +1287,20 @@ class ModelTransformer(lark.Transformer):
         items = self._shift_if_token(items)
         params = self._extract_value(items[0]) if items else None
         return {'type': 'Flatten', 'params': params}
+
+    def reshape(self, items: List[Any]) -> LayerConfig:
+        # Support both alias rule call (items[0] is Token) and basic_layer call
+        items = self._shift_if_token(items)
+        params = {}
+        if items and items[0] is not None:
+            param_values = self._extract_value(items[0])
+            if isinstance(param_values, dict):
+                params = param_values
+            elif isinstance(param_values, list):
+                for val in param_values:
+                    if isinstance(val, dict):
+                        params.update(val)
+        return {'type': 'Reshape', 'params': params, 'sublayers': []}
 
     def dropout(self, items: List[Any]) -> LayerConfig:
         # Support both alias rule call (items[0] is Token) and basic_layer call

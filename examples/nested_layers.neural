@@ -9,7 +9,7 @@ network ViT {
     GlobalAveragePooling2D()
     Dense(1000, "softmax")
   loss: "categorical_crossentropy"
-  optimizer: "Adam(learning_rate=1e-4)"
+  optimizer: Adam(learning_rate=1e-4)
   train {
     epochs: 300
     batch_size: HPO(range(128, 512, step=64))

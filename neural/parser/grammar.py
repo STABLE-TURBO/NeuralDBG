@@ -45,12 +45,14 @@ NEURAL_DSL_GRAMMAR = r"""
     GLOBALAVERAGEPOOLING1D: "globalaveragepooling1d"i
     MULTIHEADATTENTION: "multiheadattention"i
     POSITIONALENCODING: "positionalencoding"i
+    RESHAPE: "reshape"i
 
     // Layer type tokens (case-insensitive)
-    LAYER_TYPE.2: "dense"i | "conv2d"i | "conv1d"i | "conv3d"i | "dropout"i | "embedding"i | "flatten"i | "lstm"i | "gru"i | "simplernndropoutwrapper"i | "simplernn"i | "output"i| "transformer"i | "transformerencoder"i | "transformerdecoder"i | "conv2dtranspose"i | "maxpooling2d"i | "maxpooling1d"i | "maxpooling3d"i | "batchnormalization"i | "gaussiannoise"i | "instancenormalization"i | "groupnormalization"i | "activation"i | "add"i | "subtract"i | "multiply"i | "average"i | "maximum"i | "concatenate"i | "dot"i | "timedistributed"i | "residualconnection"i | "globalaveragepooling2d"i | "globalaveragepooling1d"i | "multiheadattention"i | "positionalencoding"i
+    LAYER_TYPE.2: "dense"i | "conv2d"i | "conv1d"i | "conv3d"i | "dropout"i | "embedding"i | "flatten"i | "lstm"i | "gru"i | "simplernndropoutwrapper"i | "simplernn"i | "output"i| "transformer"i | "transformerencoder"i | "transformerdecoder"i | "conv2dtranspose"i | "maxpooling2d"i | "maxpooling1d"i | "maxpooling3d"i | "batchnormalization"i | "gaussiannoise"i | "instancenormalization"i | "groupnormalization"i | "activation"i | "add"i | "subtract"i | "multiply"i | "average"i | "maximum"i | "concatenate"i | "dot"i | "timedistributed"i | "residualconnection"i | "globalaveragepooling2d"i | "globalaveragepooling1d"i | "multiheadattention"i | "positionalencoding"i | "reshape"i
 
     // Basic tokens
     NAME: /[a-zA-Z_][a-zA-Z0-9_]*/
+    MACRO_VAR: /\$[a-zA-Z_][a-zA-Z0-9_]*/
     STRING: /"[^"]*"/ | /'[^']*'/
     INT: /[+-]?[0-9]+/
     FLOAT: /[+-]?[0-9]*\.[0-9]+([eE][+-]?[0-9]+)?/ | /[+-]?[0-9]+[eE][+-]?[0-9]+/
@@ -68,6 +70,13 @@ NEURAL_DSL_GRAMMAR = r"""
     COMMENT: "//" /[^\n]*/
     MULTILINE_COMMENT: "/*" /(.|\n)*?/ "*/"
 
+    // Top-level definitions
+    start: (macro_definition | network)*
+    
+    // Macro definition
+    macro_definition: "define" NAME "(" macro_params? ")" "{" layer_or_repeated+ "}"
+    macro_params: NAME ("," NAME)*
+    
     // Top-level network definition
     network: "network" NAME "{" network_config "}"
 
@@ -89,7 +98,7 @@ NEURAL_DSL_GRAMMAR = r"""
 
     // Layers definition
     layers_definition: "layers" ":" layer_or_repeated+
-    layer_or_repeated: (basic_layer | advanced_layer) multiplier?
+    layer_or_repeated: (basic_layer | advanced_layer | macro_invocation) multiplier?
     multiplier: "*" INT
 
     // Basic layer with optional device specification
@@ -97,6 +106,10 @@ NEURAL_DSL_GRAMMAR = r"""
 
     // Advanced layer types
     advanced_layer: branch_spec
+    
+    // Macro invocation (custom layers defined with 'define')
+    macro_invocation: NAME "(" macro_invocation_args? ")"
+    macro_invocation_args: named_param ("," named_param)*
 
     // Device specification
     device_spec: AT STRING
@@ -129,7 +142,7 @@ NEURAL_DSL_GRAMMAR = r"""
     named_hpo_arg: NAME "=" value
 
     // Values
-    value: tuple_ | list_ | dict_ | number | string_value | bool_value | NONE
+    value: tuple_ | list_ | dict_ | number | string_value | bool_value | NONE | macro_var | expr
     tuple_: "(" [value ("," value)*] ")"
     list_: "[" [value ("," value)*] "]"
     dict_: "{" [dict_pair ("," dict_pair)*] "}"
@@ -137,11 +150,15 @@ NEURAL_DSL_GRAMMAR = r"""
     number: INT | FLOAT
     string_value: STRING
     bool_value: BOOL
+    macro_var: MACRO_VAR
+    
+    // Arithmetic expressions for macro substitution
+    expr: value ("/" value | "*" value | "+" value | "-" value)
 
     // Optimizer definition
     optimizer_definition: "optimizer" ":" optimizer_spec
     optimizer_spec: optimizer_named | optimizer_string
-    optimizer_named: NAME "{" named_params "}"
+    optimizer_named: NAME "(" named_params? ")"
     optimizer_string: STRING
 
     // Loss definition
@@ -152,8 +169,8 @@ NEURAL_DSL_GRAMMAR = r"""
     metric_list: (NAME | STRING) ("," (NAME | STRING))*
 
     // Training definition
-    training_definition: "training" ":" "{" training_params "}"
-    training_params: training_param ("," training_param)*
+    training_definition: "train" "{" training_params "}"
+    training_params: training_param*
     training_param: NAME ":" value
 
     // HPO definition
@@ -162,8 +179,8 @@ NEURAL_DSL_GRAMMAR = r"""
     hpo_param_def: NAME ":" value
 
     // Execution config definition
-    execution_config_definition: "execution" ":" "{" execution_params "}"
-    execution_params: execution_param ("," execution_param)*
+    execution_config_definition: "execution" "{" execution_params "}"
+    execution_params: execution_param*
     execution_param: NAME ":" value
 
     // Whitespace and comments handling

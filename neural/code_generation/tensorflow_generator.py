@@ -232,6 +232,11 @@ class TensorFlowGenerator(BaseCodeGenerator):
             return f"layers.AveragePooling2D(pool_size={pool_size})"
         elif layer_type == "Flatten":
             return "layers.Flatten()"
+        elif layer_type == "Reshape":
+            target_shape = params.get("target_shape")
+            if target_shape:
+                return f"layers.Reshape(target_shape={target_shape})"
+            return "layers.Reshape()"
         elif layer_type == "LSTM":
             units = params.get("units", 128)
             return_sequences = params.get("return_sequences", False)

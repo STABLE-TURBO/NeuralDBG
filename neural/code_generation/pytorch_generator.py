@@ -457,6 +457,11 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
         return f"nn.AvgPool2d(kernel_size={pool_size})"
     elif layer_type == "Flatten":
         return "nn.Flatten()"
+    elif layer_type == "Reshape":
+        # PyTorch doesn't have a Reshape layer, we'll use view in forward pass
+        # For now, just note it requires special handling
+        target_shape = params.get("target_shape", (-1,))
+        return f"# Reshape to {target_shape} (handled in forward with view/reshape)"
     elif layer_type == "Dropout":
         rate = params.get("rate", 0.5)
         if isinstance(rate, dict):
