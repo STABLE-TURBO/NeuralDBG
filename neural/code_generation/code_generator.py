@@ -47,7 +47,7 @@ def _policy_ensure_2d_before_dense_tf(
             # Insert Flatten layer and propagate shape safely
             insert = "x = layers.Flatten()(x)\n"
             try:
-                current_input_shape = propagator.propagate(current_input_shape, {"type": "Flatten"})
+                current_input_shape = propagator.propagate(current_input_shape, {"type": "Flatten"}, framework='tensorflow')
             except Exception as e:
                 logger.warning(f"Shape propagation warning (auto-flatten): {e}")
             return insert, current_input_shape
@@ -76,7 +76,7 @@ def _policy_ensure_2d_before_dense_pt(
         if auto_flatten_output:
             forward_code_body.append("x = x.view(x.size(0), -1)  # Flatten input")
             try:
-                current_input_shape = propagator.propagate(current_input_shape, {"type": "Flatten"})
+                current_input_shape = propagator.propagate(current_input_shape, {"type": "Flatten"}, framework='pytorch')
             except Exception as e:
                 logger.warning(f"Shape propagation warning (auto-flatten): {e}")
             return current_input_shape
@@ -103,7 +103,11 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
     indent = "    "
     propagator = ShapePropagator(debug=False)
     # Initial input shape includes batch dimension: (None, channels, height, width)
-    current_input_shape = (None,) + tuple(model_data['input']['shape'])  # e.g., (None, 1, 28, 28)
+    input_shape_tuple = tuple(model_data['input']['shape'])
+    if input_shape_tuple and input_shape_tuple[0] is None:
+        current_input_shape = input_shape_tuple
+    else:
+        current_input_shape = (None,) + input_shape_tuple
 
     # Process expanded layers before modifying model_dat
     # Expand layers based on 'multiply' key
@@ -201,7 +205,7 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
                     else:
                         code += f"x = {layer_code}(x)\n"
             try:
-                current_input_shape = propagator.propagate(current_input_shape, layer)
+                current_input_shape = propagator.propagate(current_input_shape, layer, framework='tensorflow')
             except Exception as e:
                 logger.warning(f"Shape propagation warning: {e}")
 
@@ -286,7 +290,23 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
             layer_name = f"layer{i}_{layer_type.lower()}"
             layer_counts[layer_type] += 1
 
-            if layer_type == "Dense":
+            if layer_type == "Residual":
+                residual_layers = []
+                residual_forward = []
+                for sub_layer in layer.get('sub_layers', []):
+                    sub_type = sub_layer['type']
+                    sub_params = sub_layer.get('params', {})
+                    sub_layer_code = generate_pytorch_layer(sub_type, sub_params, current_input_shape)
+                    if sub_layer_code:
+                        residual_layers.append(sub_layer_code)
+                    try:
+                        current_input_shape = propagator.propagate(current_input_shape, sub_layer, framework='pytorch')
+                    except Exception as e:
+                        logger.warning(f"Shape propagation warning in residual: {e}")
+                if residual_layers:
+                    layers_code.append(f"self.{layer_name} = nn.Sequential({', '.join(residual_layers)})")
+                    forward_code_body.append(f"x = x + self.{layer_name}(x)")
+            elif layer_type == "Dense":
                 # If first layer or previous layer requires flattening
                 if i == 0 or expanded_layers[i-1]['type'] in ["Input", "Flatten"]:
                     # product of current_input_shape elements over specified axis
@@ -399,7 +419,7 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
                     forward_code_body.append(f"x = self.{layer_name}(x)")
 
             try:
-                current_input_shape = propagator.propagate(current_input_shape, layer)
+                current_input_shape = propagator.propagate(current_input_shape, layer, framework='pytorch')
             except Exception as e:
                 logger.warning(f"Shape propagation warning: {e}")
 
@@ -731,11 +751,16 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
     elif layer_type == "GlobalAveragePooling1D":
         return "nn.AdaptiveAvgPool1d(1)"
     elif layer_type == "Conv2D":
-        data_format = params.get("data_format", "channels_last")
         in_channels = 3  # Default value
-        if input_shape is not None:
-            in_channels = input_shape[1] if data_format == "channels_first" else input_shape[3]
-            in_channels = in_channels if len(input_shape) > 3 else 3
+        if input_shape is not None and len(input_shape) == 4:
+            if input_shape[1] is not None and input_shape[1] <= 4:
+                in_channels = input_shape[1]
+            elif input_shape[-1] is not None and input_shape[-1] <= 4:
+                in_channels = input_shape[-1]
+            else:
+                in_channels = input_shape[1] if input_shape[1] is not None else input_shape[-1]
+        elif input_shape is not None and len(input_shape) > 1:
+            in_channels = input_shape[-1] if input_shape[-1] is not None else 3
         out_channels = params.get("filters", 32)
         # Handle dictionary values in out_channels
         if isinstance(out_channels, dict):
@@ -761,12 +786,11 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             kernel_size = kernel_size[0]  # Use first element for both dimensions
         return f"nn.Conv2d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size})"
     elif layer_type == "BatchNormalization":
-        data_format = params.get("data_format", "channels_last")
-        if input_shape and len(input_shape) > 3:
-            num_features = input_shape[1] if data_format == "channels_first" else input_shape[3]
-        else:
-            # Use the number of filters from previous Conv2D layer if available
-            num_features = params.get("filters", 64)  # Default to 64 features
+        num_features = 64  # Default value
+        if input_shape and len(input_shape) == 4:
+            num_features = input_shape[1] if input_shape[1] is not None else 64
+        elif input_shape and len(input_shape) > 1:
+            num_features = input_shape[-1] if input_shape[-1] is not None else 64
         momentum = params.get("momentum", 0.9)
         eps = params.get("epsilon", 0.001)
         # Only include momentum and eps if they differ from defaults
