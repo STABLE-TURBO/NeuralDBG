@@ -4,7 +4,7 @@ This module contains functions for processing network-level configurations
 like execution settings, framework detection, and device specifications.
 """
 
-from typing import Any, Dict, List
+from typing import Dict, Any, List
 
 
 def detect_framework(model: Dict[str, Any]) -> str:
@@ -40,11 +40,12 @@ def process_execution_config(model: Dict[str, Any]) -> Dict[str, Any]:
     """
     if 'execution' in model:
         return model
-    
+
     # Check if this is a device specification test
     is_device_test = False
     has_tpu = False
-    
+    has_cuda = False
+
     # Check model name
     if 'name' in model:
         if model['name'] in ['MultiDeviceModel', 'TPUModel']:
@@ -53,7 +54,7 @@ def process_execution_config(model: Dict[str, Any]) -> Dict[str, Any]:
             is_device_test = True
             model['execution'] = {'device': 'cuda'}
             return model
-    
+
     # Check for device specifications in layers
     if 'layers' in model:
         for layer in model['layers']:
@@ -62,15 +63,15 @@ def process_execution_config(model: Dict[str, Any]) -> Dict[str, Any]:
                 if layer['device'].startswith('tpu'):
                     has_tpu = True
                 elif layer['device'].startswith('cuda'):
-                    pass
-    
+                    has_cuda = True
+
     # Add execution config if needed
     if is_device_test:
         if has_tpu:
             model['execution'] = {'device': 'tpu'}
         else:
             model['execution'] = {'device': 'auto'}
-    
+
     return model
 
 
@@ -111,11 +112,11 @@ def process_network_sections(tree_children: List[Any], extract_value_fn) -> Dict
         'training': None,
         'execution': None
     }
-    
+
     for child in tree_children:
         if not hasattr(child, 'data'):
             continue
-            
+
         if child.data == 'input_layer':
             sections['input'] = extract_value_fn(child)
         elif child.data == 'layers':
@@ -128,7 +129,7 @@ def process_network_sections(tree_children: List[Any], extract_value_fn) -> Dict
             sections['training'] = extract_value_fn(child)
         elif child.data == 'execution_config':
             sections['execution'] = extract_value_fn(child)
-    
+
     return sections
 
 
@@ -166,13 +167,13 @@ def merge_layer_params(ordered_params: List[Any], named_params: Dict[str, Any],
         Merged parameter dictionary
     """
     params = {}
-    
+
     # Map positional parameters
     for idx, value in enumerate(ordered_params):
         if idx in param_mapping:
             params[param_mapping[idx]] = value
-    
+
     # Merge named parameters (overrides positional)
     params.update(named_params)
-    
+
     return params

@@ -62,11 +62,11 @@ def extract_tree_value(tree: Tree, extract_value_fn) -> Any:
     else:
         # Generic tree processing
         extracted = [extract_value_fn(child) for child in tree.children]
-        
+
         # Check if we should return as dict
         if any(isinstance(e, dict) for e in extracted):
             return extracted
-            
+
         # Try to form a dictionary from key-value pairs
         if len(tree.children) % 2 == 0:
             try:
@@ -141,7 +141,7 @@ def extract_named_input_shapes(items: List[Any], extract_value_fn) -> Dict[str, 
         shape_node = items[i+1] if i + 1 < len(items) else None
         name = name_token.value if hasattr(name_token, 'value') else str(name_token)
         shape = extract_value_fn(shape_node)
-        
+
         # Normalize 1D shapes: (10,) -> 10
         if isinstance(shape, tuple) and len(shape) == 1:
             shape = shape[0]
@@ -184,7 +184,7 @@ def merge_param_list(param_values: List[Any]) -> Tuple[List[Any], Dict[str, Any]
     """
     ordered_params = []
     named_params = {}
-    
+
     for val in param_values:
         if isinstance(val, dict):
             if 'hpo' in val:
@@ -199,7 +199,7 @@ def merge_param_list(param_values: List[Any]) -> Tuple[List[Any], Dict[str, Any]
             ordered_params.extend(val)
         else:
             ordered_params.append(val)
-            
+
     return ordered_params, named_params
 
 

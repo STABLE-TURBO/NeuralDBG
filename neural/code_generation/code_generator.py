@@ -294,7 +294,7 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
         code += "experiment_manager = ExperimentManager()\n"
         code += "experiment = experiment_manager.create_experiment()\n"
         code += "experiment.log_hyperparameters({'optimizer': '" + optimizer_type + "', 'backend': 'pytorch'})\n\n"
-        
+
         # Check if we need positional encoding classes
         needs_positional_encoding = any(layer.get('type') == 'PositionalEncoding' for layer in expanded_layers)
         if needs_positional_encoding:
@@ -324,7 +324,7 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
             code += "            self.pos_embedding = nn.Parameter(torch.randn(self.max_len, d_model, device=x.device))\n"
             code += "        positions = self.pos_embedding[:seq_len, :].unsqueeze(0)\n"
             code += "        return x + positions\n\n"
-        
+
         code += "# Neural network model definition\n"
         code += "class NeuralNetworkModel(nn.Module):\n"
         code += f"{indent}def __init__(self):\n"
@@ -618,7 +618,7 @@ def save_file(filename: str, content: str) -> None:
         directory = os.path.dirname(filename)
         if directory:
             os.makedirs(directory, exist_ok=True)
-        
+
         with open(filename, 'w') as f:
             f.write(content)
     except Exception as e:
@@ -626,7 +626,7 @@ def save_file(filename: str, content: str) -> None:
             operation='write',
             filepath=filename,
             reason=str(e)
-        )
+        ) from e
     logger.info(f"Successfully saved file: {filename}")
 
 def load_file(filename: str) -> Any:
@@ -639,7 +639,7 @@ def load_file(filename: str) -> Any:
             operation='read',
             filepath=filename,
             reason=str(e)
-        )
+        ) from e
     if filename.endswith('.neural') or filename.endswith('.nr'):
         return create_parser('network').parse(content)
     elif filename.endswith('.rnr'):
@@ -656,7 +656,7 @@ def generate_onnx(model_data: Dict[str, Any]) -> Any:
     # Import ONNX only when needed (avoid hard dependency for TF/PyTorch paths)
     import numpy as np
     from onnx import TensorProto, helper, numpy_helper
-    
+
     # Create nodes for each layer
     nodes = []
     initializers = []
@@ -677,7 +677,7 @@ def generate_onnx(model_data: Dict[str, Any]) -> Any:
             strides = params.get('strides', [1, 1])
             if isinstance(strides, int):
                 strides = [strides, strides]
-            
+
             # Determine input channels from output_shape
             if len(output_shape) == 3:
                 in_channels = output_shape[-1]
@@ -685,20 +685,20 @@ def generate_onnx(model_data: Dict[str, Any]) -> Any:
                 in_channels = output_shape[-1]
             else:
                 in_channels = 3
-            
+
             # Create weight tensor (filters, in_channels, kernel_h, kernel_w)
             weight_name = f"conv_{i}_weight"
             weight_shape = [filters, in_channels, kernel_size[0], kernel_size[1]]
             weight_data = np.random.randn(*weight_shape).astype(np.float32) * 0.01
             weight_tensor = numpy_helper.from_array(weight_data, name=weight_name)
             initializers.append(weight_tensor)
-            
+
             # Create bias tensor
             bias_name = f"conv_{i}_bias"
             bias_data = np.zeros([filters], dtype=np.float32)
             bias_tensor = numpy_helper.from_array(bias_data, name=bias_name)
             initializers.append(bias_tensor)
-            
+
             nodes.append(helper.make_node(
                 'Conv',
                 inputs=[current_input, weight_name, bias_name],
@@ -706,7 +706,7 @@ def generate_onnx(model_data: Dict[str, Any]) -> Any:
                 kernel_shape=kernel_size,
                 strides=strides
             ))
-            
+
             # Update output shape for Conv2D
             if len(output_shape) == 3:
                 new_h = output_shape[0] - kernel_size[0] + 1
@@ -716,16 +716,16 @@ def generate_onnx(model_data: Dict[str, Any]) -> Any:
                 new_h = output_shape[1] - kernel_size[0] + 1
                 new_w = output_shape[2] - kernel_size[1] + 1
                 output_shape = [output_shape[0], new_h, new_w, filters]
-            
+
             value_infos.append(helper.make_tensor_value_info(
                 output_name, TensorProto.FLOAT, output_shape
             ))
-            
+
         elif layer_type == "MaxPooling2D":
             pool_size = params.get('pool_size', [2, 2])
             if isinstance(pool_size, int):
                 pool_size = [pool_size, pool_size]
-            
+
             nodes.append(helper.make_node(
                 'MaxPool',
                 inputs=[current_input],
@@ -733,22 +733,22 @@ def generate_onnx(model_data: Dict[str, Any]) -> Any:
                 kernel_shape=pool_size,
                 strides=pool_size
             ))
-            
+
             # Update shape for pooling
             if len(output_shape) == 3:
-                output_shape = [output_shape[0] // pool_size[0], 
-                               output_shape[1] // pool_size[1], 
+                output_shape = [output_shape[0] // pool_size[0],
+                               output_shape[1] // pool_size[1],
                                output_shape[2]]
             elif len(output_shape) == 4:
                 output_shape = [output_shape[0],
                                output_shape[1] // pool_size[0],
                                output_shape[2] // pool_size[1],
                                output_shape[3]]
-            
+
             value_infos.append(helper.make_tensor_value_info(
                 output_name, TensorProto.FLOAT, output_shape
             ))
-            
+
         elif layer_type == "Flatten":
             nodes.append(helper.make_node(
                 'Flatten',
@@ -756,7 +756,7 @@ def generate_onnx(model_data: Dict[str, Any]) -> Any:
                 outputs=[output_name],
                 axis=1
             ))
-            
+
             # Update shape: flatten to (batch, features)
             if len(output_shape) > 1:
                 if output_shape[0] is None:
@@ -771,33 +771,33 @@ def generate_onnx(model_data: Dict[str, Any]) -> Any:
                         if dim is not None:
                             features *= dim
                     output_shape = [1, features]
-            
+
             value_infos.append(helper.make_tensor_value_info(
                 output_name, TensorProto.FLOAT, output_shape
             ))
-            
+
         elif layer_type == "Dense":
             units = params.get('units', 64)
-            
+
             # Determine input features
             if isinstance(output_shape[-1], int):
                 in_features = output_shape[-1]
             else:
                 in_features = 128
-            
+
             # Create weight tensor
             weight_name = f"dense_{i}_weight"
             weight_shape = [units, in_features]
             weight_data = np.random.randn(*weight_shape).astype(np.float32) * 0.01
             weight_tensor = numpy_helper.from_array(weight_data, name=weight_name)
             initializers.append(weight_tensor)
-            
+
             # Create bias tensor
             bias_name = f"dense_{i}_bias"
             bias_data = np.zeros([units], dtype=np.float32)
             bias_tensor = numpy_helper.from_array(bias_data, name=bias_name)
             initializers.append(bias_tensor)
-            
+
             nodes.append(helper.make_node(
                 'Gemm',
                 inputs=[current_input, weight_name, bias_name],
@@ -806,36 +806,36 @@ def generate_onnx(model_data: Dict[str, Any]) -> Any:
                 beta=1.0,
                 transB=1
             ))
-            
+
             # Update shape
             output_shape = [output_shape[0], units]
-            
+
             value_infos.append(helper.make_tensor_value_info(
                 output_name, TensorProto.FLOAT, output_shape
             ))
-            
+
         elif layer_type == "Output":
             units = params.get('units', 10)
-            
+
             # Determine input features
             if isinstance(output_shape[-1], int):
                 in_features = output_shape[-1]
             else:
                 in_features = 128
-            
+
             # Create weight tensor
             weight_name = f"output_{i}_weight"
             weight_shape = [units, in_features]
             weight_data = np.random.randn(*weight_shape).astype(np.float32) * 0.01
             weight_tensor = numpy_helper.from_array(weight_data, name=weight_name)
             initializers.append(weight_tensor)
-            
+
             # Create bias tensor
             bias_name = f"output_{i}_bias"
             bias_data = np.zeros([units], dtype=np.float32)
             bias_tensor = numpy_helper.from_array(bias_data, name=bias_name)
             initializers.append(bias_tensor)
-            
+
             nodes.append(helper.make_node(
                 'Gemm',
                 inputs=[current_input, weight_name, bias_name],
@@ -844,10 +844,10 @@ def generate_onnx(model_data: Dict[str, Any]) -> Any:
                 beta=1.0,
                 transB=1
             ))
-            
+
             # Output layer produces (batch, units)
             output_shape = [output_shape[0], units]
-            
+
             value_infos.append(helper.make_tensor_value_info(
                 output_name, TensorProto.FLOAT, output_shape
             ))
@@ -904,7 +904,7 @@ def generate_tensorflow_layer(layer_type, params, best_params=None):
         output_dim = _extract_param_value(params.get("output_dim", 128), 128, best_params, "output_dim")
         mask_zero = _extract_param_value(params.get("mask_zero", False), False, best_params, "mask_zero")
         input_length = _extract_param_value(params.get("input_length", None), None, best_params, "input_length")
-        
+
         code = f"layers.Embedding(input_dim={input_dim}, output_dim={output_dim}"
         if mask_zero:
             code += f", mask_zero={mask_zero}"
@@ -919,11 +919,11 @@ def generate_tensorflow_layer(layer_type, params, best_params=None):
         dropout = _extract_param_value(params.get("dropout", 0.0), 0.0, best_params, "dropout")
         use_bias = _extract_param_value(params.get("use_bias", True), True, best_params, "use_bias")
         mode = _extract_param_value(params.get("mode", "self"), "self", best_params, "mode")
-        
+
         value_dim_str = f", value_dim={value_dim}" if value_dim else ""
         dropout_str = f", dropout={dropout}" if dropout > 0 else ""
         use_bias_str = f", use_bias={use_bias}" if not use_bias else ""
-        
+
         if mode == "cross":
             return f"layers.MultiHeadAttention(num_heads={num_heads}, key_dim={key_dim}{value_dim_str}{dropout_str}{use_bias_str})(x, context)"
         else:
@@ -935,22 +935,22 @@ def generate_tensorflow_layer(layer_type, params, best_params=None):
         num_layers = _extract_param_value(params.get("num_layers", 1), 1, best_params, "num_layers")
         activation = _extract_param_value(params.get("activation", "relu"), "relu", best_params, "activation")
         use_attention_mask = _extract_param_value(params.get("use_attention_mask", False), False, best_params, "use_attention_mask")
-        
+
         code = ["# TransformerEncoder block"]
-        
+
         if use_attention_mask:
             code.append("# Attention mask should be provided as input")
             code.append("attention_mask = None  # Set this to your mask tensor")
-        
+
         for layer_idx in range(num_layers):
             code.append(f"# Encoder Layer {layer_idx + 1}")
             code.append("x = layers.LayerNormalization(epsilon=1e-6)(x)")
-            
+
             if use_attention_mask:
                 code.append(f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim})(x, x, attention_mask=attention_mask)")
             else:
                 code.append(f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim})(x, x)")
-            
+
             code.append(f"attn_output = layers.Dropout({dropout})(attn_output)")
             code.append("x = layers.Add()([x, attn_output])")
             code.append("x = layers.LayerNormalization(epsilon=1e-6)(x)")
@@ -958,7 +958,7 @@ def generate_tensorflow_layer(layer_type, params, best_params=None):
             code.append(f"ffn_output = layers.Dense({ff_dim})(ffn_output)")
             code.append(f"ffn_output = layers.Dropout({dropout})(ffn_output)")
             code.append("x = layers.Add()([x, ffn_output])")
-        
+
         return "\n".join(code)
     elif layer_type == "TransformerDecoder":
         num_heads = _extract_param_value(params.get("num_heads", 8), 8, best_params, "num_heads")
@@ -966,7 +966,7 @@ def generate_tensorflow_layer(layer_type, params, best_params=None):
         dropout = _extract_param_value(params.get("dropout", 0.1), 0.1, best_params, "dropout")
         d_model = _extract_param_value(params.get("d_model", ff_dim), ff_dim, best_params, "d_model")
         use_causal_mask = _extract_param_value(params.get("use_causal_mask", True), True, best_params, "use_causal_mask")
-        
+
         code = [
             "# TransformerDecoder block with cross-attention",
             "# Self-attention with causal masking",
@@ -993,7 +993,7 @@ def generate_tensorflow_layer(layer_type, params, best_params=None):
     elif layer_type == "PositionalEncoding":
         max_len = _extract_param_value(params.get("max_len", 5000), 5000, best_params, "max_len")
         encoding_type = _extract_param_value(params.get("encoding_type", "sinusoidal"), "sinusoidal", best_params, "encoding_type")
-        
+
         if encoding_type == "sinusoidal":
             code = [
                 "# Sinusoidal Positional Encoding",
@@ -1108,14 +1108,14 @@ def generate_pytorch_layer(layer_type, params, input_shape: Optional[tuple] = No
         num_heads = _extract_param_value(params.get("num_heads", 8), 8, best_params, "num_heads")
         dropout = _extract_param_value(params.get("dropout", 0.0), 0.0, best_params, "dropout")
         batch_first = _extract_param_value(params.get("batch_first", True), True, best_params, "batch_first")
-        
+
         if embed_dim is None and input_shape is not None and len(input_shape) >= 2:
             embed_dim = input_shape[-1]
             if isinstance(embed_dim, dict):
                 embed_dim = _extract_param_value(embed_dim, 512, best_params, "embed_dim")
         elif embed_dim is None:
             embed_dim = 512
-        
+
         return f"nn.MultiheadAttention(embed_dim={embed_dim}, num_heads={num_heads}, dropout={dropout}, batch_first={batch_first})"
     elif layer_type == "TransformerEncoder":
         d_model = _extract_param_value(params.get("d_model", 512), 512, best_params, "d_model")
@@ -1124,7 +1124,7 @@ def generate_pytorch_layer(layer_type, params, input_shape: Optional[tuple] = No
         dropout = _extract_param_value(params.get("dropout", 0.1), 0.1, best_params, "dropout")
         num_layers = _extract_param_value(params.get("num_layers", 1), 1, best_params, "num_layers")
         activation = _extract_param_value(params.get("activation", "relu"), "relu", best_params, "activation")
-        
+
         if num_layers > 1:
             return f"nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout}, activation='{activation}'), num_layers={num_layers})"
         else:
@@ -1138,7 +1138,7 @@ def generate_pytorch_layer(layer_type, params, input_shape: Optional[tuple] = No
     elif layer_type == "PositionalEncoding":
         max_len = _extract_param_value(params.get("max_len", 5000), 5000, best_params, "max_len")
         encoding_type = _extract_param_value(params.get("encoding_type", "sinusoidal"), "sinusoidal", best_params, "encoding_type")
-        
+
         if encoding_type == "sinusoidal":
             return f"SinusoidalPositionalEncoding(max_len={max_len})"
         else:

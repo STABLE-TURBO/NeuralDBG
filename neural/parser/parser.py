@@ -580,16 +580,16 @@ def validate_input_text(text: str) -> None:
     """
     if text is None:
         raise DSLValidationError("Input cannot be None", Severity.ERROR)
-    
+
     if not isinstance(text, str):
         raise DSLValidationError(f"Input must be a string, got {type(text).__name__}", Severity.ERROR)
-    
+
     if not text or not text.strip():
         raise DSLValidationError("Input is empty or contains only whitespace", Severity.ERROR)
-    
+
     if len(text) > 10 * 1024 * 1024:
         raise DSLValidationError(f"Input too large: {len(text)} bytes (max 10MB)", Severity.ERROR)
-    
+
     invalid_chars = []
     for i, char in enumerate(text):
         ord_val = ord(char)
@@ -597,7 +597,7 @@ def validate_input_text(text: str) -> None:
             invalid_chars.append((i, char, ord_val))
         elif ord_val > 126 and ord_val < 128:
             invalid_chars.append((i, char, ord_val))
-    
+
     if invalid_chars:
         first_invalid = invalid_chars[0]
         line_no = text[:first_invalid[0]].count('\n') + 1
@@ -638,7 +638,7 @@ def safe_parse(parser: lark.Lark, text: str) -> Dict[str, Any]:
         ...     print(f"Error: {e}")
     """
     warnings = []
-    
+
     validate_input_text(text)
 
     # Tokenize the input and log the stream
@@ -658,11 +658,11 @@ def safe_parse(parser: lark.Lark, text: str) -> Dict[str, Any]:
             parser_error = ErrorHandler.handle_unexpected_token(e, text)
         else:
             parser_error = ErrorHandler.handle_unexpected_char(e, text)
-        
+
         # Format and log the enhanced error
         formatted_error = ErrorHandler.format_error(parser_error)
         log_by_severity(Severity.ERROR, formatted_error)
-        
+
         # Raise with enhanced message
         raise DSLValidationError(parser_error.message, Severity.ERROR, parser_error.line, parser_error.column)
         # This line will never be reached because custom_error_handler raises an exception
@@ -681,7 +681,7 @@ def split_params(s: str) -> List[str]:
     # Special case: empty string should return ['']
     if not s:
         return ['']
-    
+
     parts: List[str] = []
     current: List[str] = []
     depth = 0
@@ -857,7 +857,7 @@ class ModelTransformer(lark.Transformer):
                 f"Input dimensions must be positive, got {dimensions}",
                 severity=Severity.ERROR
             )
-    
+
     def _validate_parameter_value(self, param_name: str, value: Any, item: Any = None) -> None:
         """
         Validate parameter values for reasonableness and detect nested structures.
@@ -872,7 +872,7 @@ class ModelTransformer(lark.Transformer):
         """
         if value is None:
             return
-        
+
         if isinstance(value, (list, tuple)):
             if len(value) > 100:
                 self.raise_validation_error(
@@ -880,7 +880,7 @@ class ModelTransformer(lark.Transformer):
                     item,
                     severity=Severity.ERROR
                 )
-            
+
             for i, elem in enumerate(value):
                 if isinstance(elem, (list, tuple)):
                     self.raise_validation_error(
@@ -889,7 +889,7 @@ class ModelTransformer(lark.Transformer):
                         item,
                         severity=Severity.ERROR
                     )
-                
+
                 if isinstance(elem, (int, float)):
                     if abs(elem) > 1e10:
                         self.raise_validation_error(
@@ -897,7 +897,7 @@ class ModelTransformer(lark.Transformer):
                             item,
                             severity=Severity.WARNING
                         )
-        
+
         if param_name in ['units', 'filters', 'num_heads', 'ff_dim', 'input_dim', 'output_dim']:
             if isinstance(value, int):
                 if value <= 0:
@@ -912,7 +912,7 @@ class ModelTransformer(lark.Transformer):
                         item,
                         severity=Severity.WARNING
                     )
-        
+
         elif param_name in ['rate', 'dropout', 'recurrent_dropout']:
             if isinstance(value, (int, float)):
                 if value < 0 or value > 1:
@@ -921,7 +921,7 @@ class ModelTransformer(lark.Transformer):
                         item,
                         severity=Severity.ERROR
                     )
-        
+
         elif param_name in ['kernel_size', 'pool_size']:
             if isinstance(value, (list, tuple)):
                 for i, dim in enumerate(value):
@@ -938,7 +938,7 @@ class ModelTransformer(lark.Transformer):
                         item,
                         severity=Severity.ERROR
                     )
-        
+
         elif param_name in ['strides', 'dilation_rate']:
             if isinstance(value, (list, tuple)):
                 for i, dim in enumerate(value):
@@ -955,7 +955,7 @@ class ModelTransformer(lark.Transformer):
                         item,
                         severity=Severity.ERROR
                     )
-        
+
         elif param_name in ['epsilon']:
             if isinstance(value, (int, float)):
                 if value <= 0 or value > 1:
@@ -964,7 +964,7 @@ class ModelTransformer(lark.Transformer):
                         item,
                         severity=Severity.ERROR
                     )
-        
+
         elif param_name in ['learning_rate', 'momentum', 'alpha']:
             if isinstance(value, (int, float)):
                 if value <= 0 or value > 10:
@@ -973,7 +973,7 @@ class ModelTransformer(lark.Transformer):
                         item,
                         severity=Severity.WARNING
                     )
-        
+
         elif param_name in ['l1', 'l2', 'clipvalue', 'clipnorm']:
             if isinstance(value, (int, float)):
                 if value < 0:
@@ -1000,7 +1000,7 @@ class ModelTransformer(lark.Transformer):
         valid_losses = ["mse", "cross_entropy", "binary_cross_entropy", "mae", "categorical_cross_entropy", "sparse_categorical_cross_entropy", "categorical_crossentropy"]
         if isinstance(loss_name, str) and loss_name.lower() not in valid_losses:
             self.raise_validation_error(f"Invalid loss function: {loss_name}", item)
-    
+
     def _validate_layer_sequence(self, layers: List[Dict[str, Any]], item: Any = None) -> None:
         """
         Validate that layer sequences are compatible.
@@ -1014,24 +1014,24 @@ class ModelTransformer(lark.Transformer):
         """
         if not layers or len(layers) == 0:
             return
-        
+
         prev_layer = None
         for i, layer in enumerate(layers):
             if not isinstance(layer, dict) or 'type' not in layer:
                 continue
-            
+
             layer_type = layer['type'].lower() if isinstance(layer['type'], str) else ''
-            
+
             if prev_layer:
                 prev_type = prev_layer['type'].lower() if isinstance(prev_layer['type'], str) else ''
-                
+
                 if 'flatten' in layer_type and 'flatten' in prev_type:
                     self.raise_validation_error(
                         f"Layer {i}: Consecutive Flatten layers detected. Remove duplicate Flatten layer.",
                         item,
                         severity=Severity.WARNING
                     )
-                
+
                 if 'conv' in layer_type and any(x in prev_type for x in ['dense', 'lstm', 'gru', 'simplernn']):
                     self.raise_validation_error(
                         f"Layer {i}: Convolutional layer after fully-connected/RNN layer without Reshape. "
@@ -1039,28 +1039,28 @@ class ModelTransformer(lark.Transformer):
                         item,
                         severity=Severity.WARNING
                     )
-                
+
                 if any(x in layer_type for x in ['lstm', 'gru', 'simplernn']) and 'flatten' in prev_type:
                     self.raise_validation_error(
                         f"Layer {i}: RNN layer after Flatten is unusual. RNN layers expect 3D input (batch, timesteps, features).",
                         item,
                         severity=Severity.WARNING
                     )
-                
+
                 if 'pool' in layer_type and 'flatten' in prev_type:
                     self.raise_validation_error(
                         f"Layer {i}: Pooling layer after Flatten is invalid. Pooling requires multi-dimensional input.",
                         item,
                         severity=Severity.ERROR
                     )
-                
+
                 if 'conv' in layer_type and 'flatten' in prev_type:
                     self.raise_validation_error(
                         f"Layer {i}: Convolutional layer after Flatten is invalid. Conv layers require multi-dimensional input.",
                         item,
                         severity=Severity.ERROR
                     )
-            
+
             if 'conv2d' in layer_type or 'maxpooling2d' in layer_type or 'averagepooling2d' in layer_type:
                 if i == 0:
                     pass
@@ -1074,9 +1074,9 @@ class ModelTransformer(lark.Transformer):
                                 item,
                                 severity=Severity.ERROR
                             )
-            
+
             prev_layer = layer
-        
+
         last_layer = layers[-1] if layers else None
         if last_layer and isinstance(last_layer, dict):
             last_type = last_layer['type'].lower() if isinstance(last_layer['type'], str) else ''
@@ -1259,14 +1259,14 @@ class ModelTransformer(lark.Transformer):
                 params = self._extract_value(items[1])
                 if not isinstance(params, list):
                     params = [params] if params else []
-        
+
         # Get layers (last item)
         layers = []
         if len(items) > 2:
             layers = self._extract_value(items[-1])
             if not isinstance(layers, list):
                 layers = [layers] if layers else []
-        
+
         self.macros[name] = {
             'params': params,
             'layers': layers
@@ -1277,7 +1277,7 @@ class ModelTransformer(lark.Transformer):
         """Process a macro invocation."""
         name = items[0].value
         args = {}
-        
+
         if len(items) > 1 and items[1] is not None:
             arg_values = self._extract_value(items[1])
             if isinstance(arg_values, list):
@@ -1286,7 +1286,7 @@ class ModelTransformer(lark.Transformer):
                         args.update(arg)
             elif isinstance(arg_values, dict):
                 args = arg_values
-        
+
         # Check if macro is defined
         if name not in self.macros:
             # Treat as custom layer if not a defined macro
@@ -1295,7 +1295,7 @@ class ModelTransformer(lark.Transformer):
                 'params': args,
                 'sublayers': []
             }
-        
+
         # Expand macro with parameters substituted
         macro = self.macros[name]
         # For now, just return the macro invocation
@@ -1329,18 +1329,18 @@ class ModelTransformer(lark.Transformer):
         """Process arithmetic expressions."""
         if len(items) == 1:
             return self._extract_value(items[0])
-        
+
         # Simple left-to-right evaluation
         result = self._extract_value(items[0])
         for i in range(1, len(items), 2):
             op = items[i]
             right = self._extract_value(items[i + 1])
-            
+
             if isinstance(op, Token):
                 op_str = op.value
             else:
                 op_str = str(op)
-            
+
             if op_str == '/':
                 result = result / right
             elif op_str == '*':
@@ -1349,7 +1349,7 @@ class ModelTransformer(lark.Transformer):
                 result = result + right
             elif op_str == '-':
                 result = result - right
-        
+
         return result
 
     def start(self, items: List[Any]) -> Any:
@@ -1409,7 +1409,7 @@ class ModelTransformer(lark.Transformer):
                 # Preserve None for params when a layer legitimately has no params
                 if 'params' not in layer_info:
                     layer_info['params'] = {}
-                
+
                 # Store device in params dict for compatibility with tests
                 if device is not None:
                     if layer_info['params'] is None:
@@ -1463,7 +1463,7 @@ class ModelTransformer(lark.Transformer):
             return self._extract_value(items[0])
         # Fallback: nothing usable
         return None
-    
+
     def params(self, items: List[Any]) -> List[Any]:
         return [self._extract_value(item) for item in items]
     def param(self, items: List[Any]) -> Any:
@@ -1529,7 +1529,7 @@ class ModelTransformer(lark.Transformer):
                 shape = shape[0]
             result[name] = shape
             i += 2
-        
+
         if len(result) > 10:
             self.raise_validation_error(
                 f"Too many named inputs: {len(result)} (max 10 supported). "
@@ -1537,7 +1537,7 @@ class ModelTransformer(lark.Transformer):
                 name_token if items else None,
                 severity=Severity.WARNING
             )
-        
+
         return result
 
     def flatten(self, items: List[Any]) -> LayerConfig:
@@ -1674,7 +1674,7 @@ class ModelTransformer(lark.Transformer):
         ordered_params = []
         named_params = {}
         hpo_count = 0
-        
+
         if isinstance(param_values, list):
             for val in param_values:
                 if isinstance(val, dict):
@@ -1745,7 +1745,7 @@ class ModelTransformer(lark.Transformer):
 
         if 'activation' in params:
             activation = params['activation']
-            
+
             if isinstance(activation, dict) and 'hpo' in activation:
                 self._track_hpo('Dense', 'activation', activation, items[0])
             else:
@@ -1757,7 +1757,7 @@ class ModelTransformer(lark.Transformer):
                     else:
                         activation = self._extract_value(activation)
                     params['activation'] = activation
-                
+
                 # Handle potential extra quotes if it's a string
                 if isinstance(activation, str):
                     activation = activation.strip("'").strip('"')
@@ -1790,7 +1790,7 @@ class ModelTransformer(lark.Transformer):
                 is_valid = any(device.startswith(prefix) for prefix in valid_device_prefixes)
                 if not is_valid:
                     self.raise_validation_error(f"Invalid device specification: '{device}'. Valid devices are: {', '.join(valid_device_prefixes)}", device_node)
-        
+
         result = {"type": "Dense", "params": params, 'sublayers': []}
         if device is not None:
             result['device'] = device
@@ -1922,7 +1922,7 @@ class ModelTransformer(lark.Transformer):
                 is_valid = any(device.startswith(prefix) for prefix in valid_device_prefixes)
                 if not is_valid:
                     self.raise_validation_error(f"Invalid device specification: '{device}'. Valid devices are: {', '.join(valid_device_prefixes)}", device_node)
-        
+
         result = {'type': 'Conv2D', 'params': params, 'sublayers': []}  # 'sublayers' added by basic_layer
         if device is not None:
             result['device'] = device
@@ -1977,13 +1977,13 @@ class ModelTransformer(lark.Transformer):
         opt_node = items[0]
         opt_value = self._extract_value(opt_node)
         logger.debug(f"named_optimizer opt_value={opt_value} type={type(opt_value)}")
-        
+
         # If opt_value is a dict (e.g. from HPO), extract the name if possible or skip validation
         if isinstance(opt_value, str):
             self._validate_optimizer(opt_value, opt_node)
         elif isinstance(opt_value, dict) and 'name' in opt_value:
              self._validate_optimizer(opt_value['name'], opt_node)
-            
+
         logger.debug(f"opt_value: {opt_value}")
 
         params = {}
@@ -2160,7 +2160,7 @@ class ModelTransformer(lark.Transformer):
         """
         optimizer_type = str(items[0]).strip('"')
         self._validate_optimizer(optimizer_type, items[0])
-        
+
         params: Dict[str, Any] = {}
 
         # Merge parameters if provided (items[1] may be dict or list)
@@ -2191,17 +2191,17 @@ class ModelTransformer(lark.Transformer):
         """Process ExponentialDecay learning rate schedule."""
         logger.debug(f"exponential_decay items: {items}")
         params = {}
-        
+
         # items is a list of [initial_learning_rate, decay_steps, decay_rate]
         # or [TOKEN, initial, decay_steps, decay_rate]
-        
+
         args = items
         if args and (isinstance(args[0], str) and args[0] == 'ExponentialDecay' or hasattr(args[0], 'type') and args[0].type == 'EXPONENTIALDECAY'):
              args = args[1:]
-        
+
         if args:
             if len(args) >= 1:
-                params['initial_learning_rate'] = args[0] 
+                params['initial_learning_rate'] = args[0]
             if len(args) >= 2:
                 params['decay_steps'] = args[1]
             if len(args) >= 3:
@@ -2456,7 +2456,7 @@ class ModelTransformer(lark.Transformer):
                 is_valid = any(device.startswith(prefix) for prefix in valid_device_prefixes)
                 if not is_valid:
                     self.raise_validation_error(f"Invalid device specification: '{device}'. Valid devices are: {', '.join(valid_device_prefixes)}", device_node)
-        
+
         result = {'type': 'MaxPooling2D', 'params': params, 'sublayers': []}
         if device is not None:
             result['device'] = device
@@ -3267,11 +3267,11 @@ class ModelTransformer(lark.Transformer):
             self.raise_validation_error("Network must have an input section", items[0], Severity.ERROR)
         if layers is None:
             self.raise_validation_error("Network must have a layers section", items[0], Severity.ERROR)
-        
+
         # Validate layers is not empty
         if isinstance(layers, list) and len(layers) == 0:
             self.raise_validation_error("Layers section cannot be empty", items[0], Severity.ERROR)
-        
+
         # Validate multiple input specs (tuple of tuples) are not allowed
         if isinstance(input, tuple) and len(input) > 0:
             # Check if it's a tuple of tuples (multiple inputs)
@@ -3283,7 +3283,7 @@ class ModelTransformer(lark.Transformer):
         optimizer_config = None
         training_config = {}
         execution_config = None
-        
+
         # Track if we've seen input section (to detect duplicates)
         seen_input = False
 
@@ -3361,7 +3361,7 @@ class ModelTransformer(lark.Transformer):
 
         if execution_config:
             network_config['execution_config'] = execution_config
-        
+
         # Validate layer sequence compatibility
         if isinstance(layers, list):
             self._validate_layer_sequence(layers, items[0])
@@ -3370,11 +3370,11 @@ class ModelTransformer(lark.Transformer):
         try:
             from neural.shape_propagation.shape_propagator import ShapePropagator
             propagator = ShapePropagator()
-            
+
             # Extract input shape
             input_config = network_config['input']
             input_shape = None
-            
+
             if isinstance(input_config, dict):
                 if 'shape' in input_config:
                     input_shape = input_config['shape']
@@ -3384,7 +3384,7 @@ class ModelTransformer(lark.Transformer):
                     first_val = next(iter(input_config.values()))
                     if isinstance(first_val, dict) and 'shape' in first_val:
                         input_shape = first_val['shape']
-            
+
             if input_shape is None:
                 # Fallback or error
                 input_shape = input_config
@@ -3392,22 +3392,22 @@ class ModelTransformer(lark.Transformer):
             # Ensure input_shape is a tuple
             if isinstance(input_shape, list):
                 input_shape = tuple(input_shape)
-            
+
             # Ensure batch dimension exists for 3D inputs (e.g. image (H,W,C) -> (None,H,W,C))
             if input_shape and len(input_shape) == 3:
                  input_shape = (None,) + input_shape
-            
+
             # Propagate shapes
             current_shape = input_shape
             for layer in network_config['layers']:
                 current_shape = propagator.propagate(current_shape, layer)
-                
+
         except ImportError:
             pass # Skip if shape propagation module is not available
         except ValueError as e:
             # Catch validation errors from ShapePropagator and raise DSLValidationError
             msg = str(e)
-            
+
             if "Dense layer expects 2D input" in msg:
                  # Check if Conv2D is present to satisfy specific test expectation
                  layer_types = [l.get('type') for l in network_config.get('layers', [])]
@@ -3707,7 +3707,7 @@ class ModelTransformer(lark.Transformer):
     def attention(self, items: List[Any]) -> Dict[str, Any]:
         params = self._extract_value(items[0]) if items and items[0] is not None else None
         sub_layers = []
-        
+
         if len(items) > 1 and items[1] is not None:
             extracted_sublayers = self._extract_value(items[1])
             if extracted_sublayers is not None:
@@ -3715,7 +3715,7 @@ class ModelTransformer(lark.Transformer):
                     sub_layers = extracted_sublayers
                 else:
                     sub_layers = [extracted_sublayers]
-        
+
         return {'type': 'Attention', 'params': params, 'sublayers': sub_layers}
 
 
@@ -3819,7 +3819,7 @@ class ModelTransformer(lark.Transformer):
         """Helper method to process transformer parameters."""
         params = {}
         sub_layers = []
-        
+
         if items and items[0] is not None:
             raw_params = self._extract_value(items[0])
             if isinstance(raw_params, list):
@@ -3828,12 +3828,12 @@ class ModelTransformer(lark.Transformer):
                         params.update(param)
             elif isinstance(raw_params, dict):
                 params = raw_params
-        
+
         if len(items) > 1 and items[1] is not None:
             sub_layers = self._extract_value(items[1])
             if not isinstance(sub_layers, list):
                 sub_layers = [sub_layers] if sub_layers else []
-        
+
         for key in ['num_heads', 'ff_dim']:
             if key in params:
                 val = params[key]
@@ -3841,14 +3841,14 @@ class ModelTransformer(lark.Transformer):
                     continue
                 if not isinstance(val, int) or val <= 0:
                     self.raise_validation_error(f"{transformer_type} {key} must be a positive integer, got {val}", items[0] if items else None)
-        
+
         return {'type': transformer_type, 'params': params, 'sublayers': sub_layers}
-    
+
     def transformer_encoder(self, items):
         """Process TransformerEncoder layer."""
         items = self._shift_if_token(items)
         return self._process_transformer_params(items, 'TransformerEncoder')
-    
+
     def transformer_decoder(self, items):
         """Process TransformerDecoder layer."""
         items = self._shift_if_token(items)
@@ -3871,7 +3871,7 @@ class ModelTransformer(lark.Transformer):
             # Called from basic_layer
             transformer_type = 'Transformer'
             param_idx = 0
-        
+
         params = {}
         sub_layers = []
 
@@ -3907,20 +3907,20 @@ class ModelTransformer(lark.Transformer):
         items = self._shift_if_token(items)
         params: Dict[str, Any] = {}
         sub_layers = []
-        
+
         if not items or items[0] is None:
             return {'type': 'MultiHeadAttention', 'params': {}, 'sublayers': []}
-        
+
         param_node = items[0]
         param_values = self._extract_value(param_node) if param_node else []
-        
+
         if isinstance(param_values, list):
             for param in param_values:
                 if isinstance(param, dict):
                     params.update(param)
         elif isinstance(param_values, dict):
             params = param_values
-        
+
         if len(items) > 1 and items[1] is not None:
             extracted_sublayers = self._extract_value(items[1])
             if extracted_sublayers is not None:
@@ -3928,7 +3928,7 @@ class ModelTransformer(lark.Transformer):
                     sub_layers = extracted_sublayers
                 else:
                     sub_layers = [extracted_sublayers]
-        
+
         for key in ['num_heads', 'key_dim']:
             if key in params:
                 val = params[key]
@@ -3936,7 +3936,7 @@ class ModelTransformer(lark.Transformer):
                     continue
                 if not isinstance(val, int) or val <= 0:
                     self.raise_validation_error(f"MultiHeadAttention {key} must be a positive integer, got {val}", items[0] if items else None)
-        
+
         return {'type': 'MultiHeadAttention', 'params': params, 'sublayers': sub_layers}
 
     def named_num_heads(self, items):
@@ -3965,7 +3965,7 @@ class ModelTransformer(lark.Transformer):
         """
         items = self._shift_if_token(items)
         params = self._extract_value(items[0]) if items and items[0] is not None else {}
-        
+
         # Handle case where params is a list of dicts
         if isinstance(params, list):
             merged_params = {}
@@ -3973,7 +3973,7 @@ class ModelTransformer(lark.Transformer):
                 if isinstance(param, dict):
                     merged_params.update(param)
             params = merged_params
-        
+
         if params is not None and isinstance(params, dict):
             for key in ['input_dim', 'output_dim']:
                 if key in params:
@@ -4056,7 +4056,7 @@ class ModelTransformer(lark.Transformer):
         raw_params = self._extract_value(items[0]) if items and items[0] is not None else None
         params = {}
         sub_layers = []
-        
+
         if isinstance(raw_params, list):
             for item in raw_params:
                 if isinstance(item, dict):
@@ -4065,7 +4065,7 @@ class ModelTransformer(lark.Transformer):
                     self.raise_validation_error("Invalid parameters for TimeDistributed", items[0])
         elif raw_params is not None:
             params = raw_params
-        
+
         if len(items) > 1 and items[1] is not None:
             extracted_sublayers = self._extract_value(items[1])
             if extracted_sublayers is not None:
@@ -4073,7 +4073,7 @@ class ModelTransformer(lark.Transformer):
                     sub_layers = extracted_sublayers
                 else:
                     sub_layers = [extracted_sublayers]
-        
+
         return {'type': 'TimeDistributed', 'params': params, 'sublayers': sub_layers}
 
 
@@ -4247,7 +4247,7 @@ class ModelTransformer(lark.Transformer):
         """
         if not isinstance(params, dict):
             return
-        
+
         for param_name, param_value in params.items():
             if isinstance(param_value, dict):
                 if 'hpo' in param_value:
@@ -4628,38 +4628,38 @@ class ModelTransformer(lark.Transformer):
         """
         if not isinstance(hpo_data, dict):
             return
-        
+
         hpo_type = hpo_data.get('type')
-        
+
         if hpo_type == 'categorical':
             # Validate all values in choice
             values = hpo_data.get('values', [])
             if not values:
                 self.raise_validation_error("HPO choice must contain at least one value", node)
-            
+
             # Recursively validate nested HPO expressions
             for value in values:
                 if isinstance(value, dict) and 'hpo' in value:
                     self._validate_hpo_structure(value['hpo'], node)
-        
+
         elif hpo_type == 'range':
             # Validate range bounds
             start = hpo_data.get('start')
             end = hpo_data.get('end')
             step = hpo_data.get('step')
-            
+
             if start is None or end is None:
                 self.raise_validation_error("Range HPO must have start and end values", node)
-            
+
             if not isinstance(start, (int, float)):
                 self.raise_validation_error(f"Range start must be a number, got {type(start).__name__}", node)
-            
+
             if not isinstance(end, (int, float)):
                 self.raise_validation_error(f"Range end must be a number, got {type(end).__name__}", node)
-            
+
             if end <= start:
                 self.raise_validation_error(f"Range end ({end}) must be greater than start ({start})", node)
-            
+
             # Validate step if provided (not False or None)
             if step is not None and step is not False:
                 if not isinstance(step, (int, float)):
@@ -4668,7 +4668,7 @@ class ModelTransformer(lark.Transformer):
                     self.raise_validation_error(f"Range step must be positive, got {step}", node)
                 if step >= (end - start):
                     self.raise_validation_error(f"Range step ({step}) must be less than range size ({end - start})", node)
-        
+
         elif hpo_type == 'log_range':
             # Validate log_range bounds
             start_val = hpo_data.get('start')
@@ -4678,26 +4678,26 @@ class ModelTransformer(lark.Transformer):
                 start_val = hpo_data.get('min')
             if end_val is None:
                 end_val = hpo_data.get('max')
-            
+
             if start_val is None or end_val is None:
                 self.raise_validation_error("Log range HPO must have start and end values", node)
-            
+
             if not isinstance(start_val, (int, float)):
                 self.raise_validation_error(f"Log range start must be a number, got {type(start_val).__name__}", node)
-            
+
             if not isinstance(end_val, (int, float)):
                 self.raise_validation_error(f"Log range end must be a number, got {type(end_val).__name__}", node)
-            
+
             if start_val <= 0:
                 self.raise_validation_error(f"Log range start ({start_val}) must be positive", node)
-            
+
             if end_val <= start_val:
                 self.raise_validation_error(f"Log range end ({end_val}) must be greater than start ({start_val})", node)
 
     def hpo_choice(self, items: List[Any]) -> Dict[str, Any]:
         values: List[Any] = []
         value_types: Set[str] = set()
-        
+
         if not items:
             self.raise_validation_error("HPO choice cannot be empty", None)
 
@@ -4743,7 +4743,7 @@ class ModelTransformer(lark.Transformer):
         # Validate that start and end are numbers
         if not isinstance(start, (int, float)):
             self.raise_validation_error(f"Range start must be a number, got {type(start).__name__}", items[0])
-        
+
         if not isinstance(end, (int, float)):
             self.raise_validation_error(f"Range end must be a number, got {type(end).__name__}", items[1])
 
@@ -4770,7 +4770,7 @@ class ModelTransformer(lark.Transformer):
         # Validate that start and end are numbers
         if not isinstance(start_val, (int, float)):
             self.raise_validation_error(f"Log range start must be a number, got {type(start_val).__name__}", items[0])
-        
+
         if not isinstance(end_val, (int, float)):
             self.raise_validation_error(f"Log range end must be a number, got {type(end_val).__name__}", items[1])
 
@@ -4785,16 +4785,16 @@ class ModelTransformer(lark.Transformer):
 
     def layer_choice(self, items):
         options = [self._extract_value(item) for item in items]
-        
+
         # Validate that we have at least one layer option
         if not options:
             self.raise_validation_error("Layer choice HPO must contain at least one layer", items[0] if items else None)
-        
+
         # Validate that all options are valid layer definitions
         for option in options:
             if not isinstance(option, dict) or 'type' not in option:
                 self.raise_validation_error(f"Invalid layer in choice: {option}", items[0] if items else None)
-        
+
         return {"hpo_type": "layer_choice", "options": options}
 
     ######
@@ -4833,11 +4833,11 @@ class ModelTransformer(lark.Transformer):
                     parser_error = ErrorHandler.handle_unexpected_token(e, config)
                 else:
                     parser_error = ErrorHandler.handle_unexpected_char(e, config)
-                
+
                 # Format and log the enhanced error
                 formatted_error = ErrorHandler.format_error(parser_error)
                 log_by_severity(Severity.ERROR, formatted_error)
-                
+
                 # Raise with enhanced message
                 raise DSLValidationError(parser_error.message, Severity.ERROR, parser_error.line, parser_error.column)
             except Exception as e:

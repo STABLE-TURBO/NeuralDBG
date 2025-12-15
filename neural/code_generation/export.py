@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class ModelExporter:
     """Handles model export to various deployment formats."""
-    
+
     def __init__(self, model_data: Dict[str, Any], backend: str = 'tensorflow'):
         """
         Initialize the ModelExporter.
@@ -29,7 +29,7 @@ class ModelExporter:
         """
         self.model_data = model_data
         self.backend = backend
-    
+
     def export_onnx(
         self,
         output_path: str = 'model.onnx',
@@ -66,7 +66,7 @@ class ModelExporter:
             )
         else:
             raise ValueError(f"Unsupported backend: {self.backend}")
-    
+
     def _export_tensorflow_to_onnx(
         self,
         output_path: str,
@@ -78,18 +78,19 @@ class ModelExporter:
         try:
             import tensorflow as tf
             import tf2onnx
-            
+
             from neural.code_generation.code_generator import generate_code
-            
+
             code = generate_code(self.model_data, 'tensorflow')
-            
+
+            temp_model_path = 'temp_tf_model'
             exec_globals = {}
             exec(code, exec_globals)
             model = exec_globals.get('model')
-            
+
             if model is None:
                 raise ValueError("Failed to extract model from generated code")
-            
+
             input_signature = [
                 tf.TensorSpec(
                     shape=(None,) + tuple(self.model_data['input']['shape']),
@@ -97,23 +98,23 @@ class ModelExporter:
                     name='input'
                 )
             ]
-            
+
             model_proto, _ = tf2onnx.convert.from_keras(
                 model,
                 input_signature=input_signature,
                 opset=opset_version,
                 output_path=output_path
             )
-            
+
             if optimize:
                 model_proto = self._optimize_onnx_model(model_proto)
-            
+
             import onnx
             onnx.save(model_proto, output_path)
-            
+
             logger.info(f"TensorFlow model exported to ONNX: {output_path}")
             return output_path
-            
+
         except ImportError as e:
             logger.error(f"Required dependency not found: {e}")
             raise DependencyError(
@@ -121,7 +122,7 @@ class ModelExporter:
                 feature="TensorFlow to ONNX conversion",
                 install_hint="pip install tf2onnx"
             )
-    
+
     def _export_pytorch_to_onnx(
         self,
         output_path: str,
@@ -132,29 +133,29 @@ class ModelExporter:
         """Export PyTorch model to ONNX."""
         try:
             import torch
-            
+
             from neural.code_generation.code_generator import generate_code
-            
+
             code = generate_code(self.model_data, 'pytorch')
-            
+
             exec_globals = {}
             exec(code, exec_globals)
             model = exec_globals.get('model')
-            
+
             if model is None:
                 raise ValueError("Failed to extract model from generated code")
-            
+
             model.eval()
-            
+
             input_shape = (1,) + tuple(self.model_data['input']['shape'])
             dummy_input = torch.randn(input_shape)
-            
+
             if dynamic_axes is None:
                 dynamic_axes = {
                     'input': {0: 'batch_size'},
                     'output': {0: 'batch_size'}
                 }
-            
+
             torch.onnx.export(
                 model,
                 dummy_input,
@@ -166,28 +167,28 @@ class ModelExporter:
                 output_names=['output'],
                 dynamic_axes=dynamic_axes
             )
-            
+
             if optimize:
                 import onnx
                 model_proto = onnx.load(output_path)
                 model_proto = self._optimize_onnx_model(model_proto)
                 onnx.save(model_proto, output_path)
-            
+
             logger.info(f"PyTorch model exported to ONNX: {output_path}")
             return output_path
-            
+
         except ImportError as e:
             logger.error(f"Required dependency not found: {e}")
             raise ImportError(
                 "PyTorch is required for PyTorch to ONNX conversion. "
                 "Install with: pip install torch"
             )
-    
+
     def _optimize_onnx_model(self, model_proto):
         """Apply optimization passes to ONNX model."""
         try:
             from onnx import optimizer
-            
+
             passes = [
                 'eliminate_identity',
                 'eliminate_nop_pad',
@@ -200,15 +201,15 @@ class ModelExporter:
                 'fuse_pad_into_conv',
                 'fuse_transpose_into_gemm'
             ]
-            
+
             optimized_model = optimizer.optimize(model_proto, passes)
             logger.info("ONNX model optimized successfully")
             return optimized_model
-            
+
         except Exception as e:
             logger.warning(f"ONNX optimization failed: {e}, returning original model")
             return model_proto
-    
+
     def export_tflite(
         self,
         output_path: str = 'model.tflite',
@@ -237,20 +238,20 @@ class ModelExporter:
         """
         try:
             import tensorflow as tf
-            
+
             from neural.code_generation.code_generator import generate_code
-            
+
             code = generate_code(self.model_data, 'tensorflow')
-            
+
             exec_globals = {}
             exec(code, exec_globals)
             model = exec_globals.get('model')
-            
+
             if model is None:
                 raise ValueError("Failed to extract model from generated code")
-            
+
             converter = tf.lite.TFLiteConverter.from_keras_model(model)
-            
+
             if quantize:
                 if quantization_type == 'int8':
                     converter.optimizations = [tf.lite.Optimize.DEFAULT]
@@ -266,22 +267,22 @@ class ModelExporter:
                     converter.target_spec.supported_types = [tf.float16]
                 elif quantization_type == 'dynamic':
                     converter.optimizations = [tf.lite.Optimize.DEFAULT]
-            
+
             tflite_model = converter.convert()
-            
+
             with open(output_path, 'wb') as f:
                 f.write(tflite_model)
-            
+
             logger.info(f"TensorFlow Lite model exported: {output_path}")
             return output_path
-            
+
         except ImportError as e:
             logger.error(f"TensorFlow is required for TFLite export: {e}")
             raise ImportError(
                 "TensorFlow is required for TFLite conversion. "
                 "Install with: pip install tensorflow"
             )
-    
+
     def export_torchscript(
         self,
         output_path: str = 'model.pt',
@@ -304,42 +305,42 @@ class ModelExporter:
         """
         try:
             import torch
-            
+
             from neural.code_generation.code_generator import generate_code
-            
+
             code = generate_code(self.model_data, 'pytorch')
-            
+
             exec_globals = {}
             exec(code, exec_globals)
             model = exec_globals.get('model')
-            
+
             if model is None:
                 raise ValueError("Failed to extract model from generated code")
-            
+
             model.eval()
-            
+
             input_shape = (1,) + tuple(self.model_data['input']['shape'])
             dummy_input = torch.randn(input_shape)
-            
+
             if method == 'trace':
                 traced_model = torch.jit.trace(model, dummy_input)
             elif method == 'script':
                 traced_model = torch.jit.script(model)
             else:
                 raise ValueError(f"Unknown method: {method}. Use 'trace' or 'script'")
-            
+
             traced_model.save(output_path)
-            
+
             logger.info(f"TorchScript model exported: {output_path}")
             return output_path
-            
+
         except ImportError as e:
             logger.error(f"PyTorch is required for TorchScript export: {e}")
             raise ImportError(
                 "PyTorch is required for TorchScript conversion. "
                 "Install with: pip install torch"
             )
-    
+
     def export_savedmodel(
         self,
         output_path: str = 'saved_model'
@@ -359,30 +360,30 @@ class ModelExporter:
         """
         try:
             import tensorflow as tf
-            
+
             from neural.code_generation.code_generator import generate_code
-            
+
             code = generate_code(self.model_data, 'tensorflow')
-            
+
             exec_globals = {}
             exec(code, exec_globals)
             model = exec_globals.get('model')
-            
+
             if model is None:
                 raise ValueError("Failed to extract model from generated code")
-            
+
             tf.saved_model.save(model, output_path)
-            
+
             logger.info(f"SavedModel exported: {output_path}")
             return output_path
-            
+
         except ImportError as e:
             logger.error(f"TensorFlow is required for SavedModel export: {e}")
             raise ImportError(
                 "TensorFlow is required for SavedModel conversion. "
                 "Install with: pip install tensorflow"
             )
-    
+
     def create_torchserve_config(
         self,
         model_path: str,
@@ -416,7 +417,7 @@ class ModelExporter:
             Paths to config.properties and model-store directory
         """
         os.makedirs(output_dir, exist_ok=True)
-        
+
         config_path = os.path.join(output_dir, 'config.properties')
         config_content = f"""inference_address=http://0.0.0.0:8080
 management_address=http://0.0.0.0:8081
@@ -426,16 +427,16 @@ job_queue_size=100
 model_store={os.path.join(output_dir, 'model-store')}
 model_snapshot={{"name":"startup.cfg","modelCount":1,"models":{{"{model_name}":{{"1.0":{{"defaultVersion":true,"marName":"{model_name}.mar","minWorkers":1,"maxWorkers":4,"batchSize":{batch_size},"maxBatchDelay":{max_batch_delay},"responseTimeout":120}}}}}}}}
 """
-        
+
         with open(config_path, 'w') as f:
             f.write(config_content)
-        
+
         model_store_dir = os.path.join(output_dir, 'model-store')
         os.makedirs(model_store_dir, exist_ok=True)
-        
+
         logger.info(f"TorchServe config created: {config_path}")
         return config_path, model_store_dir
-    
+
     def create_tfserving_config(
         self,
         model_path: str,
@@ -463,7 +464,7 @@ model_snapshot={{"name":"startup.cfg","modelCount":1,"models":{{"{model_name}":{
             Path to the config file
         """
         os.makedirs(output_dir, exist_ok=True)
-        
+
         model_config_list = {
             "model_config_list": [
                 {
@@ -478,24 +479,24 @@ model_snapshot={{"name":"startup.cfg","modelCount":1,"models":{{"{model_name}":{
                 }
             ]
         }
-        
+
         versioned_model_dir = os.path.join(output_dir, model_name, str(version))
         os.makedirs(versioned_model_dir, exist_ok=True)
-        
+
         import shutil
         if os.path.exists(model_path):
             if os.path.isdir(model_path):
                 shutil.copytree(model_path, versioned_model_dir, dirs_exist_ok=True)
             else:
                 shutil.copy(model_path, versioned_model_dir)
-        
+
         config_path = os.path.join(output_dir, 'models.config')
         with open(config_path, 'w') as f:
             json.dump(model_config_list, f, indent=2)
-        
+
         logger.info(f"TensorFlow Serving config created: {config_path}")
         return config_path
-    
+
     def generate_deployment_scripts(
         self,
         output_dir: str = '.',
@@ -518,20 +519,20 @@ model_snapshot={{"name":"startup.cfg","modelCount":1,"models":{{"{model_name}":{
         """
         os.makedirs(output_dir, exist_ok=True)
         scripts = []
-        
+
         if deployment_type == 'torchserve':
             scripts.extend(self._generate_torchserve_scripts(output_dir))
         elif deployment_type == 'tfserving':
             scripts.extend(self._generate_tfserving_scripts(output_dir))
         else:
             raise ValueError(f"Unknown deployment type: {deployment_type}")
-        
+
         return scripts
-    
+
     def _generate_torchserve_scripts(self, output_dir: str) -> List[str]:
         """Generate TorchServe deployment scripts."""
         scripts = []
-        
+
         start_script = os.path.join(output_dir, 'start_torchserve.sh')
         with open(start_script, 'w') as f:
             f.write("""#!/bin/bash
@@ -546,7 +547,7 @@ echo "TorchServe started. Access at http://localhost:8080"
 """)
         os.chmod(start_script, 0o755)
         scripts.append(start_script)
-        
+
         stop_script = os.path.join(output_dir, 'stop_torchserve.sh')
         with open(stop_script, 'w') as f:
             f.write("""#!/bin/bash
@@ -558,7 +559,7 @@ echo "TorchServe stopped"
 """)
         os.chmod(stop_script, 0o755)
         scripts.append(stop_script)
-        
+
         test_script = os.path.join(output_dir, 'test_inference.py')
         with open(test_script, 'w') as f:
             f.write("""import requests
@@ -584,14 +585,14 @@ if __name__ == "__main__":
     test_inference()
 """)
         scripts.append(test_script)
-        
+
         logger.info(f"TorchServe deployment scripts generated in {output_dir}")
         return scripts
-    
+
     def _generate_tfserving_scripts(self, output_dir: str) -> List[str]:
         """Generate TensorFlow Serving deployment scripts."""
         scripts = []
-        
+
         docker_compose = os.path.join(output_dir, 'docker-compose.yml')
         with open(docker_compose, 'w') as f:
             f.write("""version: '3'
@@ -608,7 +609,7 @@ services:
     command: ["--model_config_file=/models/models.config"]
 """)
         scripts.append(docker_compose)
-        
+
         start_script = os.path.join(output_dir, 'start_tfserving.sh')
         with open(start_script, 'w') as f:
             f.write("""#!/bin/bash
@@ -621,7 +622,7 @@ echo "gRPC API at localhost:8500"
 """)
         os.chmod(start_script, 0o755)
         scripts.append(start_script)
-        
+
         stop_script = os.path.join(output_dir, 'stop_tfserving.sh')
         with open(stop_script, 'w') as f:
             f.write("""#!/bin/bash
@@ -633,7 +634,7 @@ echo "TensorFlow Serving stopped"
 """)
         os.chmod(stop_script, 0o755)
         scripts.append(stop_script)
-        
+
         test_script = os.path.join(output_dir, 'test_inference.py')
         with open(test_script, 'w') as f:
             f.write("""import requests
@@ -663,6 +664,6 @@ if __name__ == "__main__":
     test_inference()
 """)
         scripts.append(test_script)
-        
+
         logger.info(f"TensorFlow Serving deployment scripts generated in {output_dir}")
         return scripts

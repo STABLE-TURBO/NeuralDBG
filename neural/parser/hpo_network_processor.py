@@ -19,12 +19,12 @@ def process_optimizer_hpo(optimizer_info: Any, track_hpo_fn: Callable) -> None:
     # Handle string-based optimizer with HPO expressions
     if isinstance(optimizer_info, str):
         hpo_utils.track_hpo_in_optimizer_string(optimizer_info, track_hpo_fn)
-    
+
     # Handle dictionary-based optimizer
     elif isinstance(optimizer_info, dict) and 'params' in optimizer_info:
         params = optimizer_info['params']
         hpo_utils.track_hpo_in_optimizer_params(params, track_hpo_fn)
-        
+
         # Process learning rate schedule strings
         if 'learning_rate' in params and isinstance(params['learning_rate'], str):
             lr_value = params['learning_rate']
@@ -41,7 +41,7 @@ def process_training_hpo(training_config: Dict[str, Any], track_hpo_fn: Callable
     """
     if not isinstance(training_config, dict):
         return
-    
+
     for param_name, param_value in training_config.items():
         if isinstance(param_value, dict) and 'hpo' in param_value:
             track_hpo_fn('training', param_name, param_value, None)
@@ -78,17 +78,17 @@ def collect_layer_hpo_params(layers: list, existing_hpo_params: list) -> list:
         Combined list of HPO parameters
     """
     layer_hpo = []
-    
+
     for layer in layers:
         if not isinstance(layer, dict):
             continue
-            
+
         layer_type = layer.get('type', 'Unknown')
         params = layer.get('params')
-        
+
         if not isinstance(params, dict):
             continue
-        
+
         # Check each parameter for HPO
         for param_name, param_value in params.items():
             if isinstance(param_value, dict) and 'hpo' in param_value:
@@ -107,7 +107,7 @@ def collect_layer_hpo_params(layers: list, existing_hpo_params: list) -> list:
                     for e in existing_hpo_params
                 ):
                     layer_hpo.append(hpo_entry)
-    
+
     return layer_hpo
 
 
@@ -121,11 +121,11 @@ def build_hpo_search_space(hpo_params: list) -> Dict[str, Any]:
         Dictionary representing the search space
     """
     search_space = {}
-    
+
     for param in hpo_params:
         path = param['path']
         hpo_config = param['hpo']
-        
+
         if hpo_config['type'] == 'range':
             search_space[path] = {
                 'type': 'uniform',
@@ -147,5 +147,5 @@ def build_hpo_search_space(hpo_params: list) -> Dict[str, Any]:
         else:
             # Unknown HPO type, store as-is
             search_space[path] = hpo_config
-    
+
     return search_space

@@ -17,7 +17,7 @@ def extract_ordered_and_named_params(param_values: Any) -> Tuple[List[Any], Dict
     """
     ordered_params = []
     named_params = {}
-    
+
     if isinstance(param_values, list):
         for val in param_values:
             if isinstance(val, dict):
@@ -37,7 +37,7 @@ def extract_ordered_and_named_params(param_values: Any) -> Tuple[List[Any], Dict
         named_params = param_values
     elif param_values is not None:
         ordered_params.append(param_values)
-        
+
     return ordered_params, named_params
 
 
@@ -55,16 +55,16 @@ def validate_positive_integer(value: Any, param_name: str, layer_type: str) -> T
     # Skip validation for HPO parameters
     if isinstance(value, dict) and 'hpo' in value:
         return True, None
-        
+
     if not isinstance(value, int):
         # Handle float that could be integer
         if isinstance(value, float) and value.is_integer():
             return True, None
         return False, f"{layer_type} {param_name} must be an integer, got {value}"
-    
+
     if value <= 0:
         return False, f"{layer_type} {param_name} must be positive, got {value}"
-        
+
     return True, None
 
 
@@ -82,13 +82,13 @@ def validate_positive_number(value: Any, param_name: str, layer_type: str) -> Tu
     # Skip validation for HPO parameters
     if isinstance(value, dict) and 'hpo' in value:
         return True, None
-        
+
     if not isinstance(value, (int, float)):
         return False, f"{layer_type} {param_name} must be a number, got {value}"
-    
+
     if value <= 0:
         return False, f"{layer_type} {param_name} must be positive, got {value}"
-        
+
     return True, None
 
 
@@ -105,7 +105,7 @@ def validate_kernel_size(kernel_size: Any, layer_type: str) -> Tuple[bool, Optio
     # Skip validation for HPO parameters
     if isinstance(kernel_size, dict) and 'hpo' in kernel_size:
         return True, None
-        
+
     if isinstance(kernel_size, (list, tuple)):
         if not all(isinstance(k, int) for k in kernel_size):
             return False, f"{layer_type} kernel_size must be integers, got {kernel_size}"
@@ -113,7 +113,7 @@ def validate_kernel_size(kernel_size: Any, layer_type: str) -> Tuple[bool, Optio
             return False, f"{layer_type} kernel_size should be positive integers, got {kernel_size}"
     elif not isinstance(kernel_size, int) or kernel_size <= 0:
         return False, f"{layer_type} kernel_size must be a positive integer, got {kernel_size}"
-        
+
     return True, None
 
 
@@ -130,13 +130,13 @@ def validate_pool_size(pool_size: Any, layer_type: str) -> Tuple[bool, Optional[
     # Skip validation for HPO parameters
     if isinstance(pool_size, dict) and 'hpo' in pool_size:
         return True, None
-        
+
     if isinstance(pool_size, (list, tuple)):
         if not all(isinstance(p, int) and p > 0 for p in pool_size):
             return False, f"{layer_type} pool_size must be positive integers, got {pool_size}"
     elif not isinstance(pool_size, int) or pool_size <= 0:
         return False, f"{layer_type} pool_size must be a positive integer, got {pool_size}"
-        
+
     return True, None
 
 
@@ -152,13 +152,13 @@ def validate_dropout_rate(rate: Any) -> Tuple[bool, Optional[str]]:
     # Skip validation for HPO parameters
     if isinstance(rate, dict) and 'hpo' in rate:
         return True, None
-        
+
     if not isinstance(rate, (int, float)):
         return False, f"Dropout rate must be a number, got {rate}"
-    
+
     if not 0 <= rate <= 1:
         return False, f"Dropout rate should be between 0 and 1, got {rate}"
-        
+
     return True, None
 
 
@@ -173,10 +173,10 @@ def validate_device_specification(device: str) -> Tuple[bool, Optional[str]]:
     """
     valid_device_prefixes = ['cpu', 'cuda', 'gpu', 'tpu', 'xla']
     is_valid = any(device.startswith(prefix) for prefix in valid_device_prefixes)
-    
+
     if not is_valid:
         return False, f"Invalid device specification: '{device}'. Valid devices are: {', '.join(valid_device_prefixes)}"
-        
+
     return True, None
 
 

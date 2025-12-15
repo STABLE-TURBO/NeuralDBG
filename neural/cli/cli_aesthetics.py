@@ -8,7 +8,6 @@ import sys
 import threading
 import time
 
-
 # Neural ASCII Logo
 NEURAL_LOGO = """
 ███╗   ██╗███████╗██╗   ██╗██████╗  █████╗ ██╗

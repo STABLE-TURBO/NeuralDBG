@@ -117,27 +117,27 @@ def sanitize_file_path(file_path: str, allow_absolute: bool = True) -> str:
     """
     if not file_path or not isinstance(file_path, str):
         raise ValueError("File path must be a non-empty string")
-    
+
     # Remove null bytes
     file_path = file_path.replace('\0', '')
-    
+
     # Normalize the path
     normalized = os.path.normpath(file_path)
-    
+
     # Check for path traversal attempts
     if '..' in normalized.split(os.sep):
         raise ValueError(f"Path traversal detected in: {file_path}")
-    
+
     # Check for absolute paths if not allowed
     if not allow_absolute and os.path.isabs(normalized):
         raise ValueError(f"Absolute paths not allowed: {file_path}")
-    
+
     # Check for suspicious patterns
     suspicious_patterns = [r'\.\./', r'\.\.$', r'^\.\.', r'~/', r'\$\{', r'%[A-Z_]+%']
     for pattern in suspicious_patterns:
         if re.search(pattern, file_path):
             raise ValueError(f"Suspicious pattern detected in path: {file_path}")
-    
+
     return normalized
 
 def validate_port(port: int, min_port: int = 1024, max_port: int = 65535) -> int:
@@ -158,12 +158,14 @@ def validate_port(port: int, min_port: int = 1024, max_port: int = 65535) -> int
     if not isinstance(port, int):
         try:
             port = int(port)
-        except (TypeError, ValueError):
-            raise ValueError(f"Port must be an integer, got: {type(port).__name__}")
-    
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"Port must be an integer, got: {type(port).__name__}"
+            ) from e
+
     if port < min_port or port > max_port:
         raise ValueError(f"Port must be between {min_port} and {max_port}, got: {port}")
-    
+
     return port
 
 def validate_backend(backend: str) -> str:
@@ -181,13 +183,13 @@ def validate_backend(backend: str) -> str:
     """
     if not backend or not isinstance(backend, str):
         raise ValueError("Backend must be a non-empty string")
-    
+
     backend = backend.lower().strip()
     valid_backends = {'tensorflow', 'pytorch', 'onnx', 'jax'}
-    
+
     if backend not in valid_backends:
         raise ValueError(f"Invalid backend '{backend}'. Supported: {', '.join(sorted(valid_backends))}")
-    
+
     return backend
 
 def validate_dataset_name(dataset: str) -> str:
@@ -205,18 +207,18 @@ def validate_dataset_name(dataset: str) -> str:
     """
     if not dataset or not isinstance(dataset, str):
         raise ValueError("Dataset name must be a non-empty string")
-    
+
     # Remove any potentially dangerous characters
     dataset = dataset.strip()
-    
+
     # Check for alphanumeric and basic separators only
     if not re.match(r'^[a-zA-Z0-9_-]+$', dataset):
         raise ValueError(f"Dataset name contains invalid characters: {dataset}")
-    
+
     # Check length
     if len(dataset) > 100:
         raise ValueError(f"Dataset name too long (max 100 characters): {dataset}")
-    
+
     return dataset
 
 # Global CLI context
@@ -372,7 +374,7 @@ def compile(ctx, file: str, backend: str, dataset: str, output: Optional[str], d
 def run(ctx, file: str, backend: str, dataset: str, hpo: bool, device: str):
     """Run a compiled model or optimize and run a .neural file."""
     print_command_header("run")
-    
+
     # Input validation
     try:
         file = sanitize_file_path(file)
@@ -381,7 +383,7 @@ def run(ctx, file: str, backend: str, dataset: str, hpo: bool, device: str):
     except ValueError as e:
         print_error(f"Invalid input: {str(e)}")
         sys.exit(1)
-    
+
     print_info(f"Running {file} with {backend} backend")
 
     # Set device mode
@@ -654,7 +656,7 @@ def clean(ctx, yes: bool, clean_all: bool):
 def debug(ctx: click.Context, file: str, gradients: bool, dead_neurons: bool, anomalies: bool, step: bool, backend: str, dataset: str, dashboard: bool, port: int) -> None:
     """Debug a neural network model with NeuralDbg."""
     print_command_header("debug")
-    
+
     # Input validation
     try:
         file = sanitize_file_path(file)
@@ -664,7 +666,7 @@ def debug(ctx: click.Context, file: str, gradients: bool, dead_neurons: bool, an
     except ValueError as e:
         print_error(f"Invalid input: {str(e)}")
         sys.exit(1)
-    
+
     print_info(f"Debugging {file} with NeuralDbg (backend: {backend})")
 
     ext = os.path.splitext(file)[1].lower()
@@ -831,13 +833,13 @@ def debug(ctx: click.Context, file: str, gradients: bool, dead_neurons: bool, an
 def server(ctx, host: str, port: int, no_browser: bool):
     """Start unified Neural DSL web server (dashboard only in v0.4.0)."""
     print_command_header("server")
-    
+
     try:
         from neural.dashboard import dashboard as dashboard_module
-        
+
         print_success(f"Server will start on http://{host}:{port}")
         print_info("Press Ctrl+C to stop the server")
-        
+
         if not no_browser and not ctx.obj.get('NO_ANIMATIONS'):
             print_info("Opening browser...")
             import threading
@@ -846,9 +848,9 @@ def server(ctx, host: str, port: int, no_browser: bool):
                 time.sleep(1.5)
                 webbrowser.open(f"http://{host}:{port}")
             threading.Thread(target=open_browser, daemon=True).start()
-        
+
         dashboard_module.app.run_server(debug=False, host=host, port=port)
-        
+
     except ImportError as e:
         print_error(f"Server dependencies not installed: {e}")
         print_info("Install with: pip install -e \".[dashboard]\"")

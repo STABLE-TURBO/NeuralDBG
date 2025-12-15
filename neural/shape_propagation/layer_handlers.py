@@ -7,8 +7,8 @@ output shapes based on input shapes and layer parameters.
 
 from typing import Any, Dict, List, Tuple
 
-from .utils import calculate_output_dims, extract_param
 
+from .utils import calculate_output_dims, extract_param
 
 def handle_conv1d(input_shape: Tuple[int, ...],
                  params: Dict[str, Any]) -> Tuple[int, ...]:
@@ -201,7 +201,7 @@ def handle_concatenate(input_shapes: List[Tuple[int, ...]],
             has_none = True
         else:
             concat_dim += shape[axis]
-    
+
     # If any input has None at concat axis, output is None
     if has_none:
         concat_dim = None
@@ -229,7 +229,7 @@ def handle_add(input_shapes: List[Tuple[int, ...]],
     # For addition with broadcasting, we need to find the output shape
     # Start with first shape
     output_shape = list(input_shapes[0])
-    
+
     # Check all other shapes for compatibility
     for shape in input_shapes[1:]:
         # Shapes must be broadcastable
@@ -237,11 +237,11 @@ def handle_add(input_shapes: List[Tuple[int, ...]],
             # Different ranks - would need complex broadcasting logic
             # For now, require same rank
             return input_shapes[0]
-        
+
         # Check each dimension
         for i in range(len(shape)):
             dim1, dim2 = output_shape[i], shape[i]
-            
+
             # Handle None (batch) dimensions
             if dim1 is None or dim2 is None:
                 output_shape[i] = None
@@ -325,7 +325,7 @@ def handle_reshape(input_shape: Tuple[int, ...],
         for i, dim in enumerate(target_shape):
             if i != neg_one_index and dim is not None and dim != -1:
                 other_elements *= dim
-        
+
         target_shape_list = list(target_shape)
         if other_elements > 0:
             target_shape_list[neg_one_index] = input_elements // other_elements

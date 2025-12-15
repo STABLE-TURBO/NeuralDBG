@@ -45,14 +45,14 @@ class DSLValidationError(Exception):
         column: The column number where the error occurred
         message: The raw error message
     """
-    
-    def __init__(self, message: str, severity: Severity = Severity.ERROR, 
+
+    def __init__(self, message: str, severity: Severity = Severity.ERROR,
                  line: Optional[int] = None, column: Optional[int] = None):
         self.severity = severity
         self.line = line
         self.column = column
         self.message = message
-        
+
         if line and column:
             super().__init__(f"{severity.name} at line {line}, column {column}: {message}")
         else:
@@ -99,7 +99,7 @@ def custom_error_handler(error: Exception) -> Dict[str, Any]:
         severity = Severity.ERROR
         line = getattr(error, 'line', None)
         column = getattr(error, 'column', None)
-    
+
     log_by_severity(severity, msg)
     if severity.value >= Severity.ERROR.value:
         raise DSLValidationError(msg, severity, line, column)
@@ -120,13 +120,13 @@ def safe_parse(parser: lark.Lark, text: str) -> Dict[str, Any]:
         DSLValidationError: If parsing fails
     """
     warnings = []
-    
+
     # Tokenize and log
     logger.debug("Token stream:")
     tokens = list(parser.lex(text))
     for token in tokens:
         logger.debug(f"Token: {token.type}('{token.value}') at line {token.line}, column {token.column}")
-    
+
     try:
         tree = parser.parse(text)
         logger.debug("Parse successful, tree generated.")
@@ -137,10 +137,10 @@ def safe_parse(parser: lark.Lark, text: str) -> Dict[str, Any]:
             parser_error = ErrorHandler.handle_unexpected_token(e, text)
         else:
             parser_error = ErrorHandler.handle_unexpected_char(e, text)
-        
+
         formatted_error = ErrorHandler.format_error(parser_error)
         log_by_severity(Severity.ERROR, formatted_error)
-        raise DSLValidationError(parser_error.message, Severity.ERROR, 
+        raise DSLValidationError(parser_error.message, Severity.ERROR,
                                 parser_error.line, parser_error.column)
     except DSLValidationError:
         raise
@@ -161,7 +161,7 @@ def split_params(s: str) -> List[str]:
     parts = []
     current = []
     depth = 0
-    
+
     for c in s:
         if c == '(':
             depth += 1
@@ -172,8 +172,8 @@ def split_params(s: str) -> List[str]:
             current = []
         else:
             current.append(c)
-            
+
     if current:
         parts.append(''.join(current).strip())
-        
+
     return parts

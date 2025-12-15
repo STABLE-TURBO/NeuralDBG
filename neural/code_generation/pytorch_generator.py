@@ -20,7 +20,7 @@ class PyTorchGenerator(BaseCodeGenerator):
         expanded_layers = self.expand_layers()
         optimizer_config = self.model_data.get('optimizer', {'type': 'Adam'})
         optimizer_type = optimizer_config['type'] if isinstance(optimizer_config, dict) else optimizer_config
-        
+
         code = "import logging\nimport torch\nimport torch.nn as nn\nimport torch.optim as optim\nimport torchvision.transforms as transforms\nimport math\n"
         code += "from torchvision import datasets\n"
         code += "from torch.utils.data import DataLoader\n"
@@ -31,7 +31,7 @@ class PyTorchGenerator(BaseCodeGenerator):
         code += "experiment_manager = ExperimentManager()\n"
         code += "experiment = experiment_manager.create_experiment()\n"
         code += "experiment.log_hyperparameters({'optimizer': '" + optimizer_type + "', 'backend': 'pytorch'})\n\n"
-        
+
         needs_positional_encoding = any(layer.get('type') == 'PositionalEncoding' for layer in expanded_layers)
         if needs_positional_encoding:
             code += "# Sinusoidal Positional Encoding\n"
@@ -60,7 +60,7 @@ class PyTorchGenerator(BaseCodeGenerator):
             code += "            self.pos_embedding = nn.Parameter(torch.randn(self.max_len, d_model, device=x.device))\n"
             code += "        positions = self.pos_embedding[:seq_len, :].unsqueeze(0)\n"
             code += "        return x + positions\n\n"
-        
+
         code += "# Neural network model definition\n"
         code += "class NeuralNetworkModel(nn.Module):\n"
         code += f"{self.indent}def __init__(self):\n"
@@ -179,7 +179,7 @@ class PyTorchGenerator(BaseCodeGenerator):
                     if isinstance(use_attention_mask, dict):
                         if 'value' in use_attention_mask:
                             use_attention_mask = use_attention_mask['value']
-                    
+
                     if use_attention_mask:
                         forward_code_body.append("# Pass attention mask if available (set src_key_padding_mask for padding)")
                         forward_code_body.append(f"x = self.{layer_name}(x, src_key_padding_mask=None)")
@@ -399,7 +399,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
         num_heads = params.get("num_heads", 8)
         dropout = params.get("dropout", 0.0)
         batch_first = params.get("batch_first", True)
-        
+
         if embed_dim is None and input_shape is not None and len(input_shape) >= 2:
             embed_dim = input_shape[-1]
             if isinstance(embed_dim, dict):
@@ -410,28 +410,28 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                     embed_dim = 512
         elif embed_dim is None:
             embed_dim = 512
-        
+
         if isinstance(embed_dim, dict):
             if 'value' in embed_dim:
                 embed_dim = embed_dim['value']
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {embed_dim}, using default")
                 embed_dim = 512
-        
+
         if isinstance(num_heads, dict):
             if 'value' in num_heads:
                 num_heads = num_heads['value']
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {num_heads}, using default")
                 num_heads = 8
-        
+
         if isinstance(dropout, dict):
             if 'value' in dropout:
                 dropout = dropout['value']
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {dropout}, using default")
                 dropout = 0.0
-        
+
         return f"nn.MultiheadAttention(embed_dim={embed_dim}, num_heads={num_heads}, dropout={dropout}, batch_first={batch_first})"
     elif layer_type == "Conv1D":
         data_format = params.get("data_format", "channels_last")
@@ -460,7 +460,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 kernel_size = 3
         if isinstance(kernel_size, (tuple, list)):
             kernel_size = kernel_size[0]
-        
+
         activation = params.get("activation", None)
         if isinstance(activation, dict):
             if 'value' in activation:
@@ -468,7 +468,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {activation}, using default")
                 activation = None
-        
+
         layers = [f"nn.Conv1d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size})"]
         if activation:
             if activation == "relu":
@@ -479,7 +479,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 layers.append("nn.Sigmoid()")
             elif activation == "softmax":
                 layers.append("nn.Softmax(dim=1)")
-        
+
         if len(layers) > 1:
             return "nn.Sequential(" + ", ".join(layers) + ")"
         return layers[0]
@@ -510,7 +510,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 kernel_size = 3
         if isinstance(kernel_size, (tuple, list)):
             kernel_size = kernel_size[0]
-        
+
         activation = params.get("activation", None)
         if isinstance(activation, dict):
             if 'value' in activation:
@@ -518,7 +518,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {activation}, using default")
                 activation = None
-        
+
         layers = [f"nn.Conv2d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size})"]
         if activation:
             if activation == "relu":
@@ -529,7 +529,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 layers.append("nn.Sigmoid()")
             elif activation == "softmax":
                 layers.append("nn.Softmax(dim=1)")
-        
+
         if len(layers) > 1:
             return "nn.Sequential(" + ", ".join(layers) + ")"
         return layers[0]
@@ -551,7 +551,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 else:
                     logger.warning(f"Dictionary parameter without 'value' key: {num_features}, using default")
                     num_features = 64
-        
+
         momentum = params.get("momentum", 0.9)
         if isinstance(momentum, dict):
             if 'value' in momentum:
@@ -559,7 +559,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {momentum}, using default")
                 momentum = 0.9
-        
+
         eps = params.get("epsilon", 0.001)
         if isinstance(eps, dict):
             if 'value' in eps:
@@ -567,7 +567,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {eps}, using default")
                 eps = 0.001
-        
+
         if momentum == 0.9 and eps == 0.001:
             return f"nn.BatchNorm2d(num_features={num_features})"
         return f"nn.BatchNorm2d(num_features={num_features}, momentum={momentum}, eps={eps})"
@@ -678,7 +678,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 kernel_size = 3
         if isinstance(kernel_size, (tuple, list)):
             kernel_size = kernel_size[0]
-        
+
         activation = params.get("activation", None)
         if isinstance(activation, dict):
             if 'value' in activation:
@@ -686,7 +686,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {activation}, using default")
                 activation = None
-        
+
         layers = [f"nn.Conv3d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size})"]
         if activation:
             if activation == "relu":
@@ -697,7 +697,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 layers.append("nn.Sigmoid()")
             elif activation == "softmax":
                 layers.append("nn.Softmax(dim=1)")
-        
+
         if len(layers) > 1:
             return "nn.Sequential(" + ", ".join(layers) + ")"
         return layers[0]
@@ -818,7 +818,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                     d_model = 512
         elif d_model is None:
             d_model = 512
-        
+
         if isinstance(d_model, dict):
             if 'value' in d_model:
                 d_model = d_model['value']
@@ -849,7 +849,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {dropout}, using default")
                 dropout = 0.1
-        
+
         num_layers = params.get("num_layers", 1)
         if isinstance(num_layers, dict):
             if 'value' in num_layers:
@@ -857,7 +857,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {num_layers}, using default")
                 num_layers = 1
-        
+
         activation = params.get("activation", "relu")
         if isinstance(activation, dict):
             if 'value' in activation:
@@ -865,7 +865,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {activation}, using default")
                 activation = "relu"
-        
+
         use_attention_mask = params.get("use_attention_mask", False)
         if isinstance(use_attention_mask, dict):
             if 'value' in use_attention_mask:
@@ -873,7 +873,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {use_attention_mask}, using default")
                 use_attention_mask = False
-        
+
         if num_layers > 1:
             return f"nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout}, activation='{activation}'), num_layers={num_layers})"
         else:
@@ -892,7 +892,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                     d_model = 512
         elif d_model is None:
             d_model = 512
-        
+
         if isinstance(d_model, dict):
             if 'value' in d_model:
                 d_model = d_model['value']
@@ -944,7 +944,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {max_len}, using default")
                 max_len = 5000
-        
+
         encoding_type = params.get("encoding_type", "sinusoidal")
         if isinstance(encoding_type, dict):
             if 'value' in encoding_type:
@@ -952,7 +952,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {encoding_type}, using default")
                 encoding_type = "sinusoidal"
-        
+
         if encoding_type == "sinusoidal":
             return f"SinusoidalPositionalEncoding(max_len={max_len})"
         else:

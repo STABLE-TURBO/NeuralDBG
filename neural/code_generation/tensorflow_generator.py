@@ -1,13 +1,8 @@
 import logging
-from typing import Any, Dict
 import warnings
-
+from typing import Any, Dict
 from neural.code_generation.base_generator import BaseCodeGenerator
-from neural.code_generation.shape_policy_helpers import (
-    ensure_2d_before_dense_tf,
-    get_rank_non_batch,
-)
-
+from neural.code_generation.shape_policy_helpers import ensure_2d_before_dense_tf, get_rank_non_batch
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -121,11 +116,11 @@ class TensorFlowGenerator(BaseCodeGenerator):
             dropout = params.get("dropout", 0.0)
             use_bias = params.get("use_bias", True)
             mode = params.get("mode", "self")
-            
+
             value_dim_str = f", value_dim={value_dim}" if value_dim else ""
             dropout_str = f", dropout={dropout}" if dropout > 0 else ""
             use_bias_str = f", use_bias={use_bias}" if not use_bias else ""
-            
+
             if mode == "cross":
                 return f"layers.MultiHeadAttention(num_heads={num_heads}, key_dim={key_dim}{value_dim_str}{dropout_str}{use_bias_str})(x, context)"
             else:
@@ -139,25 +134,25 @@ class TensorFlowGenerator(BaseCodeGenerator):
             use_attention_mask = params.get("use_attention_mask", False)
             # d_model is used for key_dim in MultiHeadAttention and can be inferred from input
             d_model = params.get("d_model", None)
-            
+
             code = ["# TransformerEncoder block"]
-            
+
             if use_attention_mask:
                 code.append("# Attention mask should be provided as input")
                 code.append("attention_mask = None  # Set this to your mask tensor")
-            
+
             for layer_idx in range(num_layers):
                 code.append(f"# Encoder Layer {layer_idx + 1}")
                 code.append("x = layers.LayerNormalization(epsilon=1e-6)(x)")
-                
+
                 # Use d_model if provided, otherwise use ff_dim for key_dim
                 key_dim = d_model if d_model else ff_dim
-                
+
                 if use_attention_mask:
                     code.append(f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={key_dim})(x, x, attention_mask=attention_mask)")
                 else:
                     code.append(f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={key_dim})(x, x)")
-                
+
                 code.append(f"attn_output = layers.Dropout({dropout})(attn_output)")
                 code.append("x = layers.Add()([x, attn_output])")
                 code.append("x = layers.LayerNormalization(epsilon=1e-6)(x)")
@@ -165,7 +160,7 @@ class TensorFlowGenerator(BaseCodeGenerator):
                 code.append(f"ffn_output = layers.Dense({key_dim})(ffn_output)")
                 code.append(f"ffn_output = layers.Dropout({dropout})(ffn_output)")
                 code.append("x = layers.Add()([x, ffn_output])")
-            
+
             return "\n".join(code)
         elif layer_type == "TransformerDecoder":
             num_heads = params.get("num_heads", 8)

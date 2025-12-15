@@ -27,7 +27,7 @@ class LazyLoader:
     Uses aggressive caching for optimal performance.
     """
     __slots__ = ('module_name', 'module', '_cached_attrs', '_import_lock')
-    
+
     def __init__(self, module_name):
         self.module_name = module_name
         self.module = None
@@ -38,17 +38,17 @@ class LazyLoader:
         """Load module with caching and error handling."""
         if self.module is not None:
             return self.module
-            
+
         if self._import_lock:
             return self.module
-            
+
         self._import_lock = True
-        
+
         if self.module_name in _module_cache:
             self.module = _module_cache[self.module_name]
             self._import_lock = False
             return self.module
-            
+
         try:
             start_time = time.time()
             with warnings.catch_warnings():
@@ -67,20 +67,20 @@ class LazyLoader:
             raise
         finally:
             self._import_lock = False
-            
+
         return self.module
 
     def __getattr__(self, name):
         if name in ('module_name', 'module', '_cached_attrs', '_import_lock', '_load_module'):
             return object.__getattribute__(self, name)
-            
+
         if name in self._cached_attrs:
             return self._cached_attrs[name]
-            
+
         module = self._load_module()
         if module is None:
             raise ImportError(f"Module {self.module_name} not loaded")
-            
+
         try:
             attr = getattr(module, name)
             self._cached_attrs[name] = attr

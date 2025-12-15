@@ -5,7 +5,6 @@ This module provides functions to run Neural DSL in CPU-only mode.
 
 import os
 
-
 def set_cpu_mode():
     """
     Set environment variables to force CPU mode.

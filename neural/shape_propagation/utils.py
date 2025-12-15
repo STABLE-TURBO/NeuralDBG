@@ -22,7 +22,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-
 def extract_param(params: Dict[str, Any],
                  key: str,
                  default: Any = None,
@@ -75,7 +74,7 @@ def calculate_output_dims(input_dims: Tuple[int, ...],
         if dim is None:
             output_dims.append(None)
             continue
-            
+
         k = kernel_size[i] if i < len(kernel_size) else kernel_size[0]
         s = stride[i] if i < len(stride) else stride[0]
 
@@ -277,7 +276,7 @@ def format_error_message(error_type: str, details: Dict[str, Any]) -> str:
         'message': f"Error: {details}",
         'suggestions': ["Check layer parameters and input shapes"]
     })
-    
+
     message_parts = [
         "\n" + "="*70,
         "SHAPE PROPAGATION ERROR",
@@ -285,12 +284,12 @@ def format_error_message(error_type: str, details: Dict[str, Any]) -> str:
         f"\n❌ {error_info['message']}",
         "\n🔧 Fix Suggestions:"
     ]
-    
+
     for i, suggestion in enumerate(error_info['suggestions'], 1):
         message_parts.append(f"   {i}. {suggestion}")
-    
+
     message_parts.append("\n" + "="*70)
-    
+
     return "\n".join(message_parts)
 
 def calculate_memory_usage(shape: Tuple[int, ...], dtype: str = 'float32') -> int:
@@ -347,40 +346,40 @@ def suggest_layer_fix(layer_type: str, error_context: Dict[str, Any]) -> List[st
     suggestions = []
     input_shape = error_context.get('input_shape')
     params = error_context.get('params', {})
-    
+
     if layer_type == 'Conv2D':
         if input_shape and len(input_shape) != 4:
             suggestions.append(f"Conv2D expects 4D input, got {len(input_shape)}D: {input_shape}")
             suggestions.append("Ensure input format: (batch, height, width, channels) or (batch, channels, height, width)")
-        
+
         kernel_size = params.get('kernel_size')
         if kernel_size and input_shape:
             suggestions.append(f"Current kernel_size: {kernel_size}, input spatial dims: {input_shape[1:3]}")
             suggestions.append("Try reducing kernel_size if it exceeds input dimensions")
-    
+
     elif layer_type == 'Dense':
         if input_shape and len(input_shape) > 2:
             suggestions.append(f"Dense expects 2D input (batch, features), got {len(input_shape)}D")
             suggestions.append("Add Flatten() or GlobalAveragePooling2D before Dense layer")
             suggestions.append("Example: ...Conv2D(...) -> Flatten() -> Dense(...)")
-    
+
     elif layer_type == 'MaxPooling2D':
         pool_size = params.get('pool_size')
         if pool_size and input_shape:
             suggestions.append(f"pool_size: {pool_size}, input: {input_shape}")
             suggestions.append("Reduce pool_size if it exceeds spatial dimensions")
             suggestions.append("Common pool_size values: (2,2), (3,3)")
-    
+
     elif layer_type == 'Flatten':
         if input_shape:
             flattened_size = np.prod([d for d in input_shape[1:] if d is not None])
             suggestions.append(f"Flatten will convert {input_shape} to (batch, {flattened_size})")
-    
+
     # Generic suggestions if none specific found
     if not suggestions:
         suggestions.append(f"Check {layer_type} layer parameters and input shape compatibility")
         suggestions.append("Use 'neural visualize <your_file>.neural' to see shape flow")
-    
+
     return suggestions
 
 
@@ -399,7 +398,7 @@ def diagnose_shape_flow(shape_history: List[Tuple[str, Tuple[int, ...]]]) -> Dic
         'suggestions': [],
         'shape_flow': []
     }
-    
+
     for i, (layer_name, shape) in enumerate(shape_history):
         # Check for dimension collapse
         if any(dim is not None and dim <= 0 for dim in shape):
@@ -413,13 +412,13 @@ def diagnose_shape_flow(shape_history: List[Tuple[str, Tuple[int, ...]]]) -> Dic
                     "Consider reducing stride or adding padding"
                 ]
             })
-        
+
         # Check for extreme size reductions
         if i > 0:
             prev_shape = shape_history[i-1][1]
             prev_size = np.prod([d for d in prev_shape if d is not None and d > 0])
             curr_size = np.prod([d for d in shape if d is not None and d > 0])
-            
+
             if curr_size < prev_size * 0.01:  # >99% reduction
                 diagnostics['warnings'].append({
                     'layer': layer_name,
@@ -431,18 +430,18 @@ def diagnose_shape_flow(shape_history: List[Tuple[str, Tuple[int, ...]]]) -> Dic
                         "Review pooling and stride parameters"
                     ]
                 })
-        
+
         diagnostics['shape_flow'].append({
             'layer': layer_name,
             'shape': shape,
             'size': np.prod([d for d in shape if d is not None and d > 0]),
             'memory_mb': calculate_memory_usage(shape) / (1024 * 1024)
         })
-    
+
     # Overall suggestions
     if diagnostics['errors']:
         diagnostics['suggestions'].append("Fix dimension errors before proceeding")
     if diagnostics['warnings']:
         diagnostics['suggestions'].append("Review warnings for potential architecture improvements")
-    
+
     return diagnostics

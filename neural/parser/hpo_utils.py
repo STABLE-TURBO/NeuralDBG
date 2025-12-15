@@ -131,9 +131,9 @@ def track_hpo_in_optimizer_string(optimizer_info: str, track_hpo_fn: Callable) -
     """
     if 'HPO(' not in optimizer_info:
         return
-        
+
     hpo_matches = extract_hpo_expressions(optimizer_info)
-    
+
     for hpo_expr in hpo_matches:
         hpo_dict = parse_hpo_expression(hpo_expr)
         if hpo_dict:
@@ -168,9 +168,9 @@ def track_hpo_in_lr_schedule_string(lr_value: str, track_hpo_fn: Callable) -> No
     """
     if 'HPO(' not in lr_value:
         return
-        
+
     hpo_matches = re.findall(r'HPO\((.*?)\)', lr_value)
-    
+
     for hpo_expr in hpo_matches:
         hpo_dict = parse_hpo_expression(hpo_expr)
         if hpo_dict:

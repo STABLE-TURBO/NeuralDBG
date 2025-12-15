@@ -2,21 +2,19 @@
 Learning rate schedule handlers for Neural DSL.
 """
 
-from typing import Any, Dict
-
-from .validation import ValidationError, validate_numeric
-
+from typing import Dict, Any
+from .validation import validate_numeric, ValidationError
 
 class LearningRateSchedule:
     """Base class for learning rate schedules."""
-    
+
     def validate_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Validate and normalize schedule parameters."""
         raise NotImplementedError
-        
+
 class ExponentialDecaySchedule(LearningRateSchedule):
     """Exponential decay learning rate schedule."""
-    
+
     def validate_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate exponential decay parameters.
@@ -31,7 +29,7 @@ class ExponentialDecaySchedule(LearningRateSchedule):
             ValidationError: If validation fails
         """
         validated = {}
-        
+
         # Validate initial learning rate
         try:
             validated['initial_learning_rate'] = validate_numeric(
@@ -41,7 +39,7 @@ class ExponentialDecaySchedule(LearningRateSchedule):
             )
         except ValidationError as e:
             raise ValidationError(f"Invalid initial_learning_rate: {str(e)}")
-            
+
         # Validate decay steps
         try:
             validated['decay_steps'] = validate_numeric(
@@ -52,7 +50,7 @@ class ExponentialDecaySchedule(LearningRateSchedule):
             )
         except ValidationError as e:
             raise ValidationError(f"Invalid decay_steps: {str(e)}")
-            
+
         # Validate decay rate
         try:
             validated['decay_rate'] = validate_numeric(
@@ -62,10 +60,10 @@ class ExponentialDecaySchedule(LearningRateSchedule):
             )
         except ValidationError as e:
             raise ValidationError(f"Invalid decay_rate: {str(e)}")
-            
+
         # Copy any additional parameters
         for key, value in params.items():
             if key not in validated:
                 validated[key] = value
-                
+
         return validated

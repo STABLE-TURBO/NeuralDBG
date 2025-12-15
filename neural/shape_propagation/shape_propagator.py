@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from graphviz import Digraph
 import numpy as np
@@ -216,7 +216,7 @@ class ShapePropagator:
 
         if layer_type == 'MultiHeadAttention':
             return input_shape
-        
+
         prev_layer = self.current_layer if self.current_layer > 0 else None  # Track previous layer for connections
 
         # Check for registered external handlers first
@@ -321,7 +321,7 @@ class ShapePropagator:
         # Extract layer type and params from layer dict
         layer_type = layer.get("type", "Unknown")
         params = layer.get("params", {})
-        
+
         # Replace None with 1 to avoid NoneType math errors
         input_shape_calc = tuple(1 if dim is None else dim for dim in input_shape)
         output_shape_calc = tuple(1 if dim is None else dim for dim in output_shape)
@@ -358,7 +358,7 @@ class ShapePropagator:
 
         # Initialize FLOPs
         flops = 0
-        
+
         # FLOPs calculation based on layer type
         if layer_type == 'Conv2D':
             kernel_size = extract_param(params, 'kernel_size', (3, 3))
@@ -462,11 +462,11 @@ class ShapePropagator:
         """Create a node in the graph for the layer."""
         if not GRAPHVIZ_AVAILABLE:
             return
-        
+
         if self.dot is None:
             self.dot = Digraph(comment='Neural Network Architecture')
             self.dot.attr('node', shape='record', style='filled', fillcolor='lightgrey')
-        
+
         label = f"{layer_type}\\nOutput: {output_shape}"
         if self.dot is not None:
             self.dot.node(str(self.current_layer), label=label)
@@ -497,16 +497,16 @@ class ShapePropagator:
         # Lazy import plotly
         try:
             import plotly.graph_objects as go
-        except ImportError:
+        except ImportError as e:
             raise DependencyError(
                 dependency="plotly",
                 feature="generate_report",
                 install_hint="pip install plotly"
-            )
-        
+            ) from e
+
         # Ensure graphviz is initialized
         self._init_graphviz()
-        
+
         # Create Plotly bar chart for parameter counts
         if not self.shape_history:
             layers = ["No data"]
@@ -522,10 +522,10 @@ class ShapePropagator:
 
         # Detect and report issues
         self.issues = detect_shape_issues(self.shape_history)
-        
+
         # Generate optimization suggestions
         self.optimizations = suggest_optimizations(self.shape_history)
-        
+
         return {
             'dot_graph': self.dot,
             'plotly_chart': fig,
@@ -814,7 +814,7 @@ class ShapePropagator:
             Output tensor shape
         """
         logger.debug(f"_handle_gru - input_shape: {input_shape}, params: {params}")
-        
+
         units = extract_param(params, 'units', 128)
         return_sequences = extract_param(params, 'return_sequences', False)
 
@@ -884,7 +884,7 @@ class ShapePropagator:
 
         # Get data_format from params
         data_format = params.get('data_format', 'channels_last')
-        
+
         # Calculate new spatial dimensions, handling None
         if data_format == 'channels_last':
             # TensorFlow: input_shape = (batch, height, width, channels)
@@ -911,7 +911,7 @@ class ShapePropagator:
         logger.debug(f"_handle_multiheadattention - input_shape: {input_shape}, params: {params}")
         # MultiHeadAttention preserves the input shape: (batch, seq_len, d_model)
         return input_shape
-    
+
     # Handle default helper
     def _handle_default(self, input_shape, params):
         # Default handler for unsupported layers
@@ -956,7 +956,7 @@ class ShapePropagator:
                 kernel_size = params.get('kernel_size', 3)
             if stride is None:
                 stride = params.get('stride', 1)
-            
+
             # Normalize kernel_size
             if isinstance(kernel_size, int):
                 kernel_size = (kernel_size, kernel_size)
@@ -966,7 +966,7 @@ class ShapePropagator:
                     kernel_size = (kernel_value, kernel_value) if isinstance(kernel_value, int) else (3, 3)
                 else:
                     kernel_size = (3, 3)
-            
+
             # Normalize stride
             if isinstance(stride, int):
                 stride = (stride, stride)
@@ -974,7 +974,7 @@ class ShapePropagator:
                 stride = tuple(stride)
             else:
                 stride = (1, 1)
-            
+
             # Calculate padding for each dimension
             padding_list = []
             for i, (dim, k, s) in enumerate(zip(spatial_dims, kernel_size, stride)):
@@ -989,7 +989,7 @@ class ShapePropagator:
                     total_padding = max(0, (output_size - 1) * s + k - dim)
                     p = total_padding // 2
                 padding_list.append(p)
-            
+
             return tuple(padding_list)
         elif padding == 'valid':
             return 0
@@ -1056,7 +1056,7 @@ class ShapePropagator:
                 feature="interactive visualization",
                 install_hint="pip install plotly"
             )
-        
+
         from plotly.subplots import make_subplots
 
         # Create figure with subplots
