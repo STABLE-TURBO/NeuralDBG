@@ -3418,8 +3418,18 @@ class ModelTransformer(lark.Transformer):
         return self._extract_value(items[0])
 
     def attention(self, items: List[Any]) -> Dict[str, Any]:
-        params = self._extract_value(items[0]) if items else None
-        return {'type': 'Attention', 'params': params, 'sublayers': []}
+        params = self._extract_value(items[0]) if items and items[0] is not None else None
+        sub_layers = []
+        
+        if len(items) > 1 and items[1] is not None:
+            extracted_sublayers = self._extract_value(items[1])
+            if extracted_sublayers is not None:
+                if isinstance(extracted_sublayers, list):
+                    sub_layers = extracted_sublayers
+                else:
+                    sub_layers = [extracted_sublayers]
+        
+        return {'type': 'Attention', 'params': params, 'sublayers': sub_layers}
 
 
     def residual(self, items: List[Any]) -> Dict[str, Any]:
@@ -3532,6 +3542,11 @@ class ModelTransformer(lark.Transformer):
             elif isinstance(raw_params, dict):
                 params = raw_params
         
+        if len(items) > 1 and items[1] is not None:
+            sub_layers = self._extract_value(items[1])
+            if not isinstance(sub_layers, list):
+                sub_layers = [sub_layers] if sub_layers else []
+        
         for key in ['num_heads', 'ff_dim']:
             if key in params:
                 val = params[key]
@@ -3584,7 +3599,12 @@ class ModelTransformer(lark.Transformer):
             param_idx += 1
 
         if len(items) > param_idx:
-            sub_layers = self._extract_value(items[param_idx])
+            extracted_sublayers = self._extract_value(items[param_idx])
+            if extracted_sublayers is not None:
+                if isinstance(extracted_sublayers, list):
+                    sub_layers = extracted_sublayers
+                else:
+                    sub_layers = [extracted_sublayers]
 
         for key in ['num_heads', 'ff_dim']:
             if key in params:
@@ -3599,6 +3619,7 @@ class ModelTransformer(lark.Transformer):
     def multiheadattention(self, items):
         items = self._shift_if_token(items)
         params: Dict[str, Any] = {}
+        sub_layers = []
         
         if not items or items[0] is None:
             return {'type': 'MultiHeadAttention', 'params': {}, 'sublayers': []}
@@ -3613,6 +3634,14 @@ class ModelTransformer(lark.Transformer):
         elif isinstance(param_values, dict):
             params = param_values
         
+        if len(items) > 1 and items[1] is not None:
+            extracted_sublayers = self._extract_value(items[1])
+            if extracted_sublayers is not None:
+                if isinstance(extracted_sublayers, list):
+                    sub_layers = extracted_sublayers
+                else:
+                    sub_layers = [extracted_sublayers]
+        
         for key in ['num_heads', 'key_dim']:
             if key in params:
                 val = params[key]
@@ -3621,7 +3650,7 @@ class ModelTransformer(lark.Transformer):
                 if not isinstance(val, int) or val <= 0:
                     self.raise_validation_error(f"MultiHeadAttention {key} must be a positive integer, got {val}", items[0] if items else None)
         
-        return {'type': 'MultiHeadAttention', 'params': params, 'sublayers': []}
+        return {'type': 'MultiHeadAttention', 'params': params, 'sublayers': sub_layers}
 
     def named_num_heads(self, items):
         params = self._extract_value(items[0]) if items else None
@@ -3737,17 +3766,28 @@ class ModelTransformer(lark.Transformer):
 
 
     def timedistributed(self, items):
-        raw_params = self._extract_value(items[0]) if items else None
+        raw_params = self._extract_value(items[0]) if items and items[0] is not None else None
+        params = {}
+        sub_layers = []
+        
         if isinstance(raw_params, list):
-            params = {}
             for item in raw_params:
                 if isinstance(item, dict):
                     params.update(item)
                 else:
                     self.raise_validation_error("Invalid parameters for TimeDistributed", items[0])
-        else:
+        elif raw_params is not None:
             params = raw_params
-        return {'type': 'TimeDistributed', 'params': params}
+        
+        if len(items) > 1 and items[1] is not None:
+            extracted_sublayers = self._extract_value(items[1])
+            if extracted_sublayers is not None:
+                if isinstance(extracted_sublayers, list):
+                    sub_layers = extracted_sublayers
+                else:
+                    sub_layers = [extracted_sublayers]
+        
+        return {'type': 'TimeDistributed', 'params': params, 'sublayers': sub_layers}
 
 
     def wrapper(self, items):
