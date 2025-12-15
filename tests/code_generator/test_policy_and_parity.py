@@ -11,6 +11,7 @@ def _simple_4d_input_output_model():
         ],
         "loss": "mse",
         "optimizer": "Adam",
+        "auto_flatten_output": True
     }
 
 
@@ -23,6 +24,7 @@ def _conv_then_output_model():
         ],
         "loss": "mse",
         "optimizer": "Adam",
+        "auto_flatten_output": True
     }
 
 

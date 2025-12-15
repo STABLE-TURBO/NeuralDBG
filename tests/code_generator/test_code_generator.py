@@ -17,10 +17,12 @@ def simple_model_data():
         "input": {"shape": (None, 32, 32, 3)},
         "layers": [
             {"type": "Conv2D", "params": {"filters": 16, "kernel_size": 3}},
+            {"type": "Flatten"},
             {"type": "Output", "params": {"units": 10}}
         ],
         "loss": "mse",
-        "optimizer": "Adam"
+        "optimizer": "Adam",
+        "auto_flatten_output": True
     }
 
 @pytest.fixture
@@ -378,10 +380,12 @@ def test_different_pooling_configs():
         "layers": [
             {"type": "MaxPooling2D", "params": {"pool_size": (3, 3), "strides": 2}},
             {"type": "AveragePooling2D", "params": {"pool_size": 2}},
+            {"type": "Flatten"},
             {"type": "Dense", "params": {"units": 10}}
         ],
         "loss": "mse",
-        "optimizer": "Adam"
+        "optimizer": "Adam",
+        "auto_flatten_output": True
     }
     tf_code = generate_code(model_data, "tensorflow")
     assert "MaxPooling2D(pool_size=(3, 3)" in tf_code  # Strides not supported yet in your code
@@ -405,10 +409,12 @@ def test_batch_norm_params():
         "input": {"shape": (None, 32, 32, 3)},
         "layers": [
             {"type": "BatchNormalization", "params": {"momentum": 0.9, "epsilon": 0.001}},
+            {"type": "Flatten"},
             {"type": "Dense", "params": {"units": 10}}
         ],
         "loss": "mse",
-        "optimizer": "Adam"
+        "optimizer": "Adam",
+        "auto_flatten_output": True
     }
     tf_code = generate_code(model_data, "tensorflow")
     assert "BatchNormalization(momentum=0.9, epsilon=0.001)" in tf_code
@@ -434,10 +440,14 @@ def test_mixed_precision_training():
     """Test mixed precision training support"""
     model_data = {
         "input": {"shape": (None, 32, 32, 3)},
-        "layers": [{"type": "Dense", "params": {"units": 10}}],
+        "layers": [
+            {"type": "Flatten"},
+            {"type": "Dense", "params": {"units": 10}}
+        ],
         "loss": "mse",
         "optimizer": "Adam",
-        "training_config": {"mixed_precision": True}
+        "training_config": {"mixed_precision": True},
+        "auto_flatten_output": True
     }
     tf_code = generate_code(model_data, "tensorflow")
     assert "from tensorflow.keras.mixed_precision import set_global_policy" in tf_code
@@ -453,3 +463,4 @@ def test_model_saving_loading(simple_model_data, tmp_path):
     assert "model.save('model.h5')" in tf_code
     pt_code = generate_code(model_data, "pytorch")
     assert "torch.save(model.state_dict(), 'model.h5')" in pt_code
+

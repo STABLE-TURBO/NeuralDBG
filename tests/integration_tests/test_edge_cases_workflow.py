@@ -640,6 +640,7 @@ class TestRecoveryAndGracefulDegradation:
             layers:
                 Conv2D(filters=32, kernel_size=3)
                 MaxPooling2D(pool_size=2)
+                Flatten()
                 Dense(64)
                 Output(10)
         }
@@ -649,6 +650,7 @@ class TestRecoveryAndGracefulDegradation:
         tree = parser.parse(dsl_code)
         transformer = ModelTransformer()
         model_config = transformer.transform(tree)
+        model_config["auto_flatten_output"] = True
         
         code = generate_code(model_config, 'pytorch', auto_flatten_output=True)
         

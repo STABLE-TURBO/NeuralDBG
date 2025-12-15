@@ -550,7 +550,8 @@ class TestResidualLayers:
                 {"type": "Residual", "sub_layers": []}
             ],
             "loss": "mse",
-            "optimizer": "Adam"
+            "optimizer": "Adam",
+            "auto_flatten_output": True
         }
         code = generate_code(model_data, "tensorflow")
         # Should still generate residual structure

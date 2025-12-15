@@ -510,8 +510,8 @@ def test_hpo_edge_case_no_layers():
     'neural.hpo.hpo.get_data', which suggests there might be multiple
     implementations or import paths for the HPO functionality.
     """
-    # Define a minimal network with only an Output layer
-    config = "network Test { input: (28,28,1) layers: Output(10) optimizer: Adam(learning_rate=0.001) }"
+    # Define a minimal network with only an Output layer (Flatten added before Output)
+    config = "network Test { input: (28,28,1) layers: Flatten() Output(10) optimizer: Adam(learning_rate=0.001) }"
 
     # Run the optimization process with a single trial
     best_params = optimize_and_return(config, n_trials=1, dataset_name='MNIST', backend='pytorch')
@@ -524,12 +524,13 @@ def test_hpo_edge_case_no_layers():
 
     # Parse the optimized DSL
     model_dict, _ = ModelTransformer().parse_network_with_hpo(optimized)
+    model_dict["auto_flatten_output"] = True
 
     # Create a model from the optimized DSL
     # Note: Empty list is passed for hpo_params since there are no HPO parameters
     model = create_dynamic_model(model_dict, MockTrial(), [], backend='pytorch')
 
     # Create input data and verify that the model produces output with the expected shape
-    # Note: Input is in NHWC format (batch, height, width, channels)
-    assert model(torch.randn(32, 28, 28, 1)).shape == (32, 10), \
+    # Note: Input is in NCHW format for PyTorch (batch, channels, height, width)
+    assert model(torch.randn(32, 1, 28, 28)).shape == (32, 10), \
         "Model with no hidden layers should still produce correct output shape"
