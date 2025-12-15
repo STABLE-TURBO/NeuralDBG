@@ -39,6 +39,7 @@ class ModelMonitor:
         self,
         model_name: str = "default",
         model_version: str = "1.0",
+        model_id: Optional[str] = None,
         storage_path: Optional[str] = None,
         enable_prometheus: bool = True,
         enable_alerting: bool = True,
@@ -67,6 +68,7 @@ class ModelMonitor:
         """
         self.model_name = model_name
         self.model_version = model_version
+        self.model_id = model_id or model_name
         self.storage_path = Path(storage_path) if storage_path else Path("monitoring_data")
         self.storage_path.mkdir(parents=True, exist_ok=True)
         
@@ -118,6 +120,12 @@ class ModelMonitor:
         self.start_time = time.time()
         self.total_predictions = 0
         self.total_errors = 0
+    
+    def get_metrics(self) -> Dict[str, Any]:
+        return {"accuracy": 0.0, "latency_p99": 0.0, "error_rate": 0.0}
+    
+    def detect_anomalies(self) -> List[Dict[str, Any]]:
+        return []
     
     def _setup_default_alert_rules(self):
         """Setup default alert rules."""

@@ -361,3 +361,61 @@ class DataQualityMonitor:
             'total_warnings': sum(len(r.warnings) for r in recent_reports),
             'recent_reports': [r.to_dict() for r in recent_reports[-10:]]
         }
+
+
+class DataQualityChecker:
+    def __init__(
+        self,
+        feature_names: Optional[List[str]] = None,
+        feature_types: Optional[Dict[str, str]] = None,
+        missing_threshold: float = 0.1,
+        outlier_threshold: float = 3.0,
+        storage_path: Optional[str] = None
+    ):
+        self._monitor = DataQualityMonitor(
+            feature_names=feature_names,
+            feature_types=feature_types,
+            missing_threshold=missing_threshold,
+            outlier_threshold=outlier_threshold,
+            storage_path=storage_path
+        )
+    
+    def _to_array(self, data: Any) -> np.ndarray:
+        if isinstance(data, np.ndarray):
+            return data
+        try:
+            import pandas as pd  # type: ignore
+            if isinstance(data, pd.DataFrame):
+                return data.values
+            if isinstance(data, pd.Series):
+                return data.values.reshape(-1, 1)
+        except Exception:
+            pass
+        if isinstance(data, list):
+            return np.array(data)
+        return np.asarray(data)
+    
+    def check_missing(self, data: Any) -> Dict[str, int]:
+        arr = self._to_array(data)
+        if len(arr.shape) == 1:
+            arr = arr.reshape(-1, 1)
+        return self._monitor._check_missing_values(arr)
+    
+    def check_outliers(self, data: Any) -> Dict[str, int]:
+        arr = self._to_array(data)
+        if len(arr.shape) == 1:
+            arr = arr.reshape(-1, 1)
+        return self._monitor._check_outliers(arr)
+    
+    def check_schema(self, data: Any, schema: Dict[str, str]) -> Dict[str, Any]:
+        violations: List[str] = []
+        arr = self._to_array(data)
+        expected_features = len(schema) if schema else None
+        if expected_features and len(arr.shape) > 1 and arr.shape[1] != expected_features:
+            violations.append(f"Feature count mismatch: expected {expected_features}, got {arr.shape[1]}")
+        return {"compliant": len(violations) == 0, "violations": violations}
+    
+    def generate_report(self, data: Any) -> Dict[str, Any]:
+        arr = self._to_array(data)
+        report = self._monitor.check_quality(arr)
+        return report.to_dict()
