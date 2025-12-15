@@ -185,3 +185,13 @@ def get_random_example() -> str:
     """Get a random example model"""
     import random
     return random.choice(list(EXAMPLE_MODELS.values()))
+
+
+def get_examples_dict() -> dict:
+    """Get all examples as a dictionary"""
+    return EXAMPLE_MODELS.copy()
+
+
+def get_example_count() -> int:
+    """Get the total number of examples"""
+    return len(EXAMPLE_MODELS)

@@ -290,9 +290,32 @@ def health_check():
     """Health check endpoint."""
     return jsonify({
         'status': 'healthy',
-        'service': 'neural-aquarium-api'
+        'service': 'neural-aquarium-api',
+        'version': '0.3.0'
+    }), 200
+
+
+@app.route('/api/health', methods=['GET'])
+def api_health_check():
+    """API health check endpoint."""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'neural-aquarium-api',
+        'version': '0.3.0'
     }), 200
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Neural Aquarium AI Assistant API")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to")
+    parser.add_argument("--port", type=int, default=5000, help="Port to bind to")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    
+    args = parser.parse_args()
+    
+    logger.info(f"Starting Neural Aquarium AI Assistant API on {args.host}:{args.port}")
+    logger.info(f"Debug mode: {args.debug}")
+    
+    app.run(host=args.host, port=args.port, debug=args.debug)

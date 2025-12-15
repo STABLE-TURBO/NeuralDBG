@@ -129,6 +129,7 @@ def create_app() -> FastAPI:
 
     @app.get("/")
     async def root():
+        """Root endpoint with service information."""
         return {
             "service": "Neural DSL Backend Bridge",
             "version": "0.3.0",
@@ -137,7 +138,21 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health_check():
-        return {"status": "healthy"}
+        """Health check endpoint."""
+        return {
+            "status": "healthy",
+            "service": "neural-backend-bridge",
+            "version": "0.3.0"
+        }
+    
+    @app.get("/api/health")
+    async def api_health_check():
+        """API health check endpoint."""
+        return {
+            "status": "healthy",
+            "service": "neural-backend-bridge",
+            "version": "0.3.0"
+        }
 
     @app.post("/api/parse", response_model=ParseResponse)
     async def parse_dsl(request: ParseRequest):
@@ -439,45 +454,52 @@ def create_app() -> FastAPI:
     async def list_examples():
         """List available example models."""
         try:
-            examples_dir = Path(__file__).parent.parent / 'examples'
+            from neural.aquarium.examples import get_examples_dict, list_examples as list_example_names
+            
             examples = []
+            examples_dict = get_examples_dict()
             
-            if not examples_dir.exists():
-                return JSONResponse(content={'examples': [], 'count': 0})
-            
-            for example_file in examples_dir.glob('*.neural'):
-                with open(example_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                name = example_file.stem.replace('_', ' ').title()
+            for name, code in examples_dict.items():
                 category = 'General'
                 tags = []
                 complexity = 'Intermediate'
                 
-                if 'cnn' in example_file.stem.lower() or 'conv' in content.lower():
+                name_lower = name.lower()
+                code_lower = code.lower()
+                
+                if 'cnn' in name_lower or 'conv2d' in code_lower or 'cifar' in name_lower:
                     category = 'Computer Vision'
                     tags.extend(['cnn', 'computer-vision'])
-                elif 'lstm' in content.lower() or 'rnn' in content.lower():
+                elif 'lstm' in code_lower or 'rnn' in code_lower or 'gru' in code_lower or 'text' in name_lower:
                     category = 'NLP'
                     tags.extend(['nlp', 'recurrent'])
-                elif 'gan' in example_file.stem.lower() or 'vae' in example_file.stem.lower():
+                elif 'gan' in name_lower or 'vae' in name_lower or 'autoencoder' in name_lower:
                     category = 'Generative'
                     tags.extend(['generative'])
+                elif 'transformer' in name_lower or 'attention' in code_lower:
+                    category = 'NLP'
+                    tags.extend(['transformer', 'attention'])
                 
-                if 'mnist' in example_file.stem.lower():
+                if 'mnist' in name_lower:
                     description = 'Convolutional Neural Network for MNIST digit classification'
                     tags.append('mnist')
                     complexity = 'Beginner'
-                elif 'text' in example_file.stem.lower():
+                elif 'text' in name_lower or 'lstm' in name_lower:
                     description = 'LSTM network for text classification and sentiment analysis'
                     tags.append('text')
                     complexity = 'Beginner'
+                elif 'simple' in name_lower or 'dense' in name_lower:
+                    description = f'Simple neural network: {name}'
+                    complexity = 'Beginner'
+                elif 'transformer' in name_lower or 'resnet' in name_lower or 'vgg' in name_lower:
+                    description = f'Advanced neural architecture: {name}'
+                    complexity = 'Advanced'
                 else:
                     description = f'Neural network model: {name}'
                 
                 examples.append({
                     'name': name,
-                    'path': str(example_file.relative_to(examples_dir.parent)),
+                    'path': f'builtin:{name}',
                     'description': description,
                     'category': category,
                     'tags': tags,
@@ -493,22 +515,37 @@ def create_app() -> FastAPI:
     async def load_example(path: str):
         """Load an example model file."""
         try:
-            full_path = Path(__file__).parent.parent / path
-            
-            if not full_path.exists():
-                raise HTTPException(status_code=404, detail='Example file not found')
-            
-            if not full_path.is_file() or not str(full_path).endswith('.neural'):
-                raise HTTPException(status_code=400, detail='Invalid example file')
-            
-            with open(full_path, 'r', encoding='utf-8') as f:
-                code = f.read()
-            
-            return JSONResponse(content={
-                'code': code,
-                'path': path,
-                'name': full_path.stem
-            })
+            if path.startswith('builtin:'):
+                from neural.aquarium.examples import get_example
+                
+                example_name = path.replace('builtin:', '')
+                code = get_example(example_name)
+                
+                if not code:
+                    raise HTTPException(status_code=404, detail='Example not found')
+                
+                return JSONResponse(content={
+                    'code': code,
+                    'path': path,
+                    'name': example_name
+                })
+            else:
+                full_path = Path(__file__).parent.parent / path
+                
+                if not full_path.exists():
+                    raise HTTPException(status_code=404, detail='Example file not found')
+                
+                if not full_path.is_file() or not str(full_path).endswith('.neural'):
+                    raise HTTPException(status_code=400, detail='Invalid example file')
+                
+                with open(full_path, 'r', encoding='utf-8') as f:
+                    code = f.read()
+                
+                return JSONResponse(content={
+                    'code': code,
+                    'path': path,
+                    'name': full_path.stem
+                })
         except HTTPException:
             raise
         except Exception as e:

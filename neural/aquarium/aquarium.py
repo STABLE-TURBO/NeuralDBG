@@ -11,12 +11,39 @@ from pathlib import Path
 import dash
 import dash_bootstrap_components as dbc
 from dash import Input, Output, State, dcc, html
+from flask import jsonify
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from neural.aquarium.src.components.runner import RunnerPanel
-from neural.aquarium.examples import get_random_example
-from neural.parser.parser import ModelTransformer, create_parser
+try:
+    from neural.aquarium.src.components.runner import RunnerPanel
+except ImportError as e:
+    print(f"Warning: Could not import RunnerPanel: {e}")
+    RunnerPanel = None
+
+try:
+    from neural.aquarium.examples import get_random_example
+except ImportError as e:
+    print(f"Warning: Could not import examples: {e}")
+    def get_random_example():
+        return """network DefaultModel {
+    input: (None, 28, 28, 1)
+    layers:
+        Conv2D(filters=32, kernel_size=(3, 3), activation=relu)
+        MaxPooling2D(pool_size=(2, 2))
+        Flatten()
+        Dense(units=128, activation=relu)
+        Output(units=10, activation=softmax)
+    loss: categorical_crossentropy
+    optimizer: Adam(learning_rate=0.001)
+}"""
+
+try:
+    from neural.parser.parser import ModelTransformer, create_parser
+except ImportError as e:
+    print(f"Warning: Could not import parser: {e}")
+    ModelTransformer = None
+    create_parser = None
 
 
 NEURAL_ASCII = r"""
@@ -48,32 +75,40 @@ try:
     @server.route('/health')
     def health_check():
         """Health check endpoint for Aquarium service."""
-        return {
+        return jsonify({
             "status": "healthy",
             "service": "aquarium",
             "version": "0.3.0"
-        }
+        }), 200
     
     @server.route('/health/live')
     def liveness_probe():
         """Kubernetes liveness probe."""
         health_checker = HealthChecker()
         if health_checker.get_liveness_status():
-            return {"status": "alive"}, 200
-        return {"status": "dead"}, 503
+            return jsonify({"status": "alive"}), 200
+        return jsonify({"status": "dead"}), 503
     
     @server.route('/health/ready')
     def readiness_probe():
         """Kubernetes readiness probe."""
         health_checker = HealthChecker()
         if health_checker.get_readiness_status(['aquarium']):
-            return {"status": "ready"}, 200
-        return {"status": "not ready"}, 503
+            return jsonify({"status": "ready"}), 200
+        return jsonify({"status": "not ready"}), 503
 except ImportError:
-    # Health checker not available, skip health endpoints
-    pass
+    # Health checker not available, add basic health endpoint
+    @server.route('/health')
+    def health_check():
+        """Basic health check endpoint."""
+        return jsonify({
+            "status": "healthy",
+            "service": "aquarium",
+            "version": "0.3.0"
+        }), 200
 
-runner_panel = RunnerPanel(app)
+# Initialize runner panel if available
+runner_panel = RunnerPanel(app) if RunnerPanel else None
 
 app.layout = html.Div([
     html.Div([
@@ -188,7 +223,12 @@ app.layout = html.Div([
                 dbc.Tabs([
                     dbc.Tab(
                         label="Runner",
-                        children=[runner_panel.create_layout()],
+                        children=[
+                            runner_panel.create_layout() if runner_panel else html.Div([
+                                html.P("Runner panel unavailable. Please check installation.", 
+                                       className="text-warning p-3")
+                            ])
+                        ],
                         tab_id="tab-runner"
                     ),
                     dbc.Tab(
@@ -279,6 +319,24 @@ def parse_dsl(n_clicks, dsl_content):
             None
         )
     
+    if not create_parser or not ModelTransformer:
+        status = dbc.Alert(
+            [
+                html.I(className="fas fa-exclamation-triangle me-2"),
+                "Parser not available. Please check installation."
+            ],
+            color="warning",
+            dismissable=True
+        )
+        return (
+            status,
+            html.P("Parser module not available.", className="text-warning"),
+            None,
+            None,
+            None,
+            None
+        )
+    
     try:
         parser = create_parser(start_rule='network')
         tree = parser.parse(dsl_content)
@@ -333,22 +391,48 @@ def parse_dsl(n_clicks, dsl_content):
 
 @app.callback(
     Output("dsl-editor", "value"),
-    Input("load-example-btn", "n_clicks")
+    Input("load-example-btn", "n_clicks"),
+    prevent_initial_call=True
 )
-def load_example(n_clicks):
+def load_example_callback(n_clicks):
+    """Load a random example into the editor."""
     if not n_clicks:
         return dash.no_update
     
-    return get_random_example()
+    try:
+        example_code = get_random_example()
+        if example_code:
+            return example_code
+        else:
+            print("Warning: No example code returned")
+            return dash.no_update
+    except Exception as e:
+        print(f"Error loading example: {e}")
+        import traceback
+        traceback.print_exc()
+        return dash.no_update
 
 
-def main(port=8052, debug=False):
+def main(port=8052, debug=False, host="0.0.0.0"):
+    """
+    Start the Neural Aquarium IDE.
+    
+    Parameters
+    ----------
+    port : int
+        Port to run the server on (default: 8052)
+    debug : bool
+        Enable debug mode (default: False)
+    host : str
+        Host to bind to (default: "0.0.0.0")
+    """
     print("="*70)
     print(NEURAL_ASCII)
     print("="*70)
     print(f"\n🚀 Starting Neural Aquarium IDE on http://localhost:{port}")
     print(f"   Backend: Dash + Plotly")
     print(f"   Debug Mode: {debug}")
+    print(f"   Host: {host}")
     print("\n📝 Features:")
     print("   • DSL Editor with syntax validation")
     print("   • Model Compilation (TensorFlow, PyTorch, ONNX)")
@@ -356,18 +440,26 @@ def main(port=8052, debug=False):
     print("   • Dataset Selection (MNIST, CIFAR10, CIFAR100, ImageNet)")
     print("   • Export and IDE Integration")
     print(f"\n🌐 Open your browser to: http://localhost:{port}")
+    print(f"   Health endpoint: http://localhost:{port}/health")
     print("   Press Ctrl+C to stop the server\n")
     print("="*70)
     
-    app.run(debug=debug, host="localhost", port=port)
+    try:
+        app.run_server(debug=debug, host=host, port=port)
+    except Exception as e:
+        print(f"\n❌ Error starting server: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="Neural Aquarium IDE")
-    parser.add_argument("--port", type=int, default=8052, help="Port to run the server on")
+    parser.add_argument("--port", type=int, default=8052, help="Port to run the server on (default: 8052)")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode")
     
     args = parser.parse_args()
-    main(port=args.port, debug=args.debug)
+    main(port=args.port, debug=args.debug, host=args.host)
