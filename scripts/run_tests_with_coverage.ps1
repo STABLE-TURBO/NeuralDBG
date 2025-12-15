@@ -19,7 +19,7 @@ Write-Host ""
 
 # Run the test coverage script
 Write-Host "Running test coverage script..." -ForegroundColor Yellow
-& python generate_test_coverage_summary.py
+& python scripts/generate_test_coverage_summary.py
 $exitCode = $LASTEXITCODE
 
 Write-Host ""

@@ -14,7 +14,7 @@ if errorlevel 1 (
 )
 
 REM Run the test coverage script
-python generate_test_coverage_summary.py
+python scripts\generate_test_coverage_summary.py
 set EXIT_CODE=%ERRORLEVEL%
 
 echo.

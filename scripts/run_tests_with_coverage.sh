@@ -19,7 +19,7 @@ if command -v python3 &> /dev/null; then
 fi
 
 # Run the test coverage script
-$PYTHON_CMD generate_test_coverage_summary.py
+$PYTHON_CMD scripts/generate_test_coverage_summary.py
 EXIT_CODE=$?
 
 echo ""

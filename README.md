@@ -472,7 +472,7 @@ python -m pytest -q -rA
 
 Run tests with coverage and generate report:
 ```powershell
-python generate_test_coverage_summary.py
+python scripts/generate_test_coverage_summary.py
 ```
 
 This generates `TEST_COVERAGE_SUMMARY.md` with test statistics, coverage metrics, and recommendations.

@@ -27,7 +27,7 @@ Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[a
 - **Type Check**: `python -m mypy neural/ --ignore-missing-imports`
 - **Test**: `python -m pytest tests/ -v`
 - **Test with Coverage**: `pytest tests/ -v --cov=neural --cov-report=term --cov-report=html`
-- **Generate Coverage Report**: `python generate_test_coverage_summary.py` (creates TEST_COVERAGE_SUMMARY.md)
+- **Generate Coverage Report**: `python scripts/generate_test_coverage_summary.py` (creates TEST_COVERAGE_SUMMARY.md)
 - **Security**: `python -m bandit -r neural/ -ll` or `python -m pip_audit -l`
 - **Dev Server**: `python neural/dashboard/dashboard.py` (NeuralDbg on :8050)
 
