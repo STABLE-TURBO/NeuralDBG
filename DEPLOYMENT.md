@@ -27,13 +27,13 @@ Build specific service images:
 
 ```bash
 # Dashboard
-docker build -f dockerfiles/Dockerfile.dashboard -t neural-dsl/dashboard:latest .
+docker build -f deployment/docker/Dockerfile.dashboard -t neural-dsl/dashboard:latest .
 
 # No-Code Interface
-docker build -f dockerfiles/Dockerfile.nocode -t neural-dsl/nocode:latest .
+docker build -f deployment/docker/Dockerfile.nocode -t neural-dsl/nocode:latest .
 
 # Aquarium IDE
-docker build -f dockerfiles/Dockerfile.aquarium -t neural-dsl/aquarium:latest .
+docker build -f deployment/docker/Dockerfile.aquarium -t neural-dsl/aquarium:latest .
 ```
 
 ### Running Individual Containers
@@ -112,6 +112,205 @@ docker-compose up -d
 # Or for specific service
 docker-compose build dashboard
 docker-compose up -d dashboard
+```
+
+## Kubernetes Deployment
+
+### Manual Deployment with kubectl
+
+1. **Create namespace and secrets:**
+
+```bash
+# Create namespace
+kubectl apply -f deployment/kubernetes/namespace.yaml
+
+# Update secrets in deployment/kubernetes/secret.yaml with secure values
+# Then apply
+kubectl apply -f deployment/kubernetes/secret.yaml
+
+# Apply ConfigMap
+kubectl apply -f deployment/kubernetes/configmap.yaml
+```
+
+2. **Deploy infrastructure services:**
+
+```bash
+# Redis
+kubectl apply -f deployment/kubernetes/redis-deployment.yaml
+
+# PostgreSQL
+kubectl apply -f deployment/kubernetes/postgres-deployment.yaml
+
+# Wait for services to be ready
+kubectl wait --for=condition=ready pod -l app=redis -n neural-dsl --timeout=300s
+kubectl wait --for=condition=ready pod -l app=postgres -n neural-dsl --timeout=300s
+```
+
+3. **Deploy application services:**
+
+```bash
+# Dashboard
+kubectl apply -f deployment/kubernetes/dashboard-deployment.yaml
+
+# No-Code
+kubectl apply -f deployment/kubernetes/nocode-deployment.yaml
+
+# Aquarium IDE
+kubectl apply -f deployment/kubernetes/aquarium-deployment.yaml
+```
+
+4. **Configure Ingress:**
+
+```bash
+# Update hosts in deployment/kubernetes/ingress.yaml
+# Then apply
+kubectl apply -f deployment/kubernetes/ingress.yaml
+```
+
+5. **Enable autoscaling:**
+
+```bash
+kubectl apply -f deployment/kubernetes/hpa.yaml
+```
+
+### Verify Deployment
+
+```bash
+# Check all resources
+kubectl get all -n neural-dsl
+
+# Check pod status
+kubectl get pods -n neural-dsl
+
+# Check logs
+kubectl logs -f deployment/neural-dashboard -n neural-dsl
+
+# Check service endpoints
+kubectl get svc -n neural-dsl
+
+# Describe pod for troubleshooting
+kubectl describe pod <pod-name> -n neural-dsl
+```
+
+## Helm Deployment
+
+Helm provides the easiest way to deploy Neural DSL in production.
+
+### Installing with Helm
+
+1. **Add repository (if published):**
+
+```bash
+helm repo add neural-dsl https://charts.neural-dsl.com
+helm repo update
+```
+
+2. **Install from local chart:**
+
+```bash
+# Install with default values
+helm install neural-dsl ./deployment/helm/neural-dsl -n neural-dsl --create-namespace
+
+# Or with custom values
+helm install neural-dsl ./deployment/helm/neural-dsl -n neural-dsl \
+  --create-namespace \
+  --values custom-values.yaml
+```
+
+3. **Install with custom configuration:**
+
+```bash
+# Create custom values file
+cat > custom-values.yaml <<EOF
+dashboard:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+ingress:
+  enabled: true
+  hosts:
+    - host: neural.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: dashboard
+          port: 8050
+
+secrets:
+  secretKey: "your-production-secret-key"
+EOF
+
+# Install
+helm install neural-dsl ./deployment/helm/neural-dsl \
+  -n neural-dsl \
+  --create-namespace \
+  --values custom-values.yaml
+```
+
+### Managing Helm Releases
+
+```bash
+# List releases
+helm list -n neural-dsl
+
+# Get release status
+helm status neural-dsl -n neural-dsl
+
+# Upgrade release
+helm upgrade neural-dsl ./deployment/helm/neural-dsl -n neural-dsl
+
+# Rollback release
+helm rollback neural-dsl -n neural-dsl
+
+# Uninstall release
+helm uninstall neural-dsl -n neural-dsl
+```
+
+### Helm Values Configuration
+
+Key configuration options in `values.yaml`:
+
+```yaml
+# Scale Dashboard replicas
+dashboard:
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+
+# Configure resources
+dashboard:
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+# Configure storage
+persistence:
+  enabled: true
+  size: 50Gi
+  storageClass: "fast-ssd"
+
+# Configure ingress
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: neural-dsl.example.com
+  tls:
+    - secretName: neural-dsl-tls
+      hosts:
+        - neural-dsl.example.com
 ```
 
 ## Environment Configuration
@@ -217,5 +416,3 @@ docker run --rm -v nocode-data:/data -v $(pwd):/backup \
 
 For issues and questions:
 - GitHub Issues: https://github.com/Lemniscate-world/Neural/issues
-- Documentation: See project README.md
-- Email: Lemniscate_zero@proton.me

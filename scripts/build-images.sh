@@ -15,23 +15,23 @@ echo "Tag: ${TAG}"
 
 # Build API image
 echo "Building API image..."
-docker build -f dockerfiles/Dockerfile.api -t ${REGISTRY}/${REPO}/api:${TAG} .
+docker build -f deployment/docker/Dockerfile.api -t ${REGISTRY}/${REPO}/api:${TAG} .
 
 # Build Worker image
 echo "Building Worker image..."
-docker build -f dockerfiles/Dockerfile.worker -t ${REGISTRY}/${REPO}/worker:${TAG} .
+docker build -f deployment/docker/Dockerfile.worker -t ${REGISTRY}/${REPO}/worker:${TAG} .
 
 # Build Dashboard image
 echo "Building Dashboard image..."
-docker build -f dockerfiles/Dockerfile.dashboard -t ${REGISTRY}/${REPO}/dashboard:${TAG} .
+docker build -f deployment/docker/Dockerfile.dashboard -t ${REGISTRY}/${REPO}/dashboard:${TAG} .
 
 # Build No-Code image
 echo "Building No-Code image..."
-docker build -f dockerfiles/Dockerfile.nocode -t ${REGISTRY}/${REPO}/nocode:${TAG} .
+docker build -f deployment/docker/Dockerfile.nocode -t ${REGISTRY}/${REPO}/nocode:${TAG} .
 
 # Build Aquarium IDE image
 echo "Building Aquarium IDE image..."
-docker build -f dockerfiles/Dockerfile.aquarium -t ${REGISTRY}/${REPO}/aquarium:${TAG} .
+docker build -f deployment/docker/Dockerfile.aquarium -t ${REGISTRY}/${REPO}/aquarium:${TAG} .
 
 echo "All images built successfully!"
 echo ""

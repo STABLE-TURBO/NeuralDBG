@@ -27,6 +27,12 @@ kubectl apply -f ingress.yaml
 kubectl apply -f hpa.yaml
 ```
 
+Or apply all at once:
+
+```bash
+kubectl apply -f deployment/kubernetes/
+```
+
 2. **Verify:**
 
 ```bash
@@ -119,5 +125,5 @@ kubectl delete namespace neural-dsl
 Or remove specific resources:
 
 ```bash
-kubectl delete -f .
+kubectl delete -f deployment/kubernetes/
 ```

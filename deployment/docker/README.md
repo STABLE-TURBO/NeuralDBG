@@ -23,7 +23,7 @@ Each Dockerfile uses multi-stage builds to:
 
 ```bash
 # Build
-docker build -f dockerfiles/Dockerfile.api -t neural-dsl/api:latest .
+docker build -f deployment/docker/Dockerfile.api -t neural-dsl/api:latest .
 
 # Run
 docker run -p 8000:8000 neural-dsl/api:latest
@@ -39,7 +39,7 @@ docker run -p 8000:8000 neural-dsl/api:latest
 
 ```bash
 # Build
-docker build -f dockerfiles/Dockerfile.worker -t neural-dsl/worker:latest .
+docker build -f deployment/docker/Dockerfile.worker -t neural-dsl/worker:latest .
 
 # Run
 docker run neural-dsl/worker:latest
@@ -55,7 +55,7 @@ docker run neural-dsl/worker:latest
 
 ```bash
 # Build
-docker build -f dockerfiles/Dockerfile.dashboard -t neural-dsl/dashboard:latest .
+docker build -f deployment/docker/Dockerfile.dashboard -t neural-dsl/dashboard:latest .
 
 # Run
 docker run -p 8050:8050 neural-dsl/dashboard:latest
@@ -71,7 +71,7 @@ docker run -p 8050:8050 neural-dsl/dashboard:latest
 
 ```bash
 # Build
-docker build -f dockerfiles/Dockerfile.nocode -t neural-dsl/nocode:latest .
+docker build -f deployment/docker/Dockerfile.nocode -t neural-dsl/nocode:latest .
 
 # Run
 docker run -p 8051:8051 neural-dsl/nocode:latest
@@ -87,7 +87,7 @@ docker run -p 8051:8051 neural-dsl/nocode:latest
 
 ```bash
 # Build
-docker build -f dockerfiles/Dockerfile.aquarium -t neural-dsl/aquarium:latest .
+docker build -f deployment/docker/Dockerfile.aquarium -t neural-dsl/aquarium:latest .
 
 # Run
 docker run -p 8052:8052 neural-dsl/aquarium:latest
@@ -99,18 +99,18 @@ Use the provided scripts:
 
 ### Linux/Mac
 ```bash
-chmod +x ../scripts/build-images.sh
-../scripts/build-images.sh
+chmod +x scripts/build-images.sh
+scripts/build-images.sh
 ```
 
 ### Windows
 ```cmd
-..\scripts\build-images.bat
+scripts\build-images.bat
 ```
 
 ### Custom Registry/Tag
 ```bash
-REGISTRY=myregistry.io REPO=neural TAG=v0.3.0 ../scripts/build-images.sh
+REGISTRY=myregistry.io REPO=neural TAG=v0.3.0 scripts/build-images.sh
 ```
 
 ## Multi-Stage Build Structure
@@ -179,7 +179,7 @@ Customize builds with arguments:
 docker build \
   --build-arg PYTHON_VERSION=3.11 \
   --build-arg PIP_INDEX_URL=https://my-pypi.org/simple \
-  -f dockerfiles/Dockerfile.api \
+  -f deployment/docker/Dockerfile.api \
   -t neural-dsl/api:latest \
   .
 ```
@@ -192,7 +192,7 @@ docker build \
 docker builder prune -a
 
 # Build with no cache
-docker build --no-cache -f dockerfiles/Dockerfile.api -t neural-dsl/api:latest .
+docker build --no-cache -f deployment/docker/Dockerfile.api -t neural-dsl/api:latest .
 ```
 
 ### Image Too Large
@@ -271,7 +271,7 @@ docker push ghcr.io/username/neural-dsl-api:latest
 ```yaml
 - name: Build and push Docker images
   run: |
-    docker build -f dockerfiles/Dockerfile.api -t ${{ secrets.REGISTRY }}/neural-dsl-api:${{ github.sha }} .
+    docker build -f deployment/docker/Dockerfile.api -t ${{ secrets.REGISTRY }}/neural-dsl-api:${{ github.sha }} .
     docker push ${{ secrets.REGISTRY }}/neural-dsl-api:${{ github.sha }}
 ```
 
@@ -279,20 +279,19 @@ docker push ghcr.io/username/neural-dsl-api:latest
 ```yaml
 build-api:
   script:
-    - docker build -f dockerfiles/Dockerfile.api -t $CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHA .
+    - docker build -f deployment/docker/Dockerfile.api -t $CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHA .
     - docker push $CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHA
 ```
 
 ## Related Documentation
 
-- [Docker Compose Configuration](../docker-compose.yml)
-- [Kubernetes Deployments](../k8s/)
-- [Deployment Guide](../DEPLOYMENT.md)
-- [Quick Start](../DOCKER_QUICKSTART.md)
+- [Docker Compose Configuration](../../docker-compose.yml)
+- [Kubernetes Deployments](../kubernetes/)
+- [Deployment Guide](../../DEPLOYMENT.md)
 
 ## Support
 
 For issues with Docker builds:
-- Check [DEPLOYMENT.md](../DEPLOYMENT.md) troubleshooting section
+- Check [DEPLOYMENT.md](../../DEPLOYMENT.md) troubleshooting section
 - Open an issue: https://github.com/Lemniscate-world/Neural/issues
 - Email: Lemniscate_zero@proton.me

@@ -16,7 +16,7 @@ echo.
 
 REM Build API image
 echo Building API image...
-docker build -f dockerfiles/Dockerfile.api -t %REGISTRY%/%REPO%/api:%TAG% .
+docker build -f deployment/docker/Dockerfile.api -t %REGISTRY%/%REPO%/api:%TAG% .
 if errorlevel 1 (
     echo Failed to build API image
     exit /b 1
@@ -24,7 +24,7 @@ if errorlevel 1 (
 
 REM Build Worker image
 echo Building Worker image...
-docker build -f dockerfiles/Dockerfile.worker -t %REGISTRY%/%REPO%/worker:%TAG% .
+docker build -f deployment/docker/Dockerfile.worker -t %REGISTRY%/%REPO%/worker:%TAG% .
 if errorlevel 1 (
     echo Failed to build Worker image
     exit /b 1
@@ -32,7 +32,7 @@ if errorlevel 1 (
 
 REM Build Dashboard image
 echo Building Dashboard image...
-docker build -f dockerfiles/Dockerfile.dashboard -t %REGISTRY%/%REPO%/dashboard:%TAG% .
+docker build -f deployment/docker/Dockerfile.dashboard -t %REGISTRY%/%REPO%/dashboard:%TAG% .
 if errorlevel 1 (
     echo Failed to build Dashboard image
     exit /b 1
@@ -40,7 +40,7 @@ if errorlevel 1 (
 
 REM Build No-Code image
 echo Building No-Code image...
-docker build -f dockerfiles/Dockerfile.nocode -t %REGISTRY%/%REPO%/nocode:%TAG% .
+docker build -f deployment/docker/Dockerfile.nocode -t %REGISTRY%/%REPO%/nocode:%TAG% .
 if errorlevel 1 (
     echo Failed to build No-Code image
     exit /b 1
@@ -48,7 +48,7 @@ if errorlevel 1 (
 
 REM Build Aquarium IDE image
 echo Building Aquarium IDE image...
-docker build -f dockerfiles/Dockerfile.aquarium -t %REGISTRY%/%REPO%/aquarium:%TAG% .
+docker build -f deployment/docker/Dockerfile.aquarium -t %REGISTRY%/%REPO%/aquarium:%TAG% .
 if errorlevel 1 (
     echo Failed to build Aquarium IDE image
     exit /b 1

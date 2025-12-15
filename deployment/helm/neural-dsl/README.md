@@ -13,13 +13,13 @@ Helm chart for deploying Neural DSL on Kubernetes.
 ### From local directory
 
 ```bash
-helm install neural-dsl . -n neural-dsl --create-namespace
+helm install neural-dsl deployment/helm/neural-dsl/ -n neural-dsl --create-namespace
 ```
 
 ### With custom values
 
 ```bash
-helm install neural-dsl . -n neural-dsl \
+helm install neural-dsl deployment/helm/neural-dsl/ -n neural-dsl \
   --create-namespace \
   --values custom-values.yaml
 ```
@@ -27,7 +27,7 @@ helm install neural-dsl . -n neural-dsl \
 ### Using specific values
 
 ```bash
-helm install neural-dsl . -n neural-dsl \
+helm install neural-dsl deployment/helm/neural-dsl/ -n neural-dsl \
   --create-namespace \
   --set api.replicaCount=5 \
   --set worker.replicaCount=10 \
@@ -161,7 +161,7 @@ ingress:
 ```
 
 ```bash
-helm install neural-dsl . -f dev-values.yaml
+helm install neural-dsl deployment/helm/neural-dsl/ -f dev-values.yaml
 ```
 
 ### Production Environment
@@ -226,17 +226,17 @@ postgresql:
 ```
 
 ```bash
-helm install neural-dsl . -f prod-values.yaml
+helm install neural-dsl deployment/helm/neural-dsl/ -f prod-values.yaml
 ```
 
 ## Upgrading
 
 ```bash
 # Upgrade with new values
-helm upgrade neural-dsl . -f new-values.yaml
+helm upgrade neural-dsl deployment/helm/neural-dsl/ -f new-values.yaml
 
 # Upgrade with specific value
-helm upgrade neural-dsl . --set api.replicaCount=10
+helm upgrade neural-dsl deployment/helm/neural-dsl/ --set api.replicaCount=10
 ```
 
 ## Rollback
