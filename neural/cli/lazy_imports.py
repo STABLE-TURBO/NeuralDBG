@@ -94,21 +94,9 @@ def lazy_import(module_name):
     """Create a lazy loader for a module with caching."""
     return LazyLoader(module_name)
 
-# Lazy loaders for heavy dependencies
-tensorflow = lazy_import('tensorflow')
-torch = lazy_import('torch')
-jax = lazy_import('jax')
-matplotlib = lazy_import('matplotlib')
-plotly = lazy_import('plotly')
-dash = lazy_import('dash')
-optuna = lazy_import('optuna')
-
-# Lazy loaders for Neural modules
-shape_propagator = lazy_import('neural.shape_propagation.shape_propagator')
-tensor_flow = lazy_import('neural.dashboard.tensor_flow')
-hpo = lazy_import('neural.hpo.hpo')
-code_generator = lazy_import('neural.code_generation.code_generator')
-experiment_tracker = lazy_import('neural.tracking.experiment_tracker')
+# Note: Lazy imports have been simplified in the CLI refactor.
+# The CLI now uses direct imports for better startup time and simpler code.
+# This module is kept for backward compatibility with any code that might reference it.
 
 def get_module(lazy_loader):
     """Get the actual module from a lazy loader."""
