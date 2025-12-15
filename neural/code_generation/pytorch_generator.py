@@ -204,6 +204,66 @@ class PyTorchGenerator(BaseCodeGenerator):
                     normalized_shape = self.current_input_shape[1:]
                     layers_code.append(f"self.{layer_name} = nn.LayerNorm({normalized_shape})")
                     forward_code_body.append(f"x = self.{layer_name}(x)")
+            elif layer_type in ["Conv1D", "Conv2D", "Conv3D"]:
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    forward_code_body.append(f"x = self.{layer_name}(x)")
+            elif layer_type in ["MaxPooling1D", "MaxPooling2D", "MaxPooling3D"]:
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    forward_code_body.append(f"x = self.{layer_name}(x)")
+            elif layer_type in ["AveragePooling1D", "AveragePooling2D", "AveragePooling3D"]:
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    forward_code_body.append(f"x = self.{layer_name}(x)")
+            elif layer_type == "BatchNormalization":
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    forward_code_body.append(f"x = self.{layer_name}(x)")
+            elif layer_type == "LSTM":
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    forward_code_body.append(f"x, _ = self.{layer_name}(x)")
+            elif layer_type == "GRU":
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    forward_code_body.append(f"x, _ = self.{layer_name}(x)")
+            elif layer_type == "Residual":
+                forward_code_body.append(f"# Residual block")
+                forward_code_body.append(f"residual_input = x")
+                for sub_layer in layer.get('sub_layers', []):
+                    sub_type = sub_layer['type']
+                    sub_params = sub_layer.get('params', {})
+                    sub_layer_name = f"{layer_name}_{sub_type.lower()}"
+                    sub_layer_code = self.generate_layer(sub_type, sub_params)
+                    if sub_layer_code:
+                        layers_code.append(f"self.{sub_layer_name} = {sub_layer_code}")
+                        if sub_type in ["LSTM", "GRU"]:
+                            forward_code_body.append(f"x, _ = self.{sub_layer_name}(x)")
+                        else:
+                            forward_code_body.append(f"x = self.{sub_layer_name}(x)")
+                forward_code_body.append(f"x = x + residual_input")
+            elif layer_type == "GlobalAveragePooling2D":
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    forward_code_body.append(f"x = self.{layer_name}(x).view(x.size(0), -1)")
+            elif layer_type == "GlobalMaxPooling2D":
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    forward_code_body.append(f"x = self.{layer_name}(x).view(x.size(0), -1)")
+            elif layer_type in ["ReLU", "Sigmoid", "Tanh", "Softmax", "LeakyReLU", "ELU", "SELU"]:
+                layer_code = self.generate_layer(layer_type, params)
+                if layer_code:
+                    layers_code.append(f"self.{layer_name} = {layer_code}")
+                    forward_code_body.append(f"x = self.{layer_name}(x)")
             elif layer_type == "Output":
                 in_features = self.current_input_shape[-1]
                 if isinstance(in_features, dict):
@@ -367,12 +427,17 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 dropout = 0.0
         
         return f"nn.MultiheadAttention(embed_dim={embed_dim}, num_heads={num_heads}, dropout={dropout}, batch_first={batch_first})"
-    elif layer_type == "Conv2D":
+    elif layer_type == "Conv1D":
         data_format = params.get("data_format", "channels_last")
-        in_channels = 3
-        if input_shape is not None:
-            in_channels = input_shape[1] if data_format == "channels_first" else input_shape[3]
-            in_channels = in_channels if len(input_shape) > 3 else 3
+        in_channels = 1
+        if input_shape is not None and len(input_shape) >= 3:
+            in_channels = input_shape[1] if data_format == "channels_first" else input_shape[2]
+            if isinstance(in_channels, dict):
+                if 'value' in in_channels:
+                    in_channels = in_channels['value']
+                else:
+                    logger.warning(f"Dictionary dimension without 'value' key: {in_channels}, using default")
+                    in_channels = 1
         out_channels = params.get("filters", 32)
         if isinstance(out_channels, dict):
             if 'value' in out_channels:
@@ -389,15 +454,114 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 kernel_size = 3
         if isinstance(kernel_size, (tuple, list)):
             kernel_size = kernel_size[0]
-        return f"nn.Conv2d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size})"
+        
+        activation = params.get("activation", None)
+        if isinstance(activation, dict):
+            if 'value' in activation:
+                activation = activation['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {activation}, using default")
+                activation = None
+        
+        layers = [f"nn.Conv1d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size})"]
+        if activation:
+            if activation == "relu":
+                layers.append("nn.ReLU()")
+            elif activation == "tanh":
+                layers.append("nn.Tanh()")
+            elif activation == "sigmoid":
+                layers.append("nn.Sigmoid()")
+            elif activation == "softmax":
+                layers.append("nn.Softmax(dim=1)")
+        
+        if len(layers) > 1:
+            return "nn.Sequential(" + ", ".join(layers) + ")"
+        return layers[0]
+    elif layer_type == "Conv2D":
+        data_format = params.get("data_format", "channels_last")
+        in_channels = 3
+        if input_shape is not None and len(input_shape) >= 4:
+            in_channels = input_shape[1] if data_format == "channels_first" else input_shape[3]
+            if isinstance(in_channels, dict):
+                if 'value' in in_channels:
+                    in_channels = in_channels['value']
+                else:
+                    logger.warning(f"Dictionary dimension without 'value' key: {in_channels}, using default")
+                    in_channels = 3
+        out_channels = params.get("filters", 32)
+        if isinstance(out_channels, dict):
+            if 'value' in out_channels:
+                out_channels = out_channels['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {out_channels}, using default")
+                out_channels = 32
+        kernel_size = params.get("kernel_size", 3)
+        if isinstance(kernel_size, dict):
+            if 'value' in kernel_size:
+                kernel_size = kernel_size['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {kernel_size}, using default")
+                kernel_size = 3
+        if isinstance(kernel_size, (tuple, list)):
+            kernel_size = kernel_size[0]
+        
+        activation = params.get("activation", None)
+        if isinstance(activation, dict):
+            if 'value' in activation:
+                activation = activation['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {activation}, using default")
+                activation = None
+        
+        layers = [f"nn.Conv2d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size})"]
+        if activation:
+            if activation == "relu":
+                layers.append("nn.ReLU()")
+            elif activation == "tanh":
+                layers.append("nn.Tanh()")
+            elif activation == "sigmoid":
+                layers.append("nn.Sigmoid()")
+            elif activation == "softmax":
+                layers.append("nn.Softmax(dim=1)")
+        
+        if len(layers) > 1:
+            return "nn.Sequential(" + ", ".join(layers) + ")"
+        return layers[0]
     elif layer_type == "BatchNormalization":
         data_format = params.get("data_format", "channels_last")
-        if input_shape and len(input_shape) > 3:
+        if input_shape and len(input_shape) >= 4:
             num_features = input_shape[1] if data_format == "channels_first" else input_shape[3]
+            if isinstance(num_features, dict):
+                if 'value' in num_features:
+                    num_features = num_features['value']
+                else:
+                    logger.warning(f"Dictionary dimension without 'value' key: {num_features}, using default")
+                    num_features = 64
         else:
             num_features = params.get("filters", 64)
+            if isinstance(num_features, dict):
+                if 'value' in num_features:
+                    num_features = num_features['value']
+                else:
+                    logger.warning(f"Dictionary parameter without 'value' key: {num_features}, using default")
+                    num_features = 64
+        
         momentum = params.get("momentum", 0.9)
+        if isinstance(momentum, dict):
+            if 'value' in momentum:
+                momentum = momentum['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {momentum}, using default")
+                momentum = 0.9
+        
         eps = params.get("epsilon", 0.001)
+        if isinstance(eps, dict):
+            if 'value' in eps:
+                eps = eps['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {eps}, using default")
+                eps = 0.001
+        
         if momentum == 0.9 and eps == 0.001:
             return f"nn.BatchNorm2d(num_features={num_features})"
         return f"nn.BatchNorm2d(num_features={num_features}, momentum={momentum}, eps={eps})"
@@ -455,6 +619,82 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
         if isinstance(pool_size, (tuple, list)):
             pool_size = pool_size if len(pool_size) == 2 else (pool_size[0], pool_size[0])
         return f"nn.AvgPool2d(kernel_size={pool_size})"
+    elif layer_type == "MaxPooling1D":
+        pool_size = params.get("pool_size", 2)
+        if isinstance(pool_size, (tuple, list)):
+            pool_size = pool_size[0]
+        strides = params.get("strides", None)
+        if strides:
+            return f"nn.MaxPool1d(kernel_size={pool_size}, stride={strides})"
+        return f"nn.MaxPool1d(kernel_size={pool_size})"
+    elif layer_type == "AveragePooling1D":
+        pool_size = params.get("pool_size", 2)
+        if isinstance(pool_size, (tuple, list)):
+            pool_size = pool_size[0]
+        return f"nn.AvgPool1d(kernel_size={pool_size})"
+    elif layer_type == "MaxPooling3D":
+        pool_size = params.get("pool_size", 2)
+        if isinstance(pool_size, (tuple, list)):
+            pool_size = pool_size if len(pool_size) == 3 else (pool_size[0], pool_size[0], pool_size[0])
+        strides = params.get("strides", None)
+        if strides:
+            return f"nn.MaxPool3d(kernel_size={pool_size}, stride={strides})"
+        return f"nn.MaxPool3d(kernel_size={pool_size})"
+    elif layer_type == "AveragePooling3D":
+        pool_size = params.get("pool_size", 2)
+        if isinstance(pool_size, (tuple, list)):
+            pool_size = pool_size if len(pool_size) == 3 else (pool_size[0], pool_size[0], pool_size[0])
+        return f"nn.AvgPool3d(kernel_size={pool_size})"
+    elif layer_type == "Conv3D":
+        data_format = params.get("data_format", "channels_last")
+        in_channels = 3
+        if input_shape is not None and len(input_shape) >= 5:
+            in_channels = input_shape[1] if data_format == "channels_first" else input_shape[4]
+            if isinstance(in_channels, dict):
+                if 'value' in in_channels:
+                    in_channels = in_channels['value']
+                else:
+                    logger.warning(f"Dictionary dimension without 'value' key: {in_channels}, using default")
+                    in_channels = 3
+        out_channels = params.get("filters", 32)
+        if isinstance(out_channels, dict):
+            if 'value' in out_channels:
+                out_channels = out_channels['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {out_channels}, using default")
+                out_channels = 32
+        kernel_size = params.get("kernel_size", 3)
+        if isinstance(kernel_size, dict):
+            if 'value' in kernel_size:
+                kernel_size = kernel_size['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {kernel_size}, using default")
+                kernel_size = 3
+        if isinstance(kernel_size, (tuple, list)):
+            kernel_size = kernel_size[0]
+        
+        activation = params.get("activation", None)
+        if isinstance(activation, dict):
+            if 'value' in activation:
+                activation = activation['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {activation}, using default")
+                activation = None
+        
+        layers = [f"nn.Conv3d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size})"]
+        if activation:
+            if activation == "relu":
+                layers.append("nn.ReLU()")
+            elif activation == "tanh":
+                layers.append("nn.Tanh()")
+            elif activation == "sigmoid":
+                layers.append("nn.Sigmoid()")
+            elif activation == "softmax":
+                layers.append("nn.Softmax(dim=1)")
+        
+        if len(layers) > 1:
+            return "nn.Sequential(" + ", ".join(layers) + ")"
+        return layers[0]
     elif layer_type == "Flatten":
         return "nn.Flatten()"
     elif layer_type == "Reshape":
@@ -711,6 +951,41 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             return f"SinusoidalPositionalEncoding(max_len={max_len})"
         else:
             return f"LearnablePositionalEncoding(max_len={max_len})"
+    elif layer_type == "ReLU":
+        return "nn.ReLU()"
+    elif layer_type == "Sigmoid":
+        return "nn.Sigmoid()"
+    elif layer_type == "Tanh":
+        return "nn.Tanh()"
+    elif layer_type == "Softmax":
+        dim = params.get("dim", 1)
+        if isinstance(dim, dict):
+            if 'value' in dim:
+                dim = dim['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {dim}, using default")
+                dim = 1
+        return f"nn.Softmax(dim={dim})"
+    elif layer_type == "LeakyReLU":
+        negative_slope = params.get("negative_slope", 0.01)
+        if isinstance(negative_slope, dict):
+            if 'value' in negative_slope:
+                negative_slope = negative_slope['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {negative_slope}, using default")
+                negative_slope = 0.01
+        return f"nn.LeakyReLU(negative_slope={negative_slope})"
+    elif layer_type == "ELU":
+        alpha = params.get("alpha", 1.0)
+        if isinstance(alpha, dict):
+            if 'value' in alpha:
+                alpha = alpha['value']
+            else:
+                logger.warning(f"Dictionary parameter without 'value' key: {alpha}, using default")
+                alpha = 1.0
+        return f"nn.ELU(alpha={alpha})"
+    elif layer_type == "SELU":
+        return "nn.SELU()"
     else:
         warnings.warn(f"Unsupported layer type '{layer_type}' for pytorch. Skipping.", UserWarning)
         return None
