@@ -248,6 +248,10 @@ class ShapePropagator:
             output_shape = handle_global_average_pooling1d(input_shape, params)
         elif layer_type == "PositionalEncoding":
             output_shape = handle_positional_encoding(input_shape, params)
+        elif layer_type == "TransformerEncoder":
+            output_shape = input_shape
+        elif layer_type == "TransformerDecoder":
+            output_shape = input_shape
         else:
             output_shape = input_shape
 

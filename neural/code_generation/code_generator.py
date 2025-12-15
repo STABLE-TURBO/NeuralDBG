@@ -392,6 +392,11 @@ def generate_code(model_data: Dict[str, Any], backend: str, best_params: Optiona
                     layer_code = f"nn.Linear(in_features={in_features}, out_features={out_features})"
                 layers_code.append(f"self.{layer_name} = {layer_code}")
                 forward_code_body.append(f"x = self.{layer_name}(x)")
+            else:
+                pytorch_layer_code = generate_pytorch_layer(layer_type, params, current_input_shape)
+                if pytorch_layer_code:
+                    layers_code.append(f"self.{layer_name} = {pytorch_layer_code}")
+                    forward_code_body.append(f"x = self.{layer_name}(x)")
 
             try:
                 current_input_shape = propagator.propagate(current_input_shape, layer)
@@ -620,32 +625,35 @@ def generate_tensorflow_layer(layer_type: str, params: Dict[str, Any]) -> Option
         num_heads = params.get("num_heads", 8)
         ff_dim = params.get("ff_dim", 512)
         dropout = params.get("dropout", 0.1)
-        # key_dim is typically the model dimension (embed_dim) divided by num_heads
-        # We'll use ff_dim as a proxy for model dimension here
-        key_dim = params.get("key_dim", 64)  # Default to 64 if not specified
         code = [
             "# TransformerEncoder block",
-            f"x = layers.LayerNormalization(epsilon=1e-6)(x)",
-            f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={key_dim})(x, x)",
+            f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim // num_heads})(x, x)",
+            f"attn_output = layers.Dropout({dropout})(attn_output)",
             f"x = layers.Add()([x, attn_output])",
             f"x = layers.LayerNormalization(epsilon=1e-6)(x)",
-            f"x = layers.Dense({ff_dim}, activation='relu')(x)",
-            f"x = layers.Dropout({dropout})(x)"
+            f"ff_output = layers.Dense({ff_dim}, activation='relu')(x)",
+            f"ff_output = layers.Dense(x.shape[-1])(ff_output)",
+            f"ff_output = layers.Dropout({dropout})(ff_output)",
+            f"x = layers.Add()([x, ff_output])",
+            f"x = layers.LayerNormalization(epsilon=1e-6)(x)"
         ]
         return "\n".join(code)
     elif layer_type == "TransformerDecoder":
         num_heads = params.get("num_heads", 8)
         ff_dim = params.get("ff_dim", 512)
         dropout = params.get("dropout", 0.1)
-        key_dim = params.get("key_dim", 64)
+        causal = params.get("causal", True)
         code = [
             "# TransformerDecoder block",
-            f"x = layers.LayerNormalization(epsilon=1e-6)(x)",
-            f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={key_dim})(x, x)",
+            f"attn_output = layers.MultiHeadAttention(num_heads={num_heads}, key_dim={ff_dim // num_heads}, use_causal_mask={causal})(x, x)",
+            f"attn_output = layers.Dropout({dropout})(attn_output)",
             f"x = layers.Add()([x, attn_output])",
             f"x = layers.LayerNormalization(epsilon=1e-6)(x)",
-            f"x = layers.Dense({ff_dim}, activation='relu')(x)",
-            f"x = layers.Dropout({dropout})(x)"
+            f"ff_output = layers.Dense({ff_dim}, activation='relu')(x)",
+            f"ff_output = layers.Dense(x.shape[-1])(ff_output)",
+            f"ff_output = layers.Dropout({dropout})(ff_output)",
+            f"x = layers.Add()([x, ff_output])",
+            f"x = layers.LayerNormalization(epsilon=1e-6)(x)"
         ]
         return "\n".join(code)
     elif layer_type == "BatchNormalization":
@@ -942,7 +950,11 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
                 hidden_size = 64
         return f"nn.GRU(input_size={input_size}, hidden_size={hidden_size}, batch_first=True)"
     elif layer_type == "TransformerEncoder":
-        d_model = params.get("d_model", 512)
+        # Infer d_model from input_shape if available
+        if input_shape and len(input_shape) >= 3:
+            d_model = input_shape[-1]
+        else:
+            d_model = params.get("d_model", 512)
         # Handle dictionary values in d_model
         if isinstance(d_model, dict):
             # If it's a dictionary with a 'value' key, use that value
@@ -985,9 +997,13 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {dropout}, using default")
                 dropout = 0.1
-        return f"nn.TransformerEncoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout})"
+        return f"nn.TransformerEncoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout}, batch_first=True)"
     elif layer_type == "TransformerDecoder":
-        d_model = params.get("d_model", 512)
+        # Infer d_model from input_shape if available
+        if input_shape and len(input_shape) >= 3:
+            d_model = input_shape[-1]
+        else:
+            d_model = params.get("d_model", 512)
         if isinstance(d_model, dict):
             if 'value' in d_model:
                 d_model = d_model['value']
@@ -1015,7 +1031,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             else:
                 logger.warning(f"Dictionary parameter without 'value' key: {dropout}, using default")
                 dropout = 0.1
-        return f"nn.TransformerDecoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout})"
+        return f"nn.TransformerDecoderLayer(d_model={d_model}, nhead={nhead}, dim_feedforward={dim_feedforward}, dropout={dropout}, batch_first=True)"
     else:
         warnings.warn(f"Unsupported layer type '{layer_type}' for pytorch. Skipping.", UserWarning)
         return None
