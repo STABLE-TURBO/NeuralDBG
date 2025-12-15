@@ -62,6 +62,11 @@ from .evaluation import (
     PerformancePredictor
 )
 
+# Aliases for convenience
+RandomSearch = RandomSearchStrategy
+BayesianSearch = BayesianSearchStrategy
+EvolutionarySearch = EvolutionarySearchStrategy
+
 __all__ = [
     # Core
     'AutoMLEngine',
@@ -75,6 +80,9 @@ __all__ = [
     'RandomSearchStrategy',
     'BayesianSearchStrategy',
     'EvolutionarySearchStrategy',
+    'RandomSearch',
+    'BayesianSearch',
+    'EvolutionarySearch',
     
     # Early stopping
     'EarlyStoppingStrategy',
