@@ -1,0 +1,68 @@
+# Directories to Remove for v0.4.0 Refocusing
+
+The following directories need to be removed as they are out of scope for the focused v0.4.0 release:
+
+## Already Removed (via git rm):
+- neural/cost/ ✓
+- neural/monitoring/ ✓
+- neural/profiling/ ✓
+- neural/docgen/ ✓
+
+## Need Manual Removal:
+- neural/teams/
+- neural/marketplace/ (may not be tracked)
+- neural/mlops/
+- neural/data/
+- neural/collaboration/ (may not be tracked)
+- neural/federated/ (may not be tracked)
+- neural/config/
+- neural/education/
+- neural/plugins/
+- neural/explainability/
+
+## Commands to Remove Remaining Directories:
+
+### Using PowerShell (Windows):
+```powershell
+Remove-Item -Recurse -Force neural/teams, neural/mlops, neural/data, neural/config, neural/education, neural/plugins, neural/explainability
+```
+
+### Using Bash (Linux/Mac):
+```bash
+rm -rf neural/teams neural/marketplace neural/mlops neural/data neural/collaboration neural/federated neural/config neural/education neural/plugins neural/explainability
+```
+
+### Using Git (if tracked):
+```bash
+git rm -rf neural/teams neural/mlops neural/data neural/config neural/education neural/plugins neural/explainability
+```
+
+## Note:
+Some directories (marketplace, collaboration, federated) may not be tracked in git and can be safely deleted with regular file system commands.
+
+## Verification:
+After removal, the following core directories should remain:
+- neural/ai/ (AI-powered DSL generation - retained)
+- neural/api/ (may be removed if not core)
+- neural/aquarium/ (may be removed if not core)
+- neural/automl/ (AutoML - retained as optional feature)
+- neural/benchmarks/ (may be removed if redundant)
+- neural/cli/ (CLI - retained, simplified)
+- neural/cloud/ (cloud integration - may be retained for Colab/Kaggle support)
+- neural/code_generation/ (core)
+- neural/dashboard/ (debugging dashboard - retained)
+- neural/execution_optimization/ (may be redundant)
+- neural/hpo/ (HPO - retained as optional feature)
+- neural/integrations/ (base classes - retained)
+- neural/metrics/ (metrics computation - retained)
+- neural/no_code/ (may be removed)
+- neural/parser/ (core)
+- neural/pretrained_models/ (may be retained)
+- neural/security/ (security utilities - retained)
+- neural/shape_propagation/ (core)
+- neural/src/ (check contents)
+- neural/templates/ (templates - retained)
+- neural/tracking/ (experiment tracking - may be retained)
+- neural/training/ (training utilities - retained)
+- neural/utils/ (utilities - retained)
+- neural/visualization/ (visualization - retained)
