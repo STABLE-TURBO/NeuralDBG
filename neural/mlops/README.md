@@ -1,31 +1,23 @@
 # Neural DSL MLOps Module
 
-Enterprise-grade MLOps capabilities for production machine learning workflows.
+Basic MLOps capabilities for production machine learning workflows.
 
 ## Features
 
 ### 🏗️ Model Registry
 - Versioned model storage with metadata tracking
-- Multi-stage approval workflows (Development → Staging → Production)
-- Model comparison and lineage tracking
+- Simple stage promotion (Development → Staging → Production)
+- Model comparison and tracking
 - Centralized model repository
 
-### 🧪 A/B Testing Framework
-- Statistical hypothesis testing with confidence intervals
-- Multiple traffic splitting strategies (random, hash-based, canary)
-- Real-time metrics collection and analysis
-- Automated significance testing
-
-### 🚀 Deployment Manager
-- Shadow deployment for risk-free testing
-- Canary releases with gradual traffic shift
-- Blue-green deployment support
-- Automated rollback on performance degradation
-- Comprehensive health monitoring
+### 🚀 Basic Deployment
+- Simple deployment tracking
+- Deployment status management
+- Environment-based organization
 
 ### 📋 Audit Logging
-- Complete audit trail for compliance
-- Tamper-evident event logging
+- Audit trail for compliance
+- Event logging for model operations
 - Compliance report generation
 - Security violation tracking
 - Flexible querying and export
@@ -51,14 +43,12 @@ pip install -e ".[full]"
 
 ```python
 from neural.mlops.registry import ModelRegistry, ModelStage
-from neural.mlops.deployment import DeploymentManager, DeploymentStrategy
-from neural.mlops.ab_testing import ABTestManager, TrafficSplitStrategy
+from neural.mlops.deployment import DeploymentManager
 from neural.mlops.audit import AuditLogger, EventType
 
 # Initialize
 registry = ModelRegistry("./models")
 deployment = DeploymentManager("./deployments")
-ab_testing = ABTestManager("./ab_tests")
 audit = AuditLogger("./audit_logs")
 
 # Register model
@@ -71,30 +61,23 @@ metadata = registry.register_model(
     metrics={"accuracy": 0.95}
 )
 
-# Create A/B test
-test = ab_testing.create_test(
-    name="Model V2 Test",
-    description="Testing new model",
-    control_variant="v1.0.0",
-    treatment_variant="v2.0.0",
-    traffic_split=0.1,
-    strategy=TrafficSplitStrategy.HASH_BASED,
-    created_by="user@company.com"
+# Create deployment
+deploy = deployment.create_deployment(
+    model_name="my_model",
+    model_version="v1.0.0",
+    environment="production",
+    endpoint="http://localhost:8080/predict"
 )
 
-# Shadow deployment
-shadow = deployment.shadow_deploy(
-    primary_model="my_model:v1.0.0",
-    shadow_model="my_model:v2.0.0"
-)
+# Activate deployment
+deployment.activate_deployment(deploy.deployment_id)
 
 # Audit logging
 audit.log_model_deployment(
     model_name="my_model",
-    version="v2.0.0",
+    version="v1.0.0",
     user="user@company.com",
-    environment="production",
-    strategy="canary"
+    environment="production"
 )
 ```
 
@@ -102,9 +85,8 @@ audit.log_model_deployment(
 
 ```
 neural/mlops/
-├── registry.py          # Model registry with approval workflows
-├── ab_testing.py        # A/B testing with traffic splitting
-├── deployment.py        # Deployment strategies and rollback
+├── registry.py          # Model registry with versioning
+├── deployment.py        # Basic deployment tracking
 ├── audit.py            # Audit logging for compliance
 ├── ci_templates.py     # CI/CD template generator
 └── ci_templates/       # Ready-to-use CI/CD templates
@@ -118,37 +100,25 @@ neural/mlops/
 
 ### Production Model Deployment
 1. Register model with metadata
-2. Run shadow deployment to validate
-3. Create A/B test to compare performance
-4. Deploy with canary strategy
-5. Monitor and auto-rollback if needed
-6. Audit all actions for compliance
+2. Create deployment record
+3. Activate deployment
+4. Audit all actions for compliance
 
 ### Compliance and Governance
 1. Log all model lifecycle events
-2. Require approval for production deployments
-3. Track who deployed what and when
-4. Generate compliance reports
-5. Export audit trails for regulators
-
-### Safe Experimentation
-1. Shadow deploy new models without risk
-2. A/B test with statistical significance
-3. Compare metrics between variants
-4. Roll out gradually with canary
-5. Rollback automatically if performance degrades
+2. Track who deployed what and when
+3. Generate compliance reports
+4. Export audit trails for regulators
 
 ## Documentation
 
 - [Complete Documentation](../../docs/mlops/README.md)
 - [Deployment Guide](../../docs/mlops/DEPLOYMENT_GUIDE.md)
-- [API Reference](../../docs/mlops/)
 
 ## Examples
 
 See [examples directory](../../examples/mlops/) for:
-- Complete deployment workflows
-- A/B testing examples
+- Deployment workflows
 - Audit logging patterns
 - CI/CD integration
 
@@ -198,22 +168,8 @@ registry = ModelRegistry(
 ### Deployment Manager
 
 ```python
-from neural.mlops.deployment import RollbackConfig
-
 deployment = DeploymentManager(
-    storage_path="./deployments",
-    default_rollback_config=RollbackConfig(
-        error_rate_threshold=0.01,
-        latency_threshold_multiplier=1.5
-    )
-)
-```
-
-### A/B Testing
-
-```python
-ab_testing = ABTestManager(
-    storage_path="./ab_tests"
+    storage_path="./deployments"
 )
 ```
 
@@ -225,39 +181,29 @@ audit = AuditLogger(
 )
 ```
 
-## Performance
-
-- **Model Registry**: O(1) model lookup, O(n) listing
-- **A/B Testing**: O(1) variant assignment with hash-based splitting
-- **Deployment**: O(1) health checks, O(log n) metrics analysis
-- **Audit Logging**: O(1) event logging, O(n) querying with date partitioning
-
 ## Storage
 
 All data stored as JSON files with structured directories:
 
 ```
 ./models/               # Model registry
-./ab_tests/            # A/B test configurations and results
 ./deployments/         # Deployment tracking
 ./audit_logs/          # Audit events (date-partitioned)
 ```
 
 ## Security
 
-- Tamper-evident audit logging
-- Access control through approval workflows
+- Audit logging for tracking
 - Security violation tracking
-- Sensitive data handling in audit logs
+- Access tracking through events
 
 ## Compliance
 
-Supports compliance requirements:
+Supports compliance requirements through audit logging:
 - SOC 2
 - GDPR
 - HIPAA
 - PCI DSS
-- Industry-specific regulations
 
 ## Contributing
 

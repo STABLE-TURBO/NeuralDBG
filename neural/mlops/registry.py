@@ -1,8 +1,7 @@
 """
-Model Registry with Approval Workflows.
+Basic Model Registry for Model Tracking.
 
-Provides versioned model storage, metadata tracking, and multi-stage
-approval workflows for enterprise ML governance.
+Provides simple model registration and versioning without approval workflows.
 """
 
 from __future__ import annotations
@@ -26,14 +25,6 @@ class ModelStage(Enum):
     ARCHIVED = "archived"
 
 
-class ApprovalStatus(Enum):
-    """Approval workflow status."""
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    REQUIRES_REVIEW = "requires_review"
-
-
 @dataclass
 class ModelMetadata:
     """Metadata for a registered model."""
@@ -48,15 +39,11 @@ class ModelMetadata:
     description: str = ""
     model_path: str = ""
     config_path: str = ""
-    approval_status: ApprovalStatus = ApprovalStatus.PENDING
-    approved_by: Optional[str] = None
-    approved_at: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         data = asdict(self)
         data['stage'] = self.stage.value
-        data['approval_status'] = self.approval_status.value
         return data
     
     @classmethod
@@ -64,165 +51,26 @@ class ModelMetadata:
         """Create from dictionary."""
         data = data.copy()
         data['stage'] = ModelStage(data['stage'])
-        data['approval_status'] = ApprovalStatus(data['approval_status'])
         return cls(**data)
-
-
-@dataclass
-class ApprovalRequest:
-    """Model approval request."""
-    model_name: str
-    version: str
-    requested_by: str
-    requested_at: str
-    target_stage: ModelStage
-    justification: str
-    reviewers: List[str] = field(default_factory=list)
-    status: ApprovalStatus = ApprovalStatus.PENDING
-    comments: List[Dict[str, str]] = field(default_factory=list)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
-        data = asdict(self)
-        data['target_stage'] = self.target_stage.value
-        data['status'] = self.status.value
-        return data
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ApprovalRequest:
-        """Create from dictionary."""
-        data = data.copy()
-        data['target_stage'] = ModelStage(data['target_stage'])
-        data['status'] = ApprovalStatus(data['status'])
-        return cls(**data)
-
-
-class ApprovalWorkflow:
-    """Manages model approval workflows."""
-    
-    def __init__(self, registry_path: str):
-        self.registry_path = Path(registry_path)
-        self.approvals_path = self.registry_path / "approvals"
-        self.approvals_path.mkdir(parents=True, exist_ok=True)
-    
-    def create_approval_request(
-        self,
-        model_name: str,
-        version: str,
-        target_stage: ModelStage,
-        requested_by: str,
-        justification: str,
-        reviewers: Optional[List[str]] = None
-    ) -> ApprovalRequest:
-        """Create a new approval request."""
-        request = ApprovalRequest(
-            model_name=model_name,
-            version=version,
-            requested_by=requested_by,
-            requested_at=datetime.now().isoformat(),
-            target_stage=target_stage,
-            justification=justification,
-            reviewers=reviewers or [],
-        )
-        
-        self._save_approval_request(request)
-        return request
-    
-    def approve_request(
-        self,
-        model_name: str,
-        version: str,
-        approver: str,
-        comment: Optional[str] = None
-    ) -> None:
-        """Approve a model promotion request."""
-        request = self.get_approval_request(model_name, version)
-        request.status = ApprovalStatus.APPROVED
-        request.comments.append({
-            "user": approver,
-            "timestamp": datetime.now().isoformat(),
-            "action": "approved",
-            "comment": comment or "Approved"
-        })
-        self._save_approval_request(request)
-    
-    def reject_request(
-        self,
-        model_name: str,
-        version: str,
-        reviewer: str,
-        reason: str
-    ) -> None:
-        """Reject a model promotion request."""
-        request = self.get_approval_request(model_name, version)
-        request.status = ApprovalStatus.REJECTED
-        request.comments.append({
-            "user": reviewer,
-            "timestamp": datetime.now().isoformat(),
-            "action": "rejected",
-            "comment": reason
-        })
-        self._save_approval_request(request)
-    
-    def get_approval_request(self, model_name: str, version: str) -> ApprovalRequest:
-        """Get approval request for a model version."""
-        request_path = self.approvals_path / f"{model_name}_{version}.json"
-        if not request_path.exists():
-            raise FileNotFoundError(f"No approval request found for {model_name} v{version}")
-        
-        with open(request_path, 'r') as f:
-            data = json.load(f)
-        return ApprovalRequest.from_dict(data)
-    
-    def list_pending_approvals(self) -> List[ApprovalRequest]:
-        """List all pending approval requests."""
-        pending = []
-        for request_file in self.approvals_path.glob("*.json"):
-            with open(request_file, 'r') as f:
-                data = json.load(f)
-            request = ApprovalRequest.from_dict(data)
-            if request.status == ApprovalStatus.PENDING:
-                pending.append(request)
-        return pending
-    
-    def _save_approval_request(self, request: ApprovalRequest) -> None:
-        """Save approval request to disk."""
-        request_path = self.approvals_path / f"{request.model_name}_{request.version}.json"
-        with open(request_path, 'w') as f:
-            json.dump(request.to_dict(), f, indent=2)
 
 
 class ModelRegistry:
     """
-    Enterprise model registry with versioning and approval workflows.
-    
-    Provides centralized model storage, metadata tracking, and lifecycle
-    management with approval workflows for production deployment.
+    Basic model registry with versioning.
     
     Example:
         registry = ModelRegistry("./models")
         
-        # Register a new model
         metadata = registry.register_model(
-            name="fraud_detector",
+            name="my_model",
             version="v1.0.0",
             model_path="./model.pt",
             framework="pytorch",
-            metrics={"accuracy": 0.95, "f1": 0.93},
-            created_by="data_scientist@company.com"
+            metrics={"accuracy": 0.95},
+            created_by="user@example.com"
         )
         
-        # Request production promotion
-        registry.request_promotion(
-            name="fraud_detector",
-            version="v1.0.0",
-            target_stage=ModelStage.PRODUCTION,
-            requested_by="ml_engineer@company.com",
-            justification="Model passed all validation tests"
-        )
-        
-        # Approve and promote
-        registry.approve_promotion("fraud_detector", "v1.0.0", "ml_manager@company.com")
+        registry.promote_model("my_model", "v1.0.0", ModelStage.PRODUCTION)
     """
     
     def __init__(self, registry_path: str = "./models"):
@@ -232,14 +80,13 @@ class ModelRegistry:
         
         self.models_path.mkdir(parents=True, exist_ok=True)
         self.metadata_path.mkdir(parents=True, exist_ok=True)
-        
-        self.approval_workflow = ApprovalWorkflow(str(self.registry_path))
     
     def register(self, name: str, version: str) -> str:
         return f"{name}_{version}"
     
     def get(self, model_id: str) -> Dict[str, Any]:
-        return {"name": model_id.split("_")[0], "version": model_id.split("_")[1] if "_" in model_id else ""}
+        parts = model_id.split("_")
+        return {"name": parts[0], "version": parts[1] if len(parts) > 1 else ""}
     
     def delete(self, model_id: str) -> bool:
         return True
@@ -333,56 +180,18 @@ class ModelRegistry:
         
         return sorted(versions)[-1]
     
-    def request_promotion(
+    def promote_model(
         self,
         name: str,
         version: str,
-        target_stage: ModelStage,
-        requested_by: str,
-        justification: str,
-        reviewers: Optional[List[str]] = None
-    ) -> ApprovalRequest:
-        """Request promotion of a model to a higher stage."""
+        target_stage: ModelStage
+    ) -> None:
+        """Promote a model to a different stage."""
         metadata = self.get_model(name, version)
-        
-        if target_stage == ModelStage.PRODUCTION:
-            if metadata.stage not in [ModelStage.STAGING]:
-                raise ValueError("Model must be in STAGING before promoting to PRODUCTION")
-        
-        return self.approval_workflow.create_approval_request(
-            model_name=name,
-            version=version,
-            target_stage=target_stage,
-            requested_by=requested_by,
-            justification=justification,
-            reviewers=reviewers
-        )
+        metadata.stage = target_stage
+        self._save_metadata(metadata)
     
-    def approve_promotion(
-        self,
-        name: str,
-        version: str,
-        approver: str,
-        comment: Optional[str] = None
-    ) -> None:
-        """Approve and execute model promotion."""
-        self.approval_workflow.approve_request(name, version, approver, comment)
-        
-        request = self.approval_workflow.get_approval_request(name, version)
-        if request.status == ApprovalStatus.APPROVED:
-            self._promote_model(name, version, request.target_stage, approver)
-    
-    def reject_promotion(
-        self,
-        name: str,
-        version: str,
-        reviewer: str,
-        reason: str
-    ) -> None:
-        """Reject model promotion request."""
-        self.approval_workflow.reject_request(name, version, reviewer, reason)
-    
-    def archive_model(self, name: str, version: str, archived_by: str) -> None:
+    def archive_model(self, name: str, version: str) -> None:
         """Archive a model version."""
         metadata = self.get_model(name, version)
         metadata.stage = ModelStage.ARCHIVED
@@ -423,21 +232,6 @@ class ModelRegistry:
             }
         
         return comparison
-    
-    def _promote_model(
-        self,
-        name: str,
-        version: str,
-        target_stage: ModelStage,
-        promoted_by: str
-    ) -> None:
-        """Internal method to promote model stage."""
-        metadata = self.get_model(name, version)
-        metadata.stage = target_stage
-        metadata.approved_by = promoted_by
-        metadata.approved_at = datetime.now().isoformat()
-        metadata.approval_status = ApprovalStatus.APPROVED
-        self._save_metadata(metadata)
     
     def _save_metadata(self, metadata: ModelMetadata) -> None:
         """Save model metadata to disk."""

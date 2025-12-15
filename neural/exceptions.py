@@ -576,36 +576,13 @@ class ModelRegistryError(MLOpsException):
     """
 
 
-class ApprovalWorkflowError(MLOpsException):
-    """
-    Raised when approval workflow operations fail.
-    
-    Examples:
-        - Approval not found
-        - Invalid approval status
-        - Unauthorized approval attempt
-    """
-
-
 class DeploymentError(MLOpsException):
     """
     Raised when deployment operations fail.
     
     Examples:
         - Deployment creation failure
-        - Health check failure
-        - Rollback failure
-    """
-
-
-class ABTestError(MLOpsException):
-    """
-    Raised when A/B testing operations fail.
-    
-    Examples:
-        - Invalid test configuration
-        - Test not found
-        - Statistical analysis failure
+        - Status update failure
     """
 
 
@@ -734,9 +711,7 @@ def raise_codegen_error(
 # - ExecutionError
 # - MLOpsException
 #   - ModelRegistryError
-#   - ApprovalWorkflowError
 #   - DeploymentError
-#   - ABTestError
 #   - AuditLogError
 # - CollaborationException
 #   - WorkspaceError

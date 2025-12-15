@@ -1,12 +1,11 @@
 """
-Comprehensive test suite for MLOps module to increase coverage.
+Test suite for simplified MLOps module.
 """
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from neural.mlops.registry import ModelRegistry
 from neural.mlops.deployment import ModelDeployment
-from neural.mlops.ab_testing import ABTest
 from neural.mlops.audit import AuditLogger
 
 
@@ -92,59 +91,6 @@ class TestModelDeployment:
             assert result["replicas"] == 5
 
 
-class TestABTest:
-    """Test A/B testing functionality."""
-    
-    def test_ab_test_initialization(self):
-        """Test A/B test initialization."""
-        ab_test = ABTest(name="experiment_1")
-        assert ab_test.name == "experiment_1"
-    
-    def test_create_test(self):
-        """Test creating an A/B test."""
-        ab_test = ABTest(name="experiment_1")
-        with patch.object(ab_test, 'create') as mock_create:
-            mock_create.return_value = {"test_id": "test_123"}
-            result = ab_test.create(
-                model_a="model_v1",
-                model_b="model_v2",
-                traffic_split=0.5
-            )
-            assert result["test_id"] == "test_123"
-    
-    def test_record_result(self):
-        """Test recording test results."""
-        ab_test = ABTest(name="experiment_1")
-        with patch.object(ab_test, 'record_result') as mock_record:
-            mock_record.return_value = True
-            result = ab_test.record_result(
-                variant="A",
-                metric="accuracy",
-                value=0.95
-            )
-            assert result is True
-    
-    def test_get_statistics(self):
-        """Test getting test statistics."""
-        ab_test = ABTest(name="experiment_1")
-        with patch.object(ab_test, 'get_statistics') as mock_stats:
-            mock_stats.return_value = {
-                "variant_a": {"mean": 0.95, "std": 0.02},
-                "variant_b": {"mean": 0.93, "std": 0.03},
-                "p_value": 0.04
-            }
-            stats = ab_test.get_statistics()
-            assert stats["p_value"] < 0.05
-    
-    def test_conclude_test(self):
-        """Test concluding an A/B test."""
-        ab_test = ABTest(name="experiment_1")
-        with patch.object(ab_test, 'conclude') as mock_conclude:
-            mock_conclude.return_value = {"winner": "variant_a", "confidence": 0.95}
-            result = ab_test.conclude()
-            assert result["winner"] == "variant_a"
-
-
 class TestAuditLogger:
     """Test audit logging functionality."""
     
@@ -200,21 +146,3 @@ def test_deployment_environments(environment, replicas):
         mock_deploy.return_value = {"status": "success", "replicas": replicas}
         result = deployment.deploy(environment=environment, replicas=replicas)
         assert result["status"] == "success"
-
-
-@pytest.mark.parametrize("split,variant_a_traffic,variant_b_traffic", [
-    (0.5, 0.5, 0.5),
-    (0.3, 0.3, 0.7),
-    (0.8, 0.8, 0.2),
-])
-def test_ab_test_traffic_splits(split, variant_a_traffic, variant_b_traffic):
-    """Parameterized test for A/B test traffic splits."""
-    ab_test = ABTest(name="traffic_test")
-    with patch.object(ab_test, 'create') as mock_create:
-        mock_create.return_value = {
-            "traffic_split": split,
-            "variant_a": variant_a_traffic,
-            "variant_b": variant_b_traffic
-        }
-        result = ab_test.create("model_a", "model_b", traffic_split=split)
-        assert result["traffic_split"] == split

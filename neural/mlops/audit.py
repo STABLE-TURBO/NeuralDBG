@@ -1,8 +1,8 @@
 """
-Audit Logging for Compliance and Governance.
+Basic Audit Logging for Compliance.
 
-Provides comprehensive audit logging for ML operations including
-model deployments, approvals, access, and compliance reporting.
+Provides audit logging for ML operations including
+model deployments, access, and configuration changes.
 """
 
 from __future__ import annotations
@@ -22,15 +22,7 @@ class EventType(Enum):
     MODEL_REGISTERED = "model_registered"
     MODEL_PROMOTED = "model_promoted"
     MODEL_DEPLOYED = "model_deployed"
-    MODEL_ROLLED_BACK = "model_rolled_back"
     MODEL_ARCHIVED = "model_archived"
-    APPROVAL_REQUESTED = "approval_requested"
-    APPROVAL_GRANTED = "approval_granted"
-    APPROVAL_REJECTED = "approval_rejected"
-    AB_TEST_CREATED = "ab_test_created"
-    AB_TEST_STARTED = "ab_test_started"
-    AB_TEST_COMPLETED = "ab_test_completed"
-    SHADOW_DEPLOYMENT_CREATED = "shadow_deployment_created"
     ACCESS_GRANTED = "access_granted"
     ACCESS_REVOKED = "access_revoked"
     CONFIGURATION_CHANGED = "configuration_changed"
@@ -59,8 +51,6 @@ class AuditEvent:
     action: str
     details: Dict[str, Any] = field(default_factory=dict)
     ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
-    session_id: Optional[str] = None
     tags: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -116,45 +106,25 @@ class ComplianceReport:
 
 class AuditLogger:
     """
-    Enterprise audit logging for ML operations.
-    
-    Provides tamper-evident logging for compliance and governance,
-    tracking all model lifecycle events, access, and configuration changes.
+    Basic audit logging for ML operations.
     
     Example:
         logger = AuditLogger("./audit_logs")
         
-        # Log model deployment
         logger.log_event(
             event_type=EventType.MODEL_DEPLOYED,
-            user="devops@company.com",
+            user="user@example.com",
             resource_type="model",
-            resource_id="fraud_detector:v2.0.0",
+            resource_id="my_model:v1.0.0",
             action="deploy",
-            details={
-                "environment": "production",
-                "strategy": "canary"
-            },
+            details={"environment": "production"},
             severity=EventSeverity.INFO
         )
         
-        # Log security violation
-        logger.log_security_violation(
-            user="unknown@external.com",
-            resource_type="model",
-            resource_id="fraud_detector:v2.0.0",
-            action="unauthorized_access",
-            details={"ip_address": "192.168.1.1"}
-        )
-        
-        # Generate compliance report
         report = logger.generate_compliance_report(
             start_date=datetime.now() - timedelta(days=30),
             end_date=datetime.now()
         )
-        
-        # Export audit trail
-        logger.export_audit_trail("audit_trail.json", format="json")
     """
     
     def __init__(self, storage_path: str = "./audit_logs"):
@@ -179,8 +149,6 @@ class AuditLogger:
         severity: EventSeverity = EventSeverity.INFO,
         details: Optional[Dict[str, Any]] = None,
         ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        session_id: Optional[str] = None,
         tags: Optional[List[str]] = None
     ) -> AuditEvent:
         """Log an audit event."""
@@ -198,8 +166,6 @@ class AuditLogger:
             action=action,
             details=details or {},
             ip_address=ip_address,
-            user_agent=user_agent,
-            session_id=session_id,
             tags=tags or []
         )
         
@@ -232,8 +198,7 @@ class AuditLogger:
         model_name: str,
         version: str,
         user: str,
-        environment: str,
-        strategy: str
+        environment: str
     ) -> AuditEvent:
         """Log model deployment event."""
         return self.log_event(
@@ -243,88 +208,7 @@ class AuditLogger:
             resource_id=f"{model_name}:{version}",
             action="deploy",
             severity=EventSeverity.INFO,
-            details={
-                "environment": environment,
-                "strategy": strategy
-            }
-        )
-    
-    def log_model_rollback(
-        self,
-        model_name: str,
-        version: str,
-        user: str,
-        reason: str,
-        triggered_by: str = "automated"
-    ) -> AuditEvent:
-        """Log model rollback event."""
-        return self.log_event(
-            event_type=EventType.MODEL_ROLLED_BACK,
-            user=user,
-            resource_type="model",
-            resource_id=f"{model_name}:{version}",
-            action="rollback",
-            severity=EventSeverity.WARNING,
-            details={
-                "reason": reason,
-                "triggered_by": triggered_by
-            }
-        )
-    
-    def log_approval_request(
-        self,
-        model_name: str,
-        version: str,
-        user: str,
-        target_stage: str,
-        justification: str
-    ) -> AuditEvent:
-        """Log approval request event."""
-        return self.log_event(
-            event_type=EventType.APPROVAL_REQUESTED,
-            user=user,
-            resource_type="approval",
-            resource_id=f"{model_name}:{version}",
-            action="request",
-            details={
-                "target_stage": target_stage,
-                "justification": justification
-            }
-        )
-    
-    def log_approval_granted(
-        self,
-        model_name: str,
-        version: str,
-        approver: str,
-        comment: Optional[str] = None
-    ) -> AuditEvent:
-        """Log approval granted event."""
-        return self.log_event(
-            event_type=EventType.APPROVAL_GRANTED,
-            user=approver,
-            resource_type="approval",
-            resource_id=f"{model_name}:{version}",
-            action="approve",
-            details={"comment": comment}
-        )
-    
-    def log_approval_rejected(
-        self,
-        model_name: str,
-        version: str,
-        reviewer: str,
-        reason: str
-    ) -> AuditEvent:
-        """Log approval rejected event."""
-        return self.log_event(
-            event_type=EventType.APPROVAL_REJECTED,
-            user=reviewer,
-            resource_type="approval",
-            resource_id=f"{model_name}:{version}",
-            action="reject",
-            severity=EventSeverity.WARNING,
-            details={"reason": reason}
+            details={"environment": environment}
         )
     
     def log_security_violation(
@@ -347,24 +231,6 @@ class AuditLogger:
             details=details,
             ip_address=ip_address,
             tags=["security", "violation"]
-        )
-    
-    def log_data_access(
-        self,
-        user: str,
-        dataset_id: str,
-        action: str,
-        details: Optional[Dict[str, Any]] = None
-    ) -> AuditEvent:
-        """Log data access event."""
-        return self.log_event(
-            event_type=EventType.DATA_ACCESS,
-            user=user,
-            resource_type="dataset",
-            resource_id=dataset_id,
-            action=action,
-            details=details,
-            tags=["data_access"]
         )
     
     def query_events(
@@ -492,26 +358,6 @@ class AuditLogger:
                         writer.writerow(event.to_dict())
         else:
             raise ValueError(f"Unsupported format: {format}")
-    
-    def get_event(self, event_id: str) -> AuditEvent:
-        """Get event by ID."""
-        for event_file in self.events_path.glob("**/*.json"):
-            if event_id in event_file.stem:
-                with open(event_file, 'r') as f:
-                    data = json.load(f)
-                return AuditEvent.from_dict(data)
-        
-        raise FileNotFoundError(f"Event {event_id} not found")
-    
-    def get_report(self, report_id: str) -> ComplianceReport:
-        """Get compliance report by ID."""
-        report_file = self.reports_path / f"{report_id}.json"
-        if not report_file.exists():
-            raise FileNotFoundError(f"Report {report_id} not found")
-        
-        with open(report_file, 'r') as f:
-            data = json.load(f)
-        return ComplianceReport.from_dict(data)
     
     def _save_event(self, event: AuditEvent) -> None:
         """Save audit event to disk with date-based partitioning."""
