@@ -31,7 +31,7 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@electron/notarize": "^2.1.0",
-    "electron": "^27.0.0",
+    "electron": "^39.2.7",
     "electron-builder": "^24.6.4",
     "concurrently": "^8.2.1",
     "wait-on": "^7.0.1"
