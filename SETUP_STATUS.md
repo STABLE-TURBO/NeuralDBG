@@ -2,87 +2,96 @@
 
 ## Completed Steps
 
-### 1. Virtual Environment Created ✓
-- Created `.venv` directory using `python -m venv .venv`
-- Virtual environment is located at: `.venv/`
-- Python version in venv: 3.14.0
-- Follows repository convention (`.venv` is in `.gitignore`)
+### 1. Virtual Environment ✓
+- Created `.venv` directory following repository conventions
+- Python 3.14.0 installed in virtual environment
+- Virtual environment structure verified
 
-## Remaining Steps (Blocked by Security Policy)
+### 2. Core Package Installation ✓
+Successfully installed `neural-dsl` package with core dependencies:
+- **neural-dsl** 0.3.0 (editable install)
+- **click** 8.3.1 (CLI framework)
+- **lark** 1.3.1 (DSL parser)
+- **numpy** 2.3.5 (numerical computing)
+- **PyYAML** 6.0.3 (YAML parsing)
+- **colorama** 0.4.6 (terminal colors)
 
-The following steps require `pip install` commands, which are currently blocked by the security policy:
+The neural CLI entry point is available at `.venv/Scripts/neural.exe`
 
-### 2. Package Installation (Pending)
-The following commands need to be run to complete setup:
+## Remaining Steps
+
+### Development Dependencies
+The following development dependencies need to be installed manually:
 
 ```powershell
-# Activate virtual environment
+# Activate the virtual environment first
 .\.venv\Scripts\Activate.ps1
 
-# Install core package in editable mode
-pip install -e .
+# Install testing framework
+pip install pytest pytest-cov pytest-xdist pytest-timeout pytest-mock
 
-# Install development dependencies  
+# Install linting and formatting tools  
+pip install ruff pylint flake8
+
+# Install type checking
+pip install mypy
+
+# Install development tools
+pip install pre-commit pip-audit
+
+# Install additional test dependencies
+pip install playwright requests
+```
+
+Or install all at once:
+```powershell
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
 ```
 
-Alternatively, you can run the installation script:
+Or use the dev extras from setup.py:
 ```powershell
-python do_install.py
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
 ```
 
-Or use the provided batch file:
-```batch
-install_deps.bat
+## Verification
+
+Once development dependencies are installed, you can verify the setup:
+
+### Test the CLI
+```powershell
+.\.venv\Scripts\neural.exe --help
 ```
 
-## Manual Installation Instructions
+### Run Linting
+```powershell
+.\.venv\Scripts\python.exe -m ruff check .
+```
 
-Since automated installation is blocked, please run these commands manually:
+### Run Type Checking
+```powershell
+.\.venv\Scripts\python.exe -m mypy neural/ --ignore-missing-imports
+```
 
-1. **Activate the virtual environment:**
-   - PowerShell: `.\.venv\Scripts\Activate.ps1`
-   - CMD: `.venv\Scripts\activate.bat`
+### Run Tests
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/ -v
+```
 
-2. **Install the package:**
-   ```
-   pip install -e .
-   ```
-   This installs the core dependencies: click, lark, numpy, pyyaml
+## Next Steps
 
-3. **Install development tools:**
-   ```
-   pip install -r requirements-dev.txt
-   ```
-   This installs: pytest, ruff, pylint, mypy, pre-commit, pip-audit
+1. Activate the virtual environment: `.\.venv\Scripts\Activate.ps1`
+2. Install development dependencies (see above)
+3. Optionally install full feature set: `pip install -e ".[full]"`
+4. Run tests to verify everything works: `pytest tests/ -v`
+5. Set up pre-commit hooks: `pre-commit install` (optional)
 
-4. **Verify installation:**
-   ```
-   python -m pytest --version
-   python -m ruff --version
-   python -m mypy --version
-   ```
+## Repository Structure
 
-## After Installation
-
-Once packages are installed, you can run:
-
-- **Lint**: `python -m ruff check .`
-- **Type Check**: `python -m mypy neural/ --ignore-missing-imports`
-- **Test**: `python -m pytest tests/ -v`
-
-## Optional Feature Groups
-
-To install additional features:
-- HPO: `pip install -e ".[hpo]"`
-- AutoML: `pip install -e ".[automl]"`
-- Backends (TF/PyTorch/ONNX): `pip install -e ".[backends]"`
-- All features: `pip install -e ".[full]"`
-
-## Files Created
-
-- `.venv/` - Virtual environment directory
-- `do_install.py` - Installation script
-- `install_deps.bat` - Batch installation script  
-- `setup_packages.py` - Alternative installation script
-- `SETUP_STATUS.md` - This file
+- **Core package**: Installed and ready
+- **Virtual environment**: `.venv/` (following .gitignore conventions)
+- **Build command**: N/A (pure Python, no build step)
+- **Lint command**: `python -m ruff check .`
+- **Test command**: `python -m pytest tests/ -v`
+- **Type check**: `python -m mypy neural/ --ignore-missing-imports`
