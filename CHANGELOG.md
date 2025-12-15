@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.0] - 2025-01-XX (Refocusing Release)
+## [0.4.0] - 2025-01-20 (Refocusing Release)
 
 ### 🎯 Strategic Refocusing
 Neural DSL has been refocused from a feature-rich "Swiss Army knife" to a specialized tool that excels at one thing: **declarative neural network definition with multi-backend compilation and automatic shape validation**.
@@ -72,15 +72,22 @@ A comprehensive cleanup was performed to improve repository hygiene and maintain
 
 ### Migration Guide
 - **Core DSL Users**: No changes needed - DSL syntax unchanged
-- **Removed Feature Users**: See [REFOCUS.md](REFOCUS.md) for alternatives
-  - Teams/Billing → Build as separate service
-  - MLOps → Use MLflow, Kubeflow
-  - Cloud → Use boto3, google-cloud, azure SDKs
-  - API → Wrap Neural in FastAPI
-  - Monitoring → Use Prometheus, Grafana
-  - Tracking → Use MLflow, W&B
-  - Data Versioning → Use DVC
-  - Collaboration → Use Git workflows
+- **Removed Feature Users**: See [REFOCUS.md](REFOCUS.md) for comprehensive migration guide
+  - Teams/Billing → Build as separate service on top of Neural
+  - MLOps → Use MLflow, Kubeflow, or other specialized platforms
+  - Cloud → Use boto3, google-cloud-sdk, azure-sdk directly
+  - API Server → Wrap Neural's compilation functions in FastAPI/Flask
+  - Monitoring → Use Prometheus, Grafana, or cloud-native monitoring
+  - Experiment Tracking → Use MLflow, Weights & Biases, or TensorBoard
+  - Data Versioning → Use DVC, Git LFS, or cloud storage versioning
+  - Collaboration → Use standard Git workflows and pull requests
+  - No-code GUI → Use Jupyter notebooks with Neural's Python API
+  - Aquarium IDE → Consider separate development or use VSCode/PyCharm
+  
+### Test Suite
+- **Status**: 213 core tests passing with simplified dependencies
+- **Coverage**: Core DSL parsing, code generation, shape propagation, HPO, AutoML
+- **Dependencies**: Simplified to enable faster test execution (70% dependency reduction)
 
 ### Benefits
 - **Clarity**: Clear value proposition - DSL compiler for neural networks

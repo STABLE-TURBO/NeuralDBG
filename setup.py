@@ -1,6 +1,7 @@
 # setup.py
 from setuptools import find_packages, setup
 
+
 # Core dependencies required for basic DSL functionality
 CORE_DEPS = [
     "click>=8.1.3",
@@ -99,7 +100,7 @@ AI_DEPS = [
 
 setup(
     name="neural-dsl",
-    version="0.3.0",
+    version="0.4.0",
     packages=find_packages(where="."),
     package_dir={"": "."},
     install_requires=CORE_DEPS,
