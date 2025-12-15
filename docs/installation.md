@@ -42,9 +42,6 @@ pip install neural-dsl[cloud]
 
 # ML Platform Integrations (requests, boto3, google-cloud, azure)
 pip install neural-dsl[integrations]
-
-# Team Management and Multi-tenancy
-pip install neural-dsl[teams]
 ```
 
 ### Combined Features
@@ -135,10 +132,6 @@ pre-commit install
 - **boto3**: AWS integration
 - **google-cloud**: Google Cloud integration
 - **azure**: Azure integration
-
-#### Teams
-- **click**: CLI for team management
-- **pyyaml**: Team configuration
 
 #### Dev (Development Tools)
 - **pytest**: Testing framework

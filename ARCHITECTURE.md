@@ -138,7 +138,6 @@
 │  │  • HPO (Hyperparameter Optimization)                    │  │
 │  │  • AutoML (Neural Architecture Search)                  │  │
 │  │  • Integrations (Cloud platforms)                       │  │
-│  │  • Teams Module (Multi-tenancy, RBAC)                  │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                             │                                   │
 │  ┌──────────────────────────┼──────────────────────────────┐  │
@@ -330,7 +329,6 @@ neural compile model.neural --backend tensorflow
 ### Experimental Features
 - **WebSockets**: Real-time communication
 - **FastAPI**: REST API
-- **PostgreSQL**: Data persistence (teams)
 
 ## Port Allocation Summary
 

@@ -91,10 +91,7 @@ DATA_DEPS = [
     "pandas>=1.3",
 ]
 
-TEAMS_DEPS = [
-    "click>=8.1.3",
-    "pyyaml>=6.0.1",
-]
+# TEAMS_DEPS removed - teams module has been simplified and removed
 
 AI_DEPS = [
     "langdetect>=1.0.9",
@@ -118,7 +115,6 @@ setup(
         "ml-extras": ML_EXTRAS_DEPS,
         "api": API_DEPS,
         "data": DATA_DEPS,
-        "teams": TEAMS_DEPS,
         "ai": AI_DEPS,
         # Convenience bundles
         "dev": [
@@ -139,7 +135,6 @@ setup(
             + ML_EXTRAS_DEPS
             + API_DEPS
             + DATA_DEPS
-            + TEAMS_DEPS
             + AI_DEPS
         ),
     },

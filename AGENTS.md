@@ -19,11 +19,10 @@ pip install -r requirements-dev.txt     # Install development dependencies (reco
 - **Dashboard**: dash, flask (NeuralDbg interface)
 - **Cloud**: pygithub, selenium (cloud integrations)
 - **Integrations**: None (base classes only, no external dependencies)
-- **Teams**: click, pyyaml (multi-tenancy and team management)
 - **AI**: langdetect (natural language processing and language detection)
 - **Dev**: pytest, ruff, pylint, mypy, pre-commit (development tools)
 
-Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[automl]"`, `pip install -e ".[integrations]"`, `pip install -e ".[distributed]"`, `pip install -e ".[teams]"`, or `pip install -e ".[ai]"`
+Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[automl]"`, `pip install -e ".[integrations]"`, `pip install -e ".[distributed]"`, or `pip install -e ".[ai]"`
 
 ## Commands
 - **Build**: N/A (pure Python, no build step)
@@ -51,7 +50,6 @@ Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[a
 - `neural/hpo/` - Hyperparameter optimization (Optuna integration)
 - `neural/automl/` - AutoML and Neural Architecture Search (NAS)
 - `neural/integrations/` - Base classes for custom ML platform connectors
-- `neural/teams/` - Multi-tenancy, team management, RBAC, quotas, analytics, and billing
 
 ## Code Style
 - Follow PEP 8, 100-char line length (Ruff configured)
@@ -86,9 +84,11 @@ Focus areas for development:
 - **Testing**: `tests/` - comprehensive test coverage expected
 
 Peripheral features (lower priority):
-- AutoML, HPO, Integrations, Teams
+- AutoML, HPO, Integrations
 - Aquarium IDE (consider separate repository)
 - Marketing automation, blog generation
+
+Note: Teams module (multi-tenancy, RBAC, billing, analytics) has been removed as it was not actively used by core features.
 
 ## Cleanup
 The repository has been cleaned to remove 200+ redundant files:

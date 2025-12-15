@@ -1,3 +1,4 @@
-# DEPRECATED
+# Teams Module (Removed)
 
-This file has been removed and consolidated into [docs/quick_reference.md](../../docs/quick_reference.md).
+This module has been removed as part of simplification efforts.
+See README.md for details.
