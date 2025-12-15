@@ -12,11 +12,6 @@ import plotly.graph_objects as go
 from lark import Token, Transformer, Tree
 from lark.exceptions import UnexpectedCharacters, UnexpectedToken, VisitError
 
-# Type aliases for clarity
-ParsedValue = Union[str, int, float, bool, None, Dict[str, Any], List[Any], Tuple[Any, ...]]
-LayerConfig = Dict[str, Any]
-NetworkConfig = Dict[str, Any]
-
 from .error_handling import ErrorHandler, NeuralParserError, ParserError
 from .learning_rate_schedules import ExponentialDecaySchedule
 from .validation import (
@@ -26,6 +21,12 @@ from .validation import (
     validate_shape,
     validate_units,
 )
+
+
+# Type aliases for clarity
+ParsedValue = Union[str, int, float, bool, None, Dict[str, Any], List[Any], Tuple[Any, ...]]
+LayerConfig = Dict[str, Any]
+NetworkConfig = Dict[str, Any]
 
 
 # Optional debugging dependency

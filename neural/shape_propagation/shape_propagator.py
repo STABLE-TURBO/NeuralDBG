@@ -8,6 +8,13 @@ import plotly.graph_objects as go
 import psutil
 from graphviz import Digraph
 
+from neural.exceptions import (
+    DependencyError,
+    InvalidParameterError,
+    InvalidShapeError,
+    ShapeException,
+    ShapeMismatchError,
+)
 from neural.parser.parser import ModelTransformer
 
 from .layer_docs import format_layer_documentation, get_layer_documentation
@@ -45,12 +52,6 @@ try:
 except ImportError:
     torch = None
     TORCH_AVAILABLE = False
-
-# Pretrained model hub functionality is temporarily disabled due to dependency issues
-from neural.exceptions import (
-    ShapeException, ShapeMismatchError, InvalidShapeError,
-    InvalidParameterError, DependencyError
-)
 
 class PerformanceMonitor:
     def __init__(self):

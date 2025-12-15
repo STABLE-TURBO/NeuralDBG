@@ -17,8 +17,8 @@ Modules are imported optionally - if a dependency is missing, the module
 is set to None and a warning is emitted.
 """
 
-from typing import Dict
 import warnings
+from typing import Dict
 
 
 # Package metadata

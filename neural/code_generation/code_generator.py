@@ -5,18 +5,21 @@ from typing import Any, Dict, Optional, Union
 
 import numpy as np
 
+from neural.exceptions import (
+    CodeGenException,
+    FileOperationError,
+    InvalidParameterError,
+    UnsupportedBackendError,
+    UnsupportedLayerError,
+)
 from neural.parser.parser import ModelTransformer, create_parser
 from neural.shape_propagation.shape_propagator import ShapePropagator
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
 # Set the logger level to WARNING to reduce debug output
 logger.setLevel(logging.WARNING)
-
-from neural.exceptions import (
-    CodeGenException, UnsupportedBackendError, UnsupportedLayerError,
-    InvalidParameterError, FileOperationError
-)
 
 def to_number(x: str) -> Union[int, float]:
     try:
