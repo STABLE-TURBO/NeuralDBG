@@ -997,7 +997,17 @@ class ModelTransformer(lark.Transformer):
 
     def _validate_loss_function(self, loss_name: str, item: Any = None) -> None:
         """Validate loss function is supported."""
-        valid_losses = ["mse", "cross_entropy", "binary_cross_entropy", "mae", "categorical_cross_entropy", "sparse_categorical_cross_entropy", "categorical_crossentropy"]
+        # Support both underscore variants: sparse_categorical_crossentropy and sparse_categorical_cross_entropy
+        valid_losses = [
+            "mse", 
+            "cross_entropy", 
+            "binary_cross_entropy", 
+            "mae", 
+            "categorical_cross_entropy", 
+            "sparse_categorical_cross_entropy", 
+            "sparse_categorical_crossentropy",  # TensorFlow/Keras style (without underscore)
+            "categorical_crossentropy"
+        ]
         if isinstance(loss_name, str) and loss_name.lower() not in valid_losses:
             self.raise_validation_error(f"Invalid loss function: {loss_name}", item)
 
