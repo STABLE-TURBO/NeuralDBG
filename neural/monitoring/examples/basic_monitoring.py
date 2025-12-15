@@ -18,9 +18,7 @@ def main():
         model_name="example-model",
         model_version="1.0",
         storage_path="monitoring_data_example",
-        enable_prometheus=True,
-        enable_alerting=True,
-        enable_slo_tracking=True
+        enable_alerting=True
     )
     print("   ✓ Monitor initialized\n")
     
@@ -39,42 +37,19 @@ def main():
     monitor.set_reference_data(
         data=reference_data,
         predictions=reference_predictions,
-        performance=reference_performance,
-        feature_names=[f"feature_{i}" for i in range(10)]
+        performance=reference_performance
     )
     print("   ✓ Reference data set\n")
     
-    # Log some predictions
-    print("3. Logging predictions...")
+    # Record some predictions
+    print("3. Recording predictions...")
     for i in range(100):
-        input_features = {
-            f"feature_{j}": float(np.random.randn())
-            for j in range(10)
-        }
-        
-        prediction = np.random.randint(0, 2)
-        prediction_proba = {
-            '0': np.random.random(),
-            '1': np.random.random()
-        }
-        # Normalize probabilities
-        total = sum(prediction_proba.values())
-        prediction_proba = {k: v/total for k, v in prediction_proba.items()}
-        
-        monitor.log_prediction(
-            prediction_id=f"pred_{i:04d}",
-            input_features=input_features,
-            prediction=prediction,
-            prediction_proba=prediction_proba,
-            ground_truth=prediction if np.random.random() > 0.1 else 1 - prediction,
-            latency_ms=np.random.uniform(10, 100),
-            metadata={'batch': i // 10}
-        )
+        monitor.record_prediction()
         
         if (i + 1) % 20 == 0:
-            print(f"   Logged {i + 1} predictions...")
+            print(f"   Recorded {i + 1} predictions...")
     
-    print("   ✓ Predictions logged\n")
+    print("   ✓ Predictions recorded\n")
     
     # Check drift
     print("4. Checking for drift...")
@@ -99,23 +74,8 @@ def main():
     print(f"   Performance drift: {drift_report['performance_drift']:.4f}")
     print()
     
-    # Check data quality
-    print("5. Checking data quality...")
-    quality_report = monitor.check_data_quality(new_data)
-    
-    print(f"   Quality score: {quality_report['quality_score']:.3f}")
-    print(f"   Is healthy: {quality_report['is_healthy']}")
-    print(f"   Missing rate: {quality_report['missing_rate']:.4f}")
-    print(f"   Outlier rate: {quality_report['outlier_rate']:.4f}")
-    print()
-    
-    # Update performance metrics
-    print("6. Updating performance metrics...")
-    monitor.update_performance_metrics(new_performance)
-    print("   ✓ Performance metrics updated\n")
-    
     # Get monitoring summary
-    print("7. Getting monitoring summary...")
+    print("5. Getting monitoring summary...")
     summary = monitor.get_monitoring_summary()
     
     print(f"   Total predictions: {summary['total_predictions']}")
@@ -125,7 +85,7 @@ def main():
     print()
     
     # Generate health report
-    print("8. Generating health report...")
+    print("6. Generating health report...")
     health = monitor.generate_health_report()
     
     print(f"   Status: {health['status']}")

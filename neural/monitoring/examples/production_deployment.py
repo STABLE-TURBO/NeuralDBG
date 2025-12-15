@@ -29,43 +29,13 @@ def simulate_production_traffic(monitor, duration_seconds=60, requests_per_secon
     print(f"Simulating production traffic ({requests_per_second} RPS for {duration_seconds}s)...")
     
     while time.time() - start_time < duration_seconds:
-        # Generate input
-        input_features = {
-            f"feature_{j}": float(np.random.randn())
-            for j in range(10)
-        }
-        
-        # Simulate model prediction
-        prediction = np.random.randint(0, 2)
-        prediction_proba = {
-            '0': np.random.random(),
-            '1': np.random.random()
-        }
-        total = sum(prediction_proba.values())
-        prediction_proba = {k: v/total for k, v in prediction_proba.items()}
-        
-        # Simulate latency (with occasional spikes)
-        base_latency = np.random.uniform(20, 50)
-        if np.random.random() < 0.05:  # 5% spike rate
-            latency = base_latency * np.random.uniform(5, 10)
-        else:
-            latency = base_latency
-        
         # Simulate errors
         if np.random.random() < 0.001:  # 0.1% error rate
             monitor.record_error("prediction_error")
             continue
         
-        # Log prediction
-        monitor.log_prediction(
-            prediction_id=f"prod_{request_count:06d}",
-            input_features=input_features,
-            prediction=prediction,
-            prediction_proba=prediction_proba,
-            ground_truth=prediction if np.random.random() > 0.05 else 1 - prediction,
-            latency_ms=latency,
-            metadata={'timestamp': time.time()}
-        )
+        # Track prediction
+        monitor.record_prediction()
         
         request_count += 1
         
@@ -108,9 +78,7 @@ def main():
         model_name="production-model",
         model_version="2.0",
         storage_path="monitoring_data_production",
-        enable_prometheus=True,
         enable_alerting=True,
-        enable_slo_tracking=True,
         alert_config=alert_config
     )
     print("   ✓ Production monitor initialized\n")
@@ -130,8 +98,7 @@ def main():
     monitor.set_reference_data(
         data=reference_data,
         predictions=reference_predictions,
-        performance=reference_performance,
-        feature_names=[f"feature_{i}" for i in range(10)]
+        performance=reference_performance
     )
     print("   ✓ Reference data loaded\n")
     
@@ -145,10 +112,6 @@ def main():
     summary = monitor.get_monitoring_summary()
     print(f"   Total predictions: {summary['total_predictions']}")
     print(f"   Error rate: {summary['error_rate']:.4f}")
-    
-    if summary['predictions']['status'] == 'ok' and 'latency' in summary['predictions']:
-        latency = summary['predictions']['latency']
-        print(f"   P95 latency: {latency['p95']:.1f}ms")
     print()
     
     # Simulate data drift
@@ -162,29 +125,10 @@ def main():
     
     while time.time() - start_time < 15:
         # Generate drifted input (shifted distribution)
-        input_features = {
-            f"feature_{j}": float(np.random.randn() + 0.5)  # Shifted mean
-            for j in range(10)
-        }
+        input_features = [np.random.randn() + 0.5 for _ in range(10)]
+        drift_data_batch.append(input_features)
         
-        drift_data_batch.append(list(input_features.values()))
-        
-        prediction = np.random.randint(0, 2)
-        prediction_proba = {
-            '0': np.random.random(),
-            '1': np.random.random()
-        }
-        total = sum(prediction_proba.values())
-        prediction_proba = {k: v/total for k, v in prediction_proba.items()}
-        
-        monitor.log_prediction(
-            prediction_id=f"drift_{request_count:06d}",
-            input_features=input_features,
-            prediction=prediction,
-            prediction_proba=prediction_proba,
-            latency_ms=np.random.uniform(20, 50),
-            metadata={'phase': 'drift'}
-        )
+        monitor.record_prediction()
         
         request_count += 1
         time.sleep(0.1)
@@ -208,19 +152,8 @@ def main():
         print(f"     {i}. {issue}")
     print()
     
-    # Show SLO status
-    print("7. SLO Compliance Status...")
-    summary = monitor.get_monitoring_summary()
-    if 'slos' in summary:
-        for slo_name, status in summary['slos'].items():
-            if status.get('status') == 'ok':
-                icon = "✓" if status.get('is_meeting', True) else "✗"
-                compliance = status.get('compliance_rate', 0)
-                print(f"   {icon} {slo_name}: {compliance:.2%}")
-    print()
-    
     # Send custom alert
-    print("8. Sending custom alert...")
+    print("7. Sending custom alert...")
     monitor.send_alert(
         title="Deployment Complete",
         message=f"Production monitoring active for model {monitor.model_name} v{monitor.model_version}",
@@ -234,9 +167,7 @@ def main():
     print("\nNext steps:")
     print("  1. View status: neural monitor status --storage-path monitoring_data_production")
     print("  2. Start dashboard: neural monitor dashboard --storage-path monitoring_data_production --port 8052")
-    print("  3. Start Prometheus: neural monitor prometheus --storage-path monitoring_data_production --port 9090")
     print("\nDashboard URL: http://localhost:8052")
-    print("Metrics URL: http://localhost:9090/metrics")
 
 
 if __name__ == "__main__":
