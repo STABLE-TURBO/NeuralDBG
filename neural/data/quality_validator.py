@@ -262,9 +262,15 @@ class DataQualityValidator:
     ) -> List[ValidationResult]:
         results = self.validate(data, rules)
         
-        # Use microsecond precision to ensure unique filenames
+        # Use microsecond precision and counter to ensure unique filenames
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         result_file = self.results_dir / f"{dataset_name}_{timestamp}.json"
+        
+        # Handle potential filename collision by adding a counter
+        counter = 0
+        while result_file.exists():
+            counter += 1
+            result_file = self.results_dir / f"{dataset_name}_{timestamp}_{counter}.json"
         
         with open(result_file, "w") as f:
             json.dump(
