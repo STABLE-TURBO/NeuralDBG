@@ -11,44 +11,61 @@ import tempfile
 import shutil
 import numpy as np
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from neural.parser.parser import create_parser, ModelTransformer
 from neural.shape_propagation.shape_propagator import ShapePropagator
-from neural.code_generation.code_generator import generate_onnx, export_onnx
 
 try:
     import onnx
     from onnx import helper, TensorProto, checker, numpy_helper
-    import onnxruntime as ort
     ONNX_AVAILABLE = True
-    ONNX_RUNTIME_AVAILABLE = True
 except ImportError:
     onnx = None
-    ort = None
+    helper = None
+    TensorProto = None
+    checker = None
+    numpy_helper = None
     ONNX_AVAILABLE = False
+
+try:
+    import onnxruntime as ort
+    ONNX_RUNTIME_AVAILABLE = True
+except ImportError:
+    ort = None
     ONNX_RUNTIME_AVAILABLE = False
+
+if ONNX_AVAILABLE:
+    from neural.code_generation.code_generator import generate_onnx, export_onnx
+else:
+    def generate_onnx(model_config):
+        pytest.skip("ONNX not available")
+    
+    def export_onnx(model_config, path):
+        pytest.skip("ONNX not available")
+
+
+@pytest.fixture
+def temp_workspace():
+    """Fixture to provide a temporary workspace for tests."""
+    temp_dir = tempfile.mkdtemp()
+    original_dir = os.getcwd()
+    os.chdir(temp_dir)
+    
+    yield temp_dir
+    
+    os.chdir(original_dir)
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
 
 
 class TestONNXWorkflowIntegration:
     """Integration tests for ONNX export workflow."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_simple_onnx_export(self):
+    def test_simple_onnx_export(self, temp_workspace):
         """Test: Simple model DSL to ONNX export."""
         dsl_code = """
         network SimpleONNX {
@@ -80,7 +97,7 @@ class TestONNXWorkflowIntegration:
         assert len(onnx_model.graph.node) > 0
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_export_to_file(self):
+    def test_onnx_export_to_file(self, temp_workspace):
         """Test: Export ONNX model to file."""
         dsl_code = """
         network FileExportONNX {
@@ -107,7 +124,7 @@ class TestONNXWorkflowIntegration:
         assert loaded_model is not None
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_model_validation(self):
+    def test_onnx_model_validation(self, temp_workspace):
         """Test: Validate generated ONNX model."""
         dsl_code = """
         network ValidatedONNX {
@@ -137,7 +154,7 @@ class TestONNXWorkflowIntegration:
         assert validation_passed or onnx_model is not None
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_conv_layer(self):
+    def test_onnx_conv_layer(self, temp_workspace):
         """Test: ONNX export with convolutional layers."""
         dsl_code = """
         network ConvONNX {
@@ -163,7 +180,7 @@ class TestONNXWorkflowIntegration:
         assert len(conv_nodes) >= 1
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_multiple_layer_types(self):
+    def test_onnx_multiple_layer_types(self, temp_workspace):
         """Test: ONNX export with multiple layer types."""
         dsl_code = """
         network MultiLayerONNX {
@@ -198,7 +215,7 @@ class TestONNXWorkflowIntegration:
         assert len(onnx_model.graph.node) > 0
 
     @pytest.mark.skipif(not (ONNX_AVAILABLE and ONNX_RUNTIME_AVAILABLE), reason="ONNX Runtime not available")
-    def test_onnx_inference_execution(self):
+    def test_onnx_inference_execution(self, temp_workspace):
         """Test: Execute inference on ONNX model (if runtime available)."""
         dsl_code = """
         network InferenceONNX {
@@ -221,7 +238,7 @@ class TestONNXWorkflowIntegration:
         assert os.path.exists(export_path)
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_shape_inference(self):
+    def test_onnx_shape_inference(self, temp_workspace):
         """Test: ONNX shape inference on generated model."""
         dsl_code = """
         network ShapeInferenceONNX {
@@ -250,7 +267,7 @@ class TestONNXWorkflowIntegration:
         assert shape_inference_passed or onnx_model is not None
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_opset_version(self):
+    def test_onnx_opset_version(self, temp_workspace):
         """Test: ONNX model has correct opset version."""
         dsl_code = """
         network OpsetONNX {
@@ -272,7 +289,7 @@ class TestONNXWorkflowIntegration:
         assert onnx_model.opset_import[0].version >= 10
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_model_metadata(self):
+    def test_onnx_model_metadata(self, temp_workspace):
         """Test: ONNX model includes metadata."""
         dsl_code = """
         network MetadataONNX {
@@ -295,7 +312,7 @@ class TestONNXWorkflowIntegration:
         assert onnx_model.graph.name == "NeuralModel"
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_complex_architecture(self):
+    def test_onnx_complex_architecture(self, temp_workspace):
         """Test: ONNX export with complex architecture."""
         dsl_code = """
         network ComplexArchONNX {
@@ -334,7 +351,7 @@ class TestONNXWorkflowIntegration:
         assert len(onnx_model.graph.node) >= 5
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_batch_normalization(self):
+    def test_onnx_batch_normalization(self, temp_workspace):
         """Test: ONNX export with batch normalization layers."""
         dsl_code = """
         network BatchNormONNX {
@@ -359,7 +376,7 @@ class TestONNXWorkflowIntegration:
         assert onnx_model is not None
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_different_input_shapes(self):
+    def test_onnx_different_input_shapes(self, temp_workspace):
         """Test: ONNX export with different input shapes."""
         test_cases = [
             ("(28, 28, 1)", (28, 28, 1)),
@@ -390,7 +407,7 @@ class TestONNXWorkflowIntegration:
             assert onnx_model is not None
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_sequential_exports(self):
+    def test_onnx_sequential_exports(self, temp_workspace):
         """Test: Multiple sequential ONNX exports."""
         models = [
             "network Model1 { input: (28, 28, 1) layers: Flatten() Dense(64) Output(10) }",
@@ -411,7 +428,7 @@ class TestONNXWorkflowIntegration:
             assert "ONNX model saved" in result
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_dense_only_architecture(self):
+    def test_onnx_dense_only_architecture(self, temp_workspace):
         """Test: ONNX export with dense-only architecture."""
         dsl_code = """
         network DenseOnlyONNX {
@@ -446,21 +463,8 @@ class TestONNXWorkflowIntegration:
 class TestONNXWithOtherBackends:
     """Test ONNX export alongside other backends."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_same_model_multiple_exports(self):
+    def test_same_model_multiple_exports(self, temp_workspace):
         """Test: Export same model to multiple backends including ONNX."""
         dsl_code = """
         network MultiBackendNet {
@@ -495,7 +499,7 @@ class TestONNXWithOtherBackends:
         assert onnx_model is not None
 
     @pytest.mark.skipif(not ONNX_AVAILABLE, reason="ONNX not available")
-    def test_onnx_consistency_with_pytorch_shape(self):
+    def test_onnx_consistency_with_pytorch_shape(self, temp_workspace):
         """Test: ONNX model has consistent shapes with PyTorch model."""
         dsl_code = """
         network ConsistentShapes {

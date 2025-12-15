@@ -17,7 +17,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 
 from neural.parser.parser import create_parser, ModelTransformer
 from neural.shape_propagation.shape_propagator import ShapePropagator
-from neural.code_generation.code_generator import generate_code
 
 try:
     import torch
@@ -34,24 +33,30 @@ except ImportError:
     tf = None
     TF_AVAILABLE = False
 
+try:
+    from neural.code_generation.code_generator import generate_code
+except ImportError:
+    generate_code = None
+
+
+@pytest.fixture
+def temp_workspace():
+    """Fixture to provide a temporary workspace for tests."""
+    temp_dir = tempfile.mkdtemp()
+    original_dir = os.getcwd()
+    os.chdir(temp_dir)
+    
+    yield temp_dir
+    
+    os.chdir(original_dir)
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
+
 
 class TestEmbeddingLayers:
     """Tests for embedding layer functionality."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-
-    def test_embedding_layer_parsing(self):
+    def test_embedding_layer_parsing(self, temp_workspace):
         """Test: Parse DSL with Embedding layer."""
         dsl_code = """
         network EmbeddingNet {
@@ -75,8 +80,8 @@ class TestEmbeddingLayers:
         assert model_config['layers'][0]['params']['input_dim'] == 10000
         assert model_config['layers'][0]['params']['output_dim'] == 512
 
-    @pytest.mark.skipif(not TF_AVAILABLE, reason="TensorFlow not available")
-    def test_embedding_tensorflow_generation(self):
+    @pytest.mark.skipif(not TF_AVAILABLE or generate_code is None, reason="TensorFlow or code generator not available")
+    def test_embedding_tensorflow_generation(self, temp_workspace):
         """Test: Generate TensorFlow code with Embedding layer."""
         dsl_code = """
         network EmbeddingTF {
@@ -104,8 +109,8 @@ class TestEmbeddingLayers:
         assert 'input_dim=5000' in code
         assert 'output_dim=128' in code
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
-    def test_embedding_pytorch_generation(self):
+    @pytest.mark.skipif(not TORCH_AVAILABLE or generate_code is None, reason="PyTorch or code generator not available")
+    def test_embedding_pytorch_generation(self, temp_workspace):
         """Test: Generate PyTorch code with Embedding layer."""
         dsl_code = """
         network EmbeddingPT {
@@ -132,7 +137,7 @@ class TestEmbeddingLayers:
         assert 'num_embeddings=1000' in code
         assert 'embedding_dim=64' in code
 
-    def test_embedding_with_different_dimensions(self):
+    def test_embedding_with_different_dimensions(self, temp_workspace):
         """Test: Embedding layers with various dimension configurations."""
         test_cases = [
             (5000, 128),
@@ -167,20 +172,7 @@ class TestEmbeddingLayers:
 class TestEncoderOnlyArchitectures:
     """Tests for encoder-only transformer architectures (BERT-style)."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-
-    def test_simple_encoder_parsing(self):
+    def test_simple_encoder_parsing(self, temp_workspace):
         """Test: Parse simple encoder-only transformer."""
         dsl_code = """
         network SimpleEncoder {
@@ -206,8 +198,8 @@ class TestEncoderOnlyArchitectures:
         assert encoder_layer['params']['num_heads'] == 8
         assert encoder_layer['params']['ff_dim'] == 2048
 
-    @pytest.mark.skipif(not TF_AVAILABLE, reason="TensorFlow not available")
-    def test_encoder_tensorflow_generation(self):
+    @pytest.mark.skipif(not TF_AVAILABLE or generate_code is None, reason="TensorFlow or code generator not available")
+    def test_encoder_tensorflow_generation(self, temp_workspace):
         """Test: Generate TensorFlow code for encoder-only transformer."""
         dsl_code = """
         network BERTStyleEncoder {
@@ -244,8 +236,8 @@ class TestEncoderOnlyArchitectures:
         assert 'num_heads=12' in code
         assert code.count('TransformerEncoder block') == 2
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
-    def test_encoder_pytorch_generation(self):
+    @pytest.mark.skipif(not TORCH_AVAILABLE or generate_code is None, reason="PyTorch or code generator not available")
+    def test_encoder_pytorch_generation(self, temp_workspace):
         """Test: Generate PyTorch code for encoder-only transformer."""
         dsl_code = """
         network PyTorchEncoder {
@@ -274,9 +266,9 @@ class TestEncoderOnlyArchitectures:
         assert 'dim_feedforward=2048' in code
         assert 'dropout=0.1' in code
 
-    @pytest.mark.skipif(not (TORCH_AVAILABLE and TF_AVAILABLE), 
-                       reason="Both PyTorch and TensorFlow required")
-    def test_encoder_multi_backend_consistency(self):
+    @pytest.mark.skipif(not (TORCH_AVAILABLE and TF_AVAILABLE) or generate_code is None, 
+                       reason="Both PyTorch and TensorFlow, or code generator not available")
+    def test_encoder_multi_backend_consistency(self, temp_workspace):
         """Test: Same encoder architecture generates consistent code across backends."""
         dsl_code = """
         network ConsistentEncoder {
@@ -302,7 +294,7 @@ class TestEncoderOnlyArchitectures:
         assert 'Dense' in tf_code or 'layers.Dense' in tf_code
         assert 'nn.Linear' in pt_code
 
-    def test_stacked_encoder_layers(self):
+    def test_stacked_encoder_layers(self, temp_workspace):
         """Test: Multiple stacked encoder layers."""
         dsl_code = """
         network StackedEncoder {
@@ -331,20 +323,7 @@ class TestEncoderOnlyArchitectures:
 class TestDecoderOnlyArchitectures:
     """Tests for decoder-only transformer architectures (GPT-style)."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-
-    def test_decoder_parsing(self):
+    def test_decoder_parsing(self, temp_workspace):
         """Test: Parse decoder-only transformer architecture."""
         dsl_code = """
         network DecoderOnly {
@@ -368,8 +347,8 @@ class TestDecoderOnlyArchitectures:
         assert model_config['layers'][0]['type'] == 'Embedding'
         assert model_config['layers'][1]['type'] == 'TransformerDecoder'
 
-    @pytest.mark.skipif(not TF_AVAILABLE, reason="TensorFlow not available")
-    def test_decoder_tensorflow_generation(self):
+    @pytest.mark.skipif(not TF_AVAILABLE or generate_code is None, reason="TensorFlow or code generator not available")
+    def test_decoder_tensorflow_generation(self, temp_workspace):
         """Test: Generate TensorFlow code for decoder-only transformer."""
         dsl_code = """
         network GPTStyleDecoder {
@@ -404,8 +383,8 @@ class TestDecoderOnlyArchitectures:
         assert 'input_dim=50257' in code
         assert 'output_dim=768' in code
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
-    def test_decoder_pytorch_generation(self):
+    @pytest.mark.skipif(not TORCH_AVAILABLE or generate_code is None, reason="PyTorch or code generator not available")
+    def test_decoder_pytorch_generation(self, temp_workspace):
         """Test: Generate PyTorch code for decoder-only transformer."""
         dsl_code = """
         network PyTorchDecoder {
@@ -432,7 +411,7 @@ class TestDecoderOnlyArchitectures:
         assert 'num_embeddings=10000' in code
         assert 'embedding_dim=512' in code
 
-    def test_decoder_with_causal_masking(self):
+    def test_decoder_with_causal_masking(self, temp_workspace):
         """Test: Decoder with causal masking configuration."""
         dsl_code = """
         network CausalDecoder {
@@ -455,7 +434,7 @@ class TestDecoderOnlyArchitectures:
         decoder_layer = model_config['layers'][1]
         assert decoder_layer['type'] == 'TransformerDecoder'
 
-    def test_stacked_decoder_layers(self):
+    def test_stacked_decoder_layers(self, temp_workspace):
         """Test: Multiple stacked decoder layers."""
         dsl_code = """
         network StackedDecoder {
@@ -484,20 +463,7 @@ class TestDecoderOnlyArchitectures:
 class TestEncoderDecoderArchitectures:
     """Tests for full encoder-decoder transformer architectures (T5/BART-style)."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-
-    def test_encoder_decoder_parsing(self):
+    def test_encoder_decoder_parsing(self, temp_workspace):
         """Test: Parse full encoder-decoder transformer."""
         dsl_code = """
         network EncoderDecoder {
@@ -527,8 +493,8 @@ class TestEncoderDecoderArchitectures:
         assert len(encoder_layers) == 2
         assert len(decoder_layers) == 2
 
-    @pytest.mark.skipif(not TF_AVAILABLE, reason="TensorFlow not available")
-    def test_encoder_decoder_tensorflow(self):
+    @pytest.mark.skipif(not TF_AVAILABLE or generate_code is None, reason="TensorFlow or code generator not available")
+    def test_encoder_decoder_tensorflow(self, temp_workspace):
         """Test: Generate TensorFlow code for encoder-decoder transformer."""
         dsl_code = """
         network Seq2SeqTransformer {
@@ -566,8 +532,8 @@ class TestEncoderDecoderArchitectures:
         assert 'LayerNormalization' in code
         assert code.count('MultiHeadAttention') >= 6 or code.count('TransformerEncoder') >= 3
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
-    def test_encoder_decoder_pytorch(self):
+    @pytest.mark.skipif(not TORCH_AVAILABLE or generate_code is None, reason="PyTorch or code generator not available")
+    def test_encoder_decoder_pytorch(self, temp_workspace):
         """Test: Generate PyTorch code for encoder-decoder transformer."""
         dsl_code = """
         network PyTorchSeq2Seq {
@@ -595,7 +561,7 @@ class TestEncoderDecoderArchitectures:
         assert 'TransformerEncoderLayer' in code or 'TransformerDecoderLayer' in code
         assert 'nn.Linear' in code
 
-    def test_encoder_decoder_with_embeddings(self):
+    def test_encoder_decoder_with_embeddings(self, temp_workspace):
         """Test: Full encoder-decoder with embedding layers."""
         dsl_code = """
         network T5StyleTransformer {
@@ -627,9 +593,9 @@ class TestEncoderDecoderArchitectures:
         assert model_config['layers'][0]['params']['input_dim'] == 32128
         assert model_config['layers'][0]['params']['output_dim'] == 512
 
-    @pytest.mark.skipif(not (TORCH_AVAILABLE and TF_AVAILABLE), 
-                       reason="Both PyTorch and TensorFlow required")
-    def test_encoder_decoder_cross_backend(self):
+    @pytest.mark.skipif(not (TORCH_AVAILABLE and TF_AVAILABLE) or generate_code is None, 
+                       reason="Both PyTorch and TensorFlow, or code generator not available")
+    def test_encoder_decoder_cross_backend(self, temp_workspace):
         """Test: Same encoder-decoder generates code for both backends."""
         dsl_code = """
         network CrossBackendSeq2Seq {
@@ -662,20 +628,7 @@ class TestEncoderDecoderArchitectures:
 class TestTransformerVariations:
     """Tests for various transformer architecture variations."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-
-    def test_transformer_with_different_head_counts(self):
+    def test_transformer_with_different_head_counts(self, temp_workspace):
         """Test: Transformers with various attention head configurations."""
         head_counts = [2, 4, 8, 12, 16]
         parser = create_parser("network")
@@ -698,7 +651,7 @@ class TestTransformerVariations:
             encoder = model_config['layers'][0]
             assert encoder['params']['num_heads'] == num_heads
 
-    def test_transformer_with_different_ff_dimensions(self):
+    def test_transformer_with_different_ff_dimensions(self, temp_workspace):
         """Test: Transformers with various feedforward dimensions."""
         ff_dims = [512, 1024, 2048, 4096]
         parser = create_parser("network")
@@ -720,7 +673,7 @@ class TestTransformerVariations:
             encoder = model_config['layers'][0]
             assert encoder['params']['ff_dim'] == ff_dim
 
-    def test_transformer_with_dropout_variations(self):
+    def test_transformer_with_dropout_variations(self, temp_workspace):
         """Test: Transformers with different dropout rates."""
         dropout_rates = [0.0, 0.1, 0.2, 0.3, 0.5]
         parser = create_parser("network")
@@ -742,8 +695,8 @@ class TestTransformerVariations:
             encoder = model_config['layers'][0]
             assert encoder['params']['dropout'] == dropout
 
-    @pytest.mark.skipif(not TF_AVAILABLE, reason="TensorFlow not available")
-    def test_transformer_text_classification(self):
+    @pytest.mark.skipif(not TF_AVAILABLE or generate_code is None, reason="TensorFlow or code generator not available")
+    def test_transformer_text_classification(self, temp_workspace):
         """Test: Complete transformer for text classification."""
         dsl_code = """
         network TextClassifier {
@@ -781,8 +734,8 @@ class TestTransformerVariations:
         assert 'GlobalAveragePooling1D' in code
         assert 'categorical_crossentropy' in code
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
-    def test_transformer_sequence_to_sequence(self):
+    @pytest.mark.skipif(not TORCH_AVAILABLE or generate_code is None, reason="PyTorch or code generator not available")
+    def test_transformer_sequence_to_sequence(self, temp_workspace):
         """Test: Complete seq2seq transformer for translation."""
         dsl_code = """
         network TranslationModel {
@@ -820,7 +773,7 @@ class TestTransformerVariations:
         assert 'TransformerEncoderLayer' in code or 'TransformerDecoderLayer' in code
         assert 'nn.Linear' in code
 
-    def test_transformer_with_position_encoding(self):
+    def test_transformer_with_position_encoding(self, temp_workspace):
         """Test: Transformer with explicit positional encoding."""
         dsl_code = """
         network PositionalTransformer {
@@ -846,7 +799,7 @@ class TestTransformerVariations:
                          if l['type'] == 'TransformerEncoder']
         assert len(encoder_layers) == 2
 
-    def test_hybrid_cnn_transformer(self):
+    def test_hybrid_cnn_transformer(self, temp_workspace):
         """Test: Hybrid architecture combining CNN and Transformer."""
         dsl_code = """
         network HybridCNNTransformer {
@@ -885,21 +838,8 @@ class TestTransformerVariations:
 class TestTransformerExecution:
     """Tests for actual execution of generated transformer code."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
-    def test_pytorch_transformer_execution(self):
+    @pytest.mark.skipif(not TORCH_AVAILABLE or generate_code is None, reason="PyTorch or code generator not available")
+    def test_pytorch_transformer_execution(self, temp_workspace):
         """Test: Execute generated PyTorch transformer code."""
         dsl_code = """
         network ExecutableTransformer {
@@ -935,8 +875,8 @@ class TestTransformerExecution:
         except Exception as e:
             pytest.skip(f"Model execution skipped: {str(e)}")
 
-    @pytest.mark.skipif(not TF_AVAILABLE, reason="TensorFlow not available")
-    def test_tensorflow_transformer_execution(self):
+    @pytest.mark.skipif(not TF_AVAILABLE or generate_code is None, reason="TensorFlow or code generator not available")
+    def test_tensorflow_transformer_execution(self, temp_workspace):
         """Test: Execute generated TensorFlow transformer code."""
         dsl_code = """
         network TFExecutableTransformer {

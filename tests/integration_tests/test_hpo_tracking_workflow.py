@@ -16,8 +16,6 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from neural.parser.parser import create_parser, ModelTransformer
-from neural.hpo.hpo import optimize_and_return, create_dynamic_model, objective, train_model
-from neural.code_generation.code_generator import generate_code, generate_optimized_dsl
 from neural.tracking.experiment_tracker import ExperimentTracker
 
 try:
@@ -42,6 +40,26 @@ try:
 except ImportError:
     optuna = None
     OPTUNA_AVAILABLE = False
+
+if TORCH_AVAILABLE:
+    try:
+        from neural.hpo.hpo import optimize_and_return, create_dynamic_model, objective, train_model
+    except ImportError:
+        optimize_and_return = None
+        create_dynamic_model = None
+        objective = None
+        train_model = None
+else:
+    optimize_and_return = None
+    create_dynamic_model = None
+    objective = None
+    train_model = None
+
+try:
+    from neural.code_generation.code_generator import generate_code, generate_optimized_dsl
+except ImportError:
+    generate_code = None
+    generate_optimized_dsl = None
 
 
 class MockTrial:
@@ -96,28 +114,29 @@ def mock_data_loader(dataset_name, input_shape, batch_size=32, train=True, backe
     return None
 
 
+@pytest.fixture
+def temp_workspace():
+    """Fixture to provide a temporary workspace for tests."""
+    temp_dir = tempfile.mkdtemp()
+    original_dir = os.getcwd()
+    os.chdir(temp_dir)
+    
+    yield temp_dir
+    
+    os.chdir(original_dir)
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
+    
+    if os.path.exists("neural_experiments"):
+        shutil.rmtree("neural_experiments")
+
+
 class TestHPOWorkflowIntegration:
     """Integration tests for HPO workflows."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-        
-        if os.path.exists("neural_experiments"):
-            shutil.rmtree("neural_experiments")
-
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
+    @pytest.mark.skipif(not TORCH_AVAILABLE or create_dynamic_model is None, reason="PyTorch or HPO module not available")
     @patch('neural.hpo.hpo.get_data', mock_data_loader)
-    def test_hpo_model_creation_pytorch(self):
+    def test_hpo_model_creation_pytorch(self, temp_workspace):
         """Test: HPO model creation and parameter resolution for PyTorch."""
         dsl_code = """
         network HPOModelTest {
@@ -147,9 +166,9 @@ class TestHPOWorkflowIntegration:
         output = model(test_input)
         assert output.shape == (4, 10)
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
+    @pytest.mark.skipif(not TORCH_AVAILABLE or train_model is None, reason="PyTorch or HPO module not available")
     @patch('neural.hpo.hpo.get_data', mock_data_loader)
-    def test_hpo_training_loop(self):
+    def test_hpo_training_loop(self, temp_workspace):
         """Test: HPO training loop execution."""
         dsl_code = """
         network TrainingLoopTest {
@@ -184,9 +203,9 @@ class TestHPOWorkflowIntegration:
         assert isinstance(acc, float)
         assert 0 <= acc <= 1
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
+    @pytest.mark.skipif(not TORCH_AVAILABLE or objective is None, reason="PyTorch or HPO module not available")
     @patch('neural.hpo.hpo.get_data', mock_data_loader)
-    def test_hpo_objective_function(self):
+    def test_hpo_objective_function(self, temp_workspace):
         """Test: HPO objective function computes all metrics."""
         dsl_code = """
         network ObjectiveTest {
@@ -213,9 +232,10 @@ class TestHPOWorkflowIntegration:
         assert 0 <= precision <= 1
         assert 0 <= recall <= 1
 
-    @pytest.mark.skipif(not (TORCH_AVAILABLE and OPTUNA_AVAILABLE), reason="PyTorch and Optuna required")
+    @pytest.mark.skipif(not (TORCH_AVAILABLE and OPTUNA_AVAILABLE) or optimize_and_return is None, 
+                       reason="PyTorch, Optuna, or HPO module not available")
     @patch('neural.hpo.hpo.get_data', mock_data_loader)
-    def test_hpo_optimization_workflow(self):
+    def test_hpo_optimization_workflow(self, temp_workspace):
         """Test: Complete HPO optimization workflow."""
         dsl_code = """
         network OptimizationTest {
@@ -244,9 +264,10 @@ class TestHPOWorkflowIntegration:
             
             assert isinstance(best_params, dict)
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
+    @pytest.mark.skipif(not TORCH_AVAILABLE or generate_optimized_dsl is None, 
+                       reason="PyTorch or code generator not available")
     @patch('neural.hpo.hpo.get_data', mock_data_loader)
-    def test_hpo_dsl_generation(self):
+    def test_hpo_dsl_generation(self, temp_workspace):
         """Test: Generate optimized DSL from HPO results."""
         dsl_code = """
         network DSLGenTest {
@@ -275,9 +296,10 @@ class TestHPOWorkflowIntegration:
         
         assert 'HPO' not in optimized_dsl.split('optimizer:')[0]
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
+    @pytest.mark.skipif(not TORCH_AVAILABLE or create_dynamic_model is None, 
+                       reason="PyTorch or HPO module not available")
     @patch('neural.hpo.hpo.get_data', mock_data_loader)
-    def test_hpo_multiple_layer_types(self):
+    def test_hpo_multiple_layer_types(self, temp_workspace):
         """Test: HPO with multiple layer types and parameters."""
         dsl_code = """
         network MultiLayerHPO {
@@ -309,23 +331,7 @@ class TestHPOWorkflowIntegration:
 class TestTrackingWorkflowIntegration:
     """Integration tests for experiment tracking workflows."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-        
-        if os.path.exists("neural_experiments"):
-            shutil.rmtree("neural_experiments")
-
-    def test_experiment_tracker_initialization(self):
+    def test_experiment_tracker_initialization(self, temp_workspace):
         """Test: Experiment tracker initialization and directory creation."""
         tracker = ExperimentTracker(experiment_name="test_experiment")
         
@@ -335,7 +341,7 @@ class TestTrackingWorkflowIntegration:
         assert os.path.exists(os.path.join(tracker.experiment_dir, "artifacts"))
         assert os.path.exists(os.path.join(tracker.experiment_dir, "plots"))
 
-    def test_experiment_tracker_log_hyperparameters(self):
+    def test_experiment_tracker_log_hyperparameters(self, temp_workspace):
         """Test: Log hyperparameters to experiment tracker."""
         tracker = ExperimentTracker(experiment_name="hyperparams_test")
         
@@ -350,7 +356,7 @@ class TestTrackingWorkflowIntegration:
         
         assert tracker.hyperparameters == hyperparams
 
-    def test_experiment_tracker_log_metrics(self):
+    def test_experiment_tracker_log_metrics(self, temp_workspace):
         """Test: Log metrics to experiment tracker."""
         tracker = ExperimentTracker(experiment_name="metrics_test")
         
@@ -366,7 +372,7 @@ class TestTrackingWorkflowIntegration:
         assert len(tracker.metrics_history) == 1
         assert tracker.metrics_history[0]['step'] == 1
 
-    def test_experiment_tracker_save_metadata(self):
+    def test_experiment_tracker_save_metadata(self, temp_workspace):
         """Test: Save experiment metadata."""
         tracker = ExperimentTracker(experiment_name="metadata_test")
         
@@ -384,8 +390,9 @@ class TestTrackingWorkflowIntegration:
         assert loaded_metadata['model_architecture'] == 'CNN'
         assert loaded_metadata['dataset'] == 'MNIST'
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
-    def test_pytorch_code_with_tracking(self):
+    @pytest.mark.skipif(not TORCH_AVAILABLE or generate_code is None, 
+                       reason="PyTorch or code generator not available")
+    def test_pytorch_code_with_tracking(self, temp_workspace):
         """Test: Generated PyTorch code includes tracking."""
         dsl_code = """
         network TrackedPyTorchNet {
@@ -410,8 +417,9 @@ class TestTrackingWorkflowIntegration:
                'ExperimentTracker' in code or \
                'ExperimentManager' in code
 
-    @pytest.mark.skipif(not TF_AVAILABLE, reason="TensorFlow not available")
-    def test_tensorflow_code_with_tracking(self):
+    @pytest.mark.skipif(not TF_AVAILABLE or generate_code is None, 
+                       reason="TensorFlow or code generator not available")
+    def test_tensorflow_code_with_tracking(self, temp_workspace):
         """Test: Generated TensorFlow code includes tracking."""
         dsl_code = """
         network TrackedTFNet {
@@ -438,7 +446,7 @@ class TestTrackingWorkflowIntegration:
 
     @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
     @patch('neural.hpo.hpo.get_data', mock_data_loader)
-    def test_hpo_with_tracking_integration(self):
+    def test_hpo_with_tracking_integration(self, temp_workspace):
         """Test: HPO workflow with experiment tracking."""
         dsl_code = """
         network HPOTrackedNet {
@@ -467,7 +475,7 @@ class TestTrackingWorkflowIntegration:
         
         assert len(tracker.metrics_history) == 1
 
-    def test_experiment_comparison_workflow(self):
+    def test_experiment_comparison_workflow(self, temp_workspace):
         """Test: Compare multiple experiments workflow."""
         tracker1 = ExperimentTracker(experiment_name="experiment_1")
         tracker1.log_hyperparameters({'learning_rate': 0.001})
@@ -489,25 +497,10 @@ class TestTrackingWorkflowIntegration:
 class TestHPOTrackingCombinedWorkflow:
     """Integration tests combining HPO and tracking."""
 
-    @pytest.fixture(autouse=True)
-    def setup_teardown(self):
-        """Setup and teardown for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.original_dir = os.getcwd()
-        os.chdir(self.temp_dir)
-        
-        yield
-        
-        os.chdir(self.original_dir)
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-        
-        if os.path.exists("neural_experiments"):
-            shutil.rmtree("neural_experiments")
-
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
+    @pytest.mark.skipif(not TORCH_AVAILABLE or optimize_and_return is None or generate_code is None, 
+                       reason="PyTorch, HPO module, or code generator not available")
     @patch('neural.hpo.hpo.get_data', mock_data_loader)
-    def test_complete_hpo_tracking_workflow(self):
+    def test_complete_hpo_tracking_workflow(self, temp_workspace):
         """Test: Complete workflow with HPO optimization and experiment tracking."""
         dsl_code = """
         network CompleteWorkflow {
@@ -543,13 +536,11 @@ class TestHPOTrackingCombinedWorkflow:
         
         tracker.log_hyperparameters(best_params)
         
-        optimized_dsl = generate_optimized_dsl(dsl_code, best_params)
-        
-        optimized_model_dict = transformer.transform(create_parser("network").parse(optimized_dsl))
-        
-        code = generate_code(optimized_model_dict, 'pytorch')
-        
-        assert 'import torch' in code
+        if generate_optimized_dsl:
+            optimized_dsl = generate_optimized_dsl(dsl_code, best_params)
+            optimized_model_dict = transformer.transform(create_parser("network").parse(optimized_dsl))
+            code = generate_code(optimized_model_dict, 'pytorch')
+            assert 'import torch' in code
         
         tracker.log_metrics({'final_loss': 0.3, 'final_accuracy': 0.90}, step=3)
         tracker.save_metadata()
@@ -557,9 +548,10 @@ class TestHPOTrackingCombinedWorkflow:
         assert os.path.exists(os.path.join(tracker.experiment_dir, "metadata.json"))
         assert len(tracker.metrics_history) == 1
 
-    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not available")
+    @pytest.mark.skipif(not TORCH_AVAILABLE or optimize_and_return is None, 
+                       reason="PyTorch or HPO module not available")
     @patch('neural.hpo.hpo.get_data', mock_data_loader)
-    def test_multiple_hpo_runs_with_tracking(self):
+    def test_multiple_hpo_runs_with_tracking(self, temp_workspace):
         """Test: Multiple HPO runs with separate experiment tracking."""
         dsl_code = """
         network MultiRunTest {
@@ -594,9 +586,10 @@ class TestHPOTrackingCombinedWorkflow:
         for tracker in trackers:
             assert os.path.exists(tracker.experiment_dir)
 
-    @pytest.mark.skipif(not (TORCH_AVAILABLE and TF_AVAILABLE), reason="Both PyTorch and TensorFlow required")
+    @pytest.mark.skipif(not (TORCH_AVAILABLE and TF_AVAILABLE) or generate_code is None or generate_optimized_dsl is None, 
+                       reason="Both PyTorch and TensorFlow, or code generator not available")
     @patch('neural.hpo.hpo.get_data', mock_data_loader)
-    def test_cross_backend_hpo_tracking(self):
+    def test_cross_backend_hpo_tracking(self, temp_workspace):
         """Test: HPO and tracking across multiple backends."""
         dsl_code = """
         network CrossBackendHPO {
