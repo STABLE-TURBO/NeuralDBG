@@ -14,9 +14,10 @@ logger = logging.getLogger(__name__)
 class FederatedServer:
     def __init__(
         self,
-        model: Any,
+        model: Any = None,
         aggregation_strategy: Optional[Any] = None,
         backend: str = 'tensorflow',
+        num_clients: Optional[int] = None,
         min_available_clients: int = 2,
         fraction_fit: float = 1.0,
         fraction_evaluate: float = 1.0,
@@ -26,6 +27,7 @@ class FederatedServer:
         self.model = model
         self.backend = backend
         self.aggregation_strategy = aggregation_strategy or FedAvg()
+        self.num_clients = num_clients if num_clients is not None else 0
         self.min_available_clients = min_available_clients
         self.fraction_fit = fraction_fit
         self.fraction_evaluate = fraction_evaluate
@@ -42,6 +44,15 @@ class FederatedServer:
             'communication_cost': [],
             'round_time': [],
         }
+    
+    def aggregate_weights(self, weights_list: List[List[float]]) -> List[float]:
+        if not weights_list:
+            return []
+        num_items = len(weights_list[0])
+        aggregated = [0.0] * num_items
+        for i in range(num_items):
+            aggregated[i] = float(np.mean([client_weights[i] for client_weights in weights_list]))
+        return aggregated
     
     def get_weights(self) -> List[np.ndarray]:
         if self.backend == 'tensorflow':

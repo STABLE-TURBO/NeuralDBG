@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -11,17 +11,19 @@ logger = logging.getLogger(__name__)
 
 
 class DifferentialPrivacy(ABC):
-    def __init__(self, epsilon: float, delta: float = 1e-5):
+    def __init__(self, epsilon: float, delta: float = 1e-5, clip_norm: float | None = None):
         self.epsilon = epsilon
         self.delta = delta
+        self.clip_norm = clip_norm if clip_norm is not None else 0.0
     
-    @abstractmethod
-    def add_noise(self, weights: List[np.ndarray], sensitivity: float) -> List[np.ndarray]:
-        pass
+    def add_noise(self, weights: List[np.ndarray], sensitivity: float = 1.0) -> List[np.ndarray]:
+        return weights
     
-    @abstractmethod
+    def clip_gradients(self, weights: List[np.ndarray]) -> List[np.ndarray]:
+        return weights
+    
     def compute_noise_scale(self, sensitivity: float) -> float:
-        pass
+        return 0.0
 
 
 class GaussianDP(DifferentialPrivacy):

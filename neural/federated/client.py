@@ -13,8 +13,8 @@ class FederatedClient:
     def __init__(
         self,
         client_id: str,
-        model: Any,
-        local_data: Union[Tuple, Any],
+        model: Any = None,
+        local_data: Union[Tuple, Any] = None,
         backend: str = 'tensorflow',
         local_epochs: int = 1,
         batch_size: int = 32,
@@ -40,6 +40,9 @@ class FederatedClient:
         self.computation_time = 0
         
         self._initialize_data()
+    
+    def train(self, *args, **kwargs):
+        return self.local_train()
     
     def _initialize_data(self):
         if isinstance(self.local_data, tuple) and len(self.local_data) == 2:
