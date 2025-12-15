@@ -82,7 +82,22 @@ Then follow steps 2-5 above.
 
 ### Core Documentation
 
-#### 1. [Complete User Manual](AQUARIUM_IDE_MANUAL.md)
+#### 1. [Complete Guide](AQUARIUM_IDE_COMPLETE_GUIDE.md) ⭐ RECOMMENDED
+**All-in-one comprehensive guide**
+- Getting Started
+- DSL Editor
+- Model Compilation & Training
+- Debugging & Export
+- Welcome Screen & Plugins
+- Hyperparameter Optimization
+- API Reference & Troubleshooting
+- Architecture & Plugin Development
+
+**Audience:** All users  
+**Length:** ~20,000 words  
+**Format:** Complete consolidated reference
+
+#### 2. [User Manual](AQUARIUM_IDE_MANUAL.md)
 **20 chapters covering everything**
 - Getting Started
 - DSL Editor
@@ -106,7 +121,7 @@ Then follow steps 2-5 above.
 **Length:** ~15,000 words  
 **Format:** Complete reference with examples
 
-#### 2. [API Reference](API_REFERENCE.md)
+#### 3. [API Reference](API_REFERENCE.md)
 **Complete API documentation**
 - Python API (ExecutionManager, PluginManager, etc.)
 - REST API endpoints
@@ -120,7 +135,7 @@ Then follow steps 2-5 above.
 **Length:** ~8,000 words  
 **Format:** Technical reference
 
-#### 3. [Quick Reference](QUICK_REFERENCE.md)
+#### 4. [Quick Reference](QUICK_REFERENCE.md)
 **One-page cheat sheet**
 - Essential commands
 - DSL syntax reference

@@ -47,9 +47,9 @@ The cleanup is part of a larger refocusing effort (v0.4.0) that removes:
 
 ## Detailed Removal Breakdown
 
-### 1. Documentation Files Archived (50+ files → docs/archive/)
+### 1. Documentation Files Removed/Consolidated
 
-All files moved to `docs/archive/` for preservation while cleaning the root directory.
+Archive directory (`docs/archive/`) removed entirely (22 files). Aquarium IDE documentation consolidated into comprehensive guides.
 
 #### Implementation Summaries & Status Reports
 - `AQUARIUM_IMPLEMENTATION_SUMMARY.md` - Aquarium IDE implementation details
@@ -216,11 +216,11 @@ neural/
 
 ### What Changed
 
-#### Removed from Root
-- 50+ implementation summary files (→ `docs/archive/`)
+#### Removed from Root and Archive
+- Archive directory completely removed (`docs/archive/`: 22 files)
 - 7 obsolete development scripts
-- 15+ test/fix summary documents (→ `docs/archive/`)
-- Temporary status/tracking files
+- Aquarium IDE docs consolidated (10+ files → 1 comprehensive guide)
+- Temporary status/tracking files removed
 
 #### Retained in Root (Essential)
 - Core documentation (README, INSTALL, CHANGELOG, CONTRIBUTING, etc.)
@@ -271,13 +271,16 @@ neural/
 
 ## Migration & Reversibility
 
-### Accessing Archived Files
+### Accessing Consolidated Documentation
 
-All archived documentation is preserved in `docs/archive/`:
+All documentation is now organized and consolidated:
 
 ```bash
-ls docs/archive/
-cat docs/archive/IMPLEMENTATION_SUMMARY.md
+# Aquarium IDE - Complete Guide
+cat docs/aquarium/AQUARIUM_IDE_COMPLETE_GUIDE.md
+
+# Main documentation directory
+ls docs/
 ```
 
 ### Git History Preservation
@@ -297,11 +300,8 @@ git checkout <commit-hash> -- path/to/file.md
 If needed, archived files can be restored:
 
 ```bash
-# Restore specific file
-cp docs/archive/IMPLEMENTATION_SUMMARY.md ./
-
-# Restore all archived files
-cp docs/archive/*.md ./
+# View file from history if needed
+git show HEAD~1:docs/archive/IMPLEMENTATION_SUMMARY.md
 ```
 
 ---
@@ -317,7 +317,7 @@ python preview_cleanup.py
 ```
 
 ### 2. `cleanup_redundant_files.py`
-Archive redundant documentation files to `docs/archive/`:
+Remove redundant documentation files:
 ```bash
 python cleanup_redundant_files.py
 ```
@@ -358,7 +358,7 @@ The following documentation was updated to reflect the cleanup:
 ### For Contributors
 - Consult AGENTS.md for repository structure and development workflow
 - Use essential-ci.yml workflow for all CI/CD needs
-- Archived documentation available in `docs/archive/` if needed
+- All documentation consolidated in `docs/` and `docs/aquarium/`
 
 ### For Maintainers
 - Monitor workflow efficiency after consolidation

@@ -9,15 +9,14 @@ Neural DSL has been refocused from a feature-rich "Swiss Army knife" to a specia
 A comprehensive cleanup was performed to improve repository hygiene and maintainability:
 
 #### Files Removed/Archived
-- **Documentation Cleanup**: Archived 50+ implementation summaries, status reports, and temporary documents to `docs/archive/`
-  - Implementation summaries (Aquarium, Automation, Benchmarks, MLOps, Teams, etc.)
-  - Historical status reports (BUG_FIXES.md, CHANGES_SUMMARY.md, SETUP_STATUS.md, etc.)
-  - Release documentation (v0.3.0 release notes, verification docs, publishing guides)
-  - Feature implementation docs (Marketplace, Integrations, Transformers, etc.)
+- **Documentation Cleanup**: Removed `docs/archive/` directory (22 files) and consolidated documentation
+  - Archive directory removed: Implementation summaries, planning docs, old HTML files
+  - Aquarium IDE docs: 10+ files consolidated into `docs/aquarium/AQUARIUM_IDE_COMPLETE_GUIDE.md`
+  - All redundant implementation summaries across the repository eliminated
 - **Development Scripts**: Removed 7 obsolete installation and setup scripts
   - Legacy installation scripts (install.bat, install_dev.bat, install_deps.py)
   - Deprecated setup scripts (_install_dev.py, repro_parser.py, reproduce_issue.py)
-- **Total Impact**: 200+ files removed/archived, ~5-10 MB disk space saved
+- **Total Impact**: 200+ files removed/consolidated, ~5-10 MB disk space saved
 
 #### GitHub Actions Consolidation
 - **Workflows Reduced**: 20+ workflows consolidated to 4 essential workflows (80% reduction)
@@ -106,7 +105,7 @@ A comprehensive cleanup was performed to improve repository hygiene and maintain
   - Updated repository structure
   - Benefits achieved (metrics and improvements)
   - Migration and reversibility instructions
-- Archived 50+ implementation summaries to `docs/archive/` for historical reference
+- Removed `docs/archive/` directory (22 redundant files) and consolidated all documentation
 
 ### Philosophy
 > "Do one thing and do it well" - Unix Philosophy

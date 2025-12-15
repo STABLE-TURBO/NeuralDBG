@@ -28,8 +28,13 @@ These were created by automation scripts and are no longer needed. The `blog/` d
 
 ### 3. 🗑️ Removed Archive Directory
 
-- Deleted `archive/` directory which only contained internal development tracking documents
+- Deleted `archive/` directory which contained 22 redundant files:
+  - Implementation summaries (consolidated into docs/aquarium/)
+  - Completed planning documents
+  - Old HTML files
+  - Internal development tracking documents
 - This was not user-facing documentation
+- All content has been either consolidated or is no longer needed
 
 ### 4. 🔄 Consolidated Duplicate Documentation
 

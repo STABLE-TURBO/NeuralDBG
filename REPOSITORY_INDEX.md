@@ -88,20 +88,19 @@ Welcome to the Neural DSL documentation index. This guide helps you navigate all
 
 ---
 
-## 🗂️ Archived Documentation
+## 🗂️ Consolidated Documentation
 
-Implementation summaries and historical documents are preserved in **`docs/archive/`**:
+The archive directory has been removed. All documentation is now consolidated:
 
-```bash
-ls docs/archive/                    # View archived files
-cat docs/archive/README.md          # Archive index
-```
+- **Aquarium IDE**: All docs in `docs/aquarium/AQUARIUM_IDE_COMPLETE_GUIDE.md`
+- **Main Documentation**: Organized in `docs/` with clear structure
+- **No Archive**: Redundant files removed, content consolidated
 
-### What's Archived
+### What Was Removed
 
-- 50+ implementation summaries (Aquarium, Automation, Benchmarks, MLOps, Teams, etc.)
-- Historical status reports and change logs
-- v0.3.0 release documentation
+- 22 files from old `docs/archive/` (implementation summaries, planning docs, old HTML)
+- Scattered Aquarium documentation (10+ files consolidated into AQUARIUM_IDE_COMPLETE_GUIDE.md)
+- Redundant implementation summaries across the repository
 - Feature implementation documents
 - Development journals and planning docs
 

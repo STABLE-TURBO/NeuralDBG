@@ -1,6 +1,8 @@
 # Aquarium IDE Documentation
 
-**Version 1.0.0** | **Complete Documentation Hub**
+**Version 1.0.0** | **Complete Documentation Hub** | **Updated: December 2024**
+
+> **📌 New**: All Aquarium IDE documentation has been consolidated! Check out the new [Complete Guide](AQUARIUM_IDE_COMPLETE_GUIDE.md) for everything in one place.
 
 <div align="center">
 
@@ -34,7 +36,8 @@ This is the **complete documentation hub** for Aquarium IDE, consolidating all s
 
 | Document | Description | Audience | Length |
 |----------|-------------|----------|--------|
-| **[📘 Complete User Manual](AQUARIUM_IDE_MANUAL.md)** | Comprehensive 20-chapter guide covering everything | All Users | 15,000+ words |
+| **[📘 Complete Guide](AQUARIUM_IDE_COMPLETE_GUIDE.md)** | All-in-one comprehensive guide (RECOMMENDED) | All Users | 20,000+ words |
+| **[📘 User Manual](AQUARIUM_IDE_MANUAL.md)** | Comprehensive 20-chapter guide covering everything | All Users | 15,000+ words |
 | **[🔧 API Reference](API_REFERENCE.md)** | Complete API documentation for all interfaces | Developers | 8,000+ words |
 | **[📋 Quick Reference](QUICK_REFERENCE.md)** | One-page cheat sheet with syntax and shortcuts | All Users | 2,000+ words |
 | **[📍 Documentation Index](INDEX.md)** | Navigation hub with learning paths | All Users | 3,000+ words |

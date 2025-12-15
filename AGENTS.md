@@ -78,3 +78,32 @@ Focus areas for development:
 - **Visualization**: Model graphs and architecture diagrams
 - **HPO**: Hyperparameter optimization workflows
 - **Testing**: `tests/` - comprehensive test coverage expected
+
+Peripheral features (lower priority):
+- AutoML, HPO, Integrations
+- Aquarium IDE (consider separate repository)
+- Marketing automation, blog generation
+
+Note: Teams module (multi-tenancy, RBAC, billing, analytics) has been removed as it was not actively used by core features.
+
+## Cleanup
+The repository has been cleaned to remove 200+ redundant files:
+- Archive directory (`docs/archive/`) removed (22 redundant files)
+- Workflows consolidated from 20+ to 4 essential ones
+- Development scripts removed or consolidated
+- `.gitignore` comprehensively updated
+
+### Cache and Artifacts Cleanup
+Remove cache directories, virtual environments, and test artifacts:
+- **Windows PowerShell**: `.\cleanup_cache_and_artifacts.ps1`
+- **Windows Command Prompt**: `cleanup_cache_and_artifacts.bat`
+- **Unix/Linux/macOS**: `./cleanup_cache_and_artifacts.sh`
+- **Python (cross-platform)**: `python cleanup_cache_and_artifacts.py`
+
+See [CLEANUP_README.md](CLEANUP_README.md) for detailed instructions and manual cleanup commands.
+
+All cache patterns are already in `.gitignore`:
+- `__pycache__/`, `.pytest_cache/`, `.hypothesis/`, `.mypy_cache/`, `.ruff_cache/`
+- `.venv*/`, `venv*/`
+- Test artifacts: `test_*.html`, `test_*.png`
+- Temporary scripts: `sample_*.py`, `test_*.py` (root only)
