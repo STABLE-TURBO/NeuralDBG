@@ -420,3 +420,11 @@ class PerformancePredictor:
             'architecture': architecture,
             'accuracy': final_accuracy
         })
+
+class ModelEvaluator:
+    def __init__(self, metric: str = 'accuracy'):
+        self.metric = metric
+        self._evaluator = ArchitectureEvaluator()
+    
+    def evaluate(self, model, train_data, val_data):
+        return {'accuracy': 0.0, 'loss': 0.0}

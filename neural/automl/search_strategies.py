@@ -392,3 +392,35 @@ class RegularizedEvolutionStrategy(EvolutionarySearchStrategy):
             min(self.sample_size, len(self.population))
         )
         return max(sample, key=lambda x: x['fitness'])
+
+class RandomSearch(SearchStrategy):
+    def __init__(self, max_trials: int = 10, seed: Optional[int] = None):
+        super().__init__('random_search')
+        self.max_trials = max_trials
+        self._delegate = RandomSearchStrategy(seed=seed)
+    
+    def suggest(self, architecture_space, trial_number: int = 0) -> Dict[str, Any]:
+        return self._delegate.suggest(architecture_space, trial_number)
+
+class BayesianSearch(SearchStrategy):
+    def __init__(self, max_trials: int = 20, acquisition_function: str = 'ei'):
+        super().__init__('bayesian_search')
+        self.max_trials = max_trials
+        self._delegate = BayesianSearchStrategy(acquisition_function=acquisition_function)
+    
+    def suggest(self, architecture_space, trial_number: int = 0) -> Dict[str, Any]:
+        return self._delegate.suggest(architecture_space, trial_number)
+
+class EvolutionarySearch(SearchStrategy):
+    def __init__(self, population_size: int = 20, generations: int = 10, mutation_rate: float = 0.2, crossover_rate: float = 0.5):
+        super().__init__('evolutionary_search')
+        self.population_size = population_size
+        self.generations = generations
+        self._delegate = EvolutionarySearchStrategy(
+            population_size=population_size,
+            mutation_rate=mutation_rate,
+            crossover_rate=crossover_rate
+        )
+    
+    def suggest(self, architecture_space, trial_number: int = 0) -> Dict[str, Any]:
+        return self._delegate.suggest(architecture_space, trial_number)

@@ -354,3 +354,24 @@ class PatientPruner(EarlyStoppingStrategy):
         else:
             self.wait_counts[trial_id] += 1
             return self.wait_counts[trial_id] >= self.patience
+
+class EarlyStopping:
+    def __init__(self, patience: int = 5, min_delta: float = 0.0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.best_value: Optional[float] = None
+        self.wait_count: int = 0
+    
+    def should_stop(self, current_value: float) -> bool:
+        if self.best_value is None:
+            self.best_value = current_value
+            self.wait_count = 0
+            return False
+        improvement = current_value - self.best_value
+        if improvement > self.min_delta:
+            self.best_value = current_value
+            self.wait_count = 0
+            return False
+        else:
+            self.wait_count += 1
+            return self.wait_count >= self.patience
