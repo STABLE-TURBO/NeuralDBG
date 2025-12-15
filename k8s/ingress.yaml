@@ -8,28 +8,15 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
 spec:
   tls:
   - hosts:
     - neural-dsl.example.com
-    - api.neural-dsl.example.com
     - dashboard.neural-dsl.example.com
     - nocode.neural-dsl.example.com
     - aquarium.neural-dsl.example.com
     secretName: neural-dsl-tls
   rules:
-  - host: api.neural-dsl.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: neural-api
-            port:
-              number: 8000
   - host: dashboard.neural-dsl.example.com
     http:
       paths:
@@ -63,13 +50,6 @@ spec:
   - host: neural-dsl.example.com
     http:
       paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: neural-api
-            port:
-              number: 8000
       - path: /dashboard
         pathType: Prefix
         backend:

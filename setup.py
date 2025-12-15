@@ -86,21 +86,6 @@ ML_EXTRAS_DEPS = [
     "langdetect>=1.0.9",
 ]
 
-API_DEPS = [
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
-    "celery>=5.3.0",
-    "redis>=5.0.0",
-    "flower>=2.0.0",
-    "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
-    "python-multipart>=0.0.6",
-    "pydantic-settings>=2.0.0",
-    "requests>=2.31.0",
-    "sqlalchemy>=2.0.0",
-    "websockets>=10.0",
-]
-
 COLLABORATION_DEPS = [
     "websockets>=10.0",
 ]
@@ -148,7 +133,6 @@ setup(
         "backends": BACKEND_DEPS,
         "utils": UTILS_DEPS,
         "ml-extras": ML_EXTRAS_DEPS,
-        "api": API_DEPS,
         "data": DATA_DEPS,
         "teams": TEAMS_DEPS,
         "federated": FEDERATED_DEPS,
@@ -177,7 +161,6 @@ setup(
             + BACKEND_DEPS
             + UTILS_DEPS
             + ML_EXTRAS_DEPS
-            + API_DEPS
             + DATA_DEPS
             + TEAMS_DEPS
             + FEDERATED_DEPS

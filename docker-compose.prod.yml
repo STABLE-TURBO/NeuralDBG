@@ -4,42 +4,7 @@ version: '3.8'
 # Use: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 services:
-  # PostgreSQL database for production
-  postgres:
-    image: postgres:15-alpine
-    container_name: neural-postgres
-    environment:
-      - POSTGRES_DB=neural_api
-      - POSTGRES_USER=neural
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U neural"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: always
-
-  redis:
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme}
-    restart: always
-
-  api:
-    environment:
-      - DEBUG=false
-      - SECRET_KEY=${SECRET_KEY}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
-      - DATABASE_URL=postgresql://neural:${DB_PASSWORD:-changeme}@postgres:5432/neural_api
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+  dashboard:
     restart: always
     logging:
       driver: "json-file"
@@ -47,30 +12,21 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  worker:
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+  nocode:
     restart: always
-    deploy:
-      replicas: 2
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  flower:
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+  aquarium:
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Nginx reverse proxy
   nginx:
@@ -82,10 +38,4 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - api
     restart: always
-
-volumes:
-  postgres-data:
-    driver: local

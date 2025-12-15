@@ -1,119 +1,6 @@
 version: '3.8'
 
 services:
-  # Redis for Celery broker and caching
-  redis:
-    image: redis:7-alpine
-    container_name: neural-redis-dev
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - neural-network
-
-  # PostgreSQL database (optional, for production-like setup)
-  postgres:
-    image: postgres:15-alpine
-    container_name: neural-postgres-dev
-    environment:
-      POSTGRES_DB: neural_db
-      POSTGRES_USER: neural
-      POSTGRES_PASSWORD: neural_dev_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U neural"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - neural-network
-
-  # Neural API server
-  api:
-    build:
-      context: .
-      dockerfile: dockerfiles/Dockerfile.api
-    container_name: neural-api-dev
-    ports:
-      - "8000:8000"
-    environment:
-      - DEBUG=true
-      - API_HOST=0.0.0.0
-      - API_PORT=8000
-      - API_WORKERS=1
-      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/neural_api.db}
-      - STORAGE_PATH=/app/data/storage
-      - EXPERIMENTS_PATH=/app/data/experiments
-      - MODELS_PATH=/app/data/models
-      - RATE_LIMIT_ENABLED=true
-      - RATE_LIMIT_REQUESTS=100
-      - RATE_LIMIT_PERIOD=60
-      - CORS_ORIGINS=["http://localhost:3000","http://localhost:8000","http://localhost:8050","http://localhost:8051","http://localhost:8052"]
-    volumes:
-      - ./neural:/app/neural
-      - api-data:/app/data
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - neural-network
-
-  # Celery worker for async tasks
-  worker:
-    build:
-      context: .
-      dockerfile: dockerfiles/Dockerfile.worker
-    container_name: neural-worker-dev
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - STORAGE_PATH=/app/data/storage
-      - EXPERIMENTS_PATH=/app/data/experiments
-      - MODELS_PATH=/app/data/models
-    volumes:
-      - ./neural:/app/neural
-      - api-data:/app/data
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - neural-network
-
-  # Celery Flower for monitoring
-  flower:
-    build:
-      context: .
-      dockerfile: dockerfiles/Dockerfile.worker
-    container_name: neural-flower-dev
-    command: celery -A neural.api.celery_app flower --port=5555 --broker=redis://redis:6379/0
-    ports:
-      - "5555:5555"
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      - redis
-      - worker
-    networks:
-      - neural-network
-
   # NeuralDbg Dashboard
   dashboard:
     build:
@@ -156,12 +43,9 @@ services:
       - "8052:8052"
     environment:
       - DEBUG=true
-      - API_URL=http://api:8000
     volumes:
       - ./neural:/app/neural
       - aquarium-data:/app/.aquarium
-    depends_on:
-      - api
     networks:
       - neural-network
 
@@ -174,7 +58,6 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - api
       - dashboard
       - nocode
       - aquarium
@@ -182,12 +65,6 @@ services:
       - neural-network
 
 volumes:
-  redis-data:
-    driver: local
-  postgres-data:
-    driver: local
-  api-data:
-    driver: local
   nocode-data:
     driver: local
   aquarium-data:

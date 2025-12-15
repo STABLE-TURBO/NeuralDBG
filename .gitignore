@@ -113,12 +113,9 @@ wandb/
 runs/
 *.mlflow.db
 
-# Neural API artifacts
+# Storage artifacts
 neural_storage/
 neural_models/
-neural_api.db
-celerybeat-schedule
-celerybeat.pid
 
 # HPO artifacts
 hpo_report.html

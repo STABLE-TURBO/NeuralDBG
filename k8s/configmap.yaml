@@ -4,22 +4,5 @@ metadata:
   name: neural-dsl-config
   namespace: neural-dsl
 data:
-  API_HOST: "0.0.0.0"
-  API_PORT: "8000"
-  API_WORKERS: "4"
-  REDIS_HOST: "redis"
-  REDIS_PORT: "6379"
-  POSTGRES_HOST: "postgres"
-  POSTGRES_PORT: "5432"
-  POSTGRES_DB: "neural_db"
-  POSTGRES_USER: "neural"
-  STORAGE_PATH: "/app/data/storage"
-  EXPERIMENTS_PATH: "/app/data/experiments"
-  MODELS_PATH: "/app/data/models"
-  RATE_LIMIT_ENABLED: "true"
-  RATE_LIMIT_REQUESTS: "100"
-  RATE_LIMIT_PERIOD: "60"
   UPDATE_INTERVAL: "5000"
   DEBUG: "false"
-  CELERY_CONCURRENCY: "4"
-  CORS_ORIGINS: '["https://neural-dsl.example.com"]'
