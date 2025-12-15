@@ -299,6 +299,10 @@ class ShapePropagator:
 
     def _compute_performance(self, layer: dict, input_shape: tuple, output_shape: tuple) -> tuple:
         """Compute performance metrics (FLOPs, memory usage, etc.)."""
+        # Extract layer type and params from layer dict
+        layer_type = layer.get("type", "Unknown")
+        params = layer.get("params", {})
+        
         # Replace None with 1 to avoid NoneType math errors
         input_shape_calc = tuple(1 if dim is None else dim for dim in input_shape)
         output_shape_calc = tuple(1 if dim is None else dim for dim in output_shape)
@@ -375,8 +379,9 @@ class ShapePropagator:
         # Simplified timing estimates
         compute_time = flops / 1e9  # Assuming 1 GFLOP/s
         transfer_time = memory_usage * 1e3 / 1e9  # Assuming 1 GB/s bandwidth
+        exec_time = compute_time + transfer_time  # Total execution time
 
-        return flops, memory_usage, compute_time, transfer_time
+        return flops, memory_usage, exec_time, compute_time, transfer_time
 
 ##################################################
 ### Send execution trace data to the dashboard ###

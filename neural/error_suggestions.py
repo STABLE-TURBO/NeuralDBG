@@ -108,7 +108,8 @@ class ErrorSuggestion:
             elif "pool" in param_name.lower():
                 return "Use 'pool_size' for pooling layers"
         
-        if "unit" in param_name.lower() and layer_type in ["Dense", "LSTM", "GRU"]:
+        # Check for singular "unit" (but not "units" which is correct)
+        if param_name.lower() == "unit" and layer_type in ["Dense", "LSTM", "GRU"]:
             return "Use 'units' (plural) to specify the number of neurons"
         
         return None
@@ -178,6 +179,10 @@ class ErrorSuggestion:
         if not input_shape or len(input_shape) == 0:
             return "Input shape cannot be empty. Specify at least one dimension."
         
+        # Check for negative dimensions first (more critical)
+        if any(dim is not None and dim < 0 for dim in input_shape):
+            return "Shape dimensions cannot be negative. Use None for variable-length dimensions."
+        
         # Check for common mistakes
         if layer_type == "Dense" and len(input_shape) > 2:
             return "Dense layers expect 2D input (batch, features). Consider adding Flatten() before Dense layer."
@@ -187,10 +192,6 @@ class ErrorSuggestion:
         
         if layer_type in ["LSTM", "GRU"] and len(input_shape) < 2:
             return f"{layer_type} expects at least 2D input (sequence_length, features) or 3D with batch dimension."
-        
-        # Check for negative dimensions
-        if any(dim is not None and dim < 0 for dim in input_shape):
-            return "Shape dimensions cannot be negative. Use None for variable-length dimensions."
         
         return None
     

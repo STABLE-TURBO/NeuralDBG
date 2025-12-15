@@ -262,7 +262,9 @@ class DataQualityValidator:
     ) -> List[ValidationResult]:
         results = self.validate(data, rules)
         
-        result_file = self.results_dir / f"{dataset_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        # Use microsecond precision to ensure unique filenames
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        result_file = self.results_dir / f"{dataset_name}_{timestamp}.json"
         
         with open(result_file, "w") as f:
             json.dump(
