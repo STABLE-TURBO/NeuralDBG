@@ -338,9 +338,9 @@ def compile(ctx, file: str, backend: str, dataset: str, output: Optional[str], d
     # Output the generated code
     if dry_run:
         print_info("Generated code (dry run)")
-        print(f"\n{Colors.CYAN}{'='*50}{Colors.ENDC}")
-        print(code)
-        print(f"{Colors.CYAN}{'='*50}{Colors.ENDC}")
+        logger.info(f"\n{Colors.CYAN}{'='*50}{Colors.ENDC}")
+        logger.info(code)
+        logger.info(f"{Colors.CYAN}{'='*50}{Colors.ENDC}")
         print_success("Dry run complete! No files were created.")
     else:
         output_file = output or f"{os.path.splitext(file)[0]}_{backend}.py"
@@ -351,12 +351,12 @@ def compile(ctx, file: str, backend: str, dataset: str, output: Optional[str], d
                 with open(output_file, 'w') as f:
                     f.write(code)
             print_success("Compilation successful!")
-            print(f"\n{Colors.CYAN}Output:{Colors.ENDC}")
-            print(f"  {Colors.BOLD}File:{Colors.ENDC} {output_file}")
-            print(f"  {Colors.BOLD}Backend:{Colors.ENDC} {backend}")
-            print(f"  {Colors.BOLD}Size:{Colors.ENDC} {len(code)} bytes")
+            logger.info(f"\n{Colors.CYAN}Output:{Colors.ENDC}")
+            logger.info(f"  {Colors.BOLD}File:{Colors.ENDC} {output_file}")
+            logger.info(f"  {Colors.BOLD}Backend:{Colors.ENDC} {backend}")
+            logger.info(f"  {Colors.BOLD}Size:{Colors.ENDC} {len(code)} bytes")
             if not ctx.obj.get('NO_ANIMATIONS'):
-                print("\nNeural network structure:")
+                logger.info("\nNeural network structure:")
                 animate_neural_network(2)
         except (PermissionError, IOError) as e:
             print_error(f"Failed to write to {output_file}: {str(e)}")
@@ -544,12 +544,12 @@ def visualize(ctx, file: str, format: str, cache: bool):
     # Show success message
     if format == 'html':
         print_success("Visualizations generated successfully!")
-        print(f"{Colors.CYAN}Files created:{Colors.ENDC}")
-        print(f"  - {Colors.GREEN}architecture.svg{Colors.ENDC} (Network architecture)")
-        print(f"  - {Colors.GREEN}shape_propagation.html{Colors.ENDC} (Parameter count chart)")
-        print(f"  - {Colors.GREEN}tensor_flow.html{Colors.ENDC} (Data flow animation)")
+        logger.info(f"{Colors.CYAN}Files created:{Colors.ENDC}")
+        logger.info(f"  - {Colors.GREEN}architecture.svg{Colors.ENDC} (Network architecture)")
+        logger.info(f"  - {Colors.GREEN}shape_propagation.html{Colors.ENDC} (Parameter count chart)")
+        logger.info(f"  - {Colors.GREEN}tensor_flow.html{Colors.ENDC} (Data flow animation)")
         if not ctx.obj.get('NO_ANIMATIONS'):
-            print("\nNeural network data flow animation:")
+            logger.info("\nNeural network data flow animation:")
             animate_neural_network(3)
     else:
         print_success(f"Visualization saved as architecture.{format}")
@@ -757,36 +757,36 @@ def debug(ctx: click.Context, file: str, gradients: bool, dead_neurons: bool, an
 
     # Display metrics in the console
     if gradients:
-        print(f"\n{Colors.CYAN}Gradient Flow Analysis{Colors.ENDC}")
+        logger.info(f"\n{Colors.CYAN}Gradient Flow Analysis{Colors.ENDC}")
         for entry in trace_data:
-            print(f"  Layer {Colors.BOLD}{entry['layer']}{Colors.ENDC}: grad_norm = {entry.get('grad_norm', 'N/A'):.3f}")
+            logger.info(f"  Layer {Colors.BOLD}{entry['layer']}{Colors.ENDC}: grad_norm = {entry.get('grad_norm', 'N/A'):.3f}")
 
     if dead_neurons:
-        print(f"\n{Colors.CYAN}Dead Neuron Detection{Colors.ENDC}")
+        logger.info(f"\n{Colors.CYAN}Dead Neuron Detection{Colors.ENDC}")
         for entry in trace_data:
-            print(f"  Layer {Colors.BOLD}{entry['layer']}{Colors.ENDC}: dead_ratio = {entry.get('dead_ratio', 'N/A'):.3f}")
+            logger.info(f"  Layer {Colors.BOLD}{entry['layer']}{Colors.ENDC}: dead_ratio = {entry.get('dead_ratio', 'N/A'):.3f}")
 
     if anomalies:
-        print(f"\n{Colors.CYAN}Anomaly Detection{Colors.ENDC}")
+        logger.info(f"\n{Colors.CYAN}Anomaly Detection{Colors.ENDC}")
         anomaly_found = False
         for entry in trace_data:
             if entry.get('anomaly', False):
-                print(f"  Layer {Colors.BOLD}{entry['layer']}{Colors.ENDC}: mean_activation = {entry.get('mean_activation', 'N/A'):.3f}, anomaly = True")
+                logger.info(f"  Layer {Colors.BOLD}{entry['layer']}{Colors.ENDC}: mean_activation = {entry.get('mean_activation', 'N/A'):.3f}, anomaly = True")
                 anomaly_found = True
         if not anomaly_found:
-            print("  No anomalies detected")
+            logger.info("  No anomalies detected")
 
     if step:
-        print(f"\n{Colors.CYAN}Step Debugging Mode{Colors.ENDC}")
+        logger.info(f"\n{Colors.CYAN}Step Debugging Mode{Colors.ENDC}")
         print_info("Stepping through network layer by layer...")
         propagator = ShapePropagator(debug=True)
         input_shape = model_data['input']['shape']
         for i, layer in enumerate(model_data['layers']):
             input_shape = propagator.propagate(input_shape, layer, backend)
-            print(f"\n{Colors.BOLD}Step {i+1}/{len(model_data['layers'])}{Colors.ENDC}: {layer['type']}")
-            print(f"  Output Shape: {input_shape}")
+            logger.info(f"\n{Colors.BOLD}Step {i+1}/{len(model_data['layers'])}{Colors.ENDC}: {layer['type']}")
+            logger.info(f"  Output Shape: {input_shape}")
             if 'params' in layer and layer['params']:
-                print(f"  Parameters: {layer['params']}")
+                logger.info(f"  Parameters: {layer['params']}")
             if not ctx.obj.get('NO_ANIMATIONS') and click.confirm("Continue?", default=True):
                 continue
             else:
@@ -891,7 +891,7 @@ def version(ctx):
             print(f"  {Colors.BOLD}{pkg.capitalize()}:{Colors.ENDC}" + " " * (12 - len(pkg)) + f"{Colors.YELLOW}Not installed{Colors.ENDC}")
 
     if not ctx.obj.get('NO_ANIMATIONS'):
-        print("\nNeural is ready to build amazing neural networks!")
+        logger.info("\nNeural is ready to build amazing neural networks!")
         animate_neural_network(2)
 
 

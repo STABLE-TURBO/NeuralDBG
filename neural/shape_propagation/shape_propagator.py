@@ -664,7 +664,7 @@ class ShapePropagator:
                     padding = (0, 0)  # Default value
             # Otherwise, use a default value
             else:
-                print(f"DEBUG: _handle_conv2d - padding is a dict without 'value' key: {padding}, using default")
+                logger.debug(f"_handle_conv2d - padding is a dict without 'value' key: {padding}, using default")
                 padding = (0, 0)  # Default value
 
         # Ensure padding has same length as spatial_dims
@@ -681,7 +681,7 @@ class ShapePropagator:
             else:
                 out_dim = (dim + 2*pad - k) // s + 1
                 if out_dim <= 0:
-                    print(f"DEBUG: _handle_conv2d - Invalid output dimension at index {i}: {out_dim}, using 1")
+                    logger.debug(f"_handle_conv2d - Invalid output dimension at index {i}: {out_dim}, using 1")
                     out_dim = 1
                 output_spatial.append(out_dim)
 
@@ -744,7 +744,7 @@ class ShapePropagator:
         elif isinstance(stride, (list, tuple)):
             stride_h, stride_w = stride[0], stride[1]
 
-        print(f"DEBUG: _handle_maxpooling2d - pool_size: {pool_size}, stride_h: {stride_h}, stride_w: {stride_w}")
+        logger.debug(f"_handle_maxpooling2d - pool_size: {pool_size}, stride_h: {stride_h}, stride_w: {stride_w}")
 
         # Calculate spatial dimensions based on data format
         if data_format == 'channels_last':
@@ -755,7 +755,7 @@ class ShapePropagator:
                 new_width = w // stride_w if w is not None else None
                 return (input_shape[0], new_height, new_width, input_shape[3])
             else:
-                print(f"DEBUG: _handle_maxpooling2d - Invalid input shape: {input_shape}, using default")
+                logger.debug(f"_handle_maxpooling2d - Invalid input shape: {input_shape}, using default")
                 return (input_shape[0], 1, 1, input_shape[-1] if len(input_shape) > 1 else 1)
         else:
             # PyTorch: input_shape = (batch, channels, height, width)
@@ -765,7 +765,7 @@ class ShapePropagator:
                 new_width = w // stride_w if w is not None else None
                 return (input_shape[0], input_shape[1], new_height, new_width)
             else:
-                print(f"DEBUG: _handle_maxpooling2d - Invalid input shape: {input_shape}, using default")
+                logger.debug(f"_handle_maxpooling2d - Invalid input shape: {input_shape}, using default")
                 return (input_shape[0], input_shape[1] if len(input_shape) > 1 else 1, 1, 1)
 
     def _handle_flatten(self, input_shape, params):
@@ -827,7 +827,7 @@ class ShapePropagator:
         Returns:
             Output tensor shape
         """
-        print(f"DEBUG: _handle_gru - input_shape: {input_shape}, params: {params}")
+        logger.debug(f"_handle_gru - input_shape: {input_shape}, params: {params}")
         
         units = extract_param(params, 'units', 128)
         return_sequences = extract_param(params, 'return_sequences', False)
@@ -905,7 +905,7 @@ class ShapePropagator:
                 new_width = w * size[1] if w is not None else None
                 return (input_shape[0], new_height, new_width, input_shape[3])
             else:
-                print(f"DEBUG: _handle_upsampling2d - Invalid input shape: {input_shape}, using default")
+                logger.debug(f"_handle_upsampling2d - Invalid input shape: {input_shape}, using default")
                 return input_shape
         else:
             # PyTorch: input_shape = (batch, channels, height, width)
