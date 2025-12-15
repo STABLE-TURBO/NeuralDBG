@@ -20,11 +20,10 @@ pip install -r requirements-dev.txt     # Install development dependencies (reco
 - **Cloud**: pygithub, selenium (cloud integrations)
 - **Integrations**: None (base classes only, no external dependencies)
 - **Teams**: click, pyyaml (multi-tenancy and team management)
-- **Federated**: numpy, pyyaml (federated learning with privacy and compression)
 - **AI**: langdetect (natural language processing and language detection)
 - **Dev**: pytest, ruff, pylint, mypy, pre-commit (development tools)
 
-Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[automl]"`, `pip install -e ".[integrations]"`, `pip install -e ".[distributed]"`, `pip install -e ".[teams]"`, `pip install -e ".[federated]"`, or `pip install -e ".[ai]"`
+Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[automl]"`, `pip install -e ".[integrations]"`, `pip install -e ".[distributed]"`, `pip install -e ".[teams]"`, or `pip install -e ".[ai]"`
 
 ## Commands
 - **Build**: N/A (pure Python, no build step)
@@ -53,7 +52,6 @@ Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[a
 - `neural/automl/` - AutoML and Neural Architecture Search (NAS)
 - `neural/integrations/` - Base classes for custom ML platform connectors
 - `neural/teams/` - Multi-tenancy, team management, RBAC, quotas, analytics, and billing
-- `neural/federated/` - Federated learning (client-server architecture, differential privacy, secure aggregation, compression)
 
 ## Code Style
 - Follow PEP 8, 100-char line length (Ruff configured)
@@ -88,7 +86,7 @@ Focus areas for development:
 - **Testing**: `tests/` - comprehensive test coverage expected
 
 Peripheral features (lower priority):
-- AutoML, HPO, Integrations, Teams, Federated Learning
+- AutoML, HPO, Integrations, Teams
 - Aquarium IDE (consider separate repository)
 - Marketing automation, blog generation
 

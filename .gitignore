@@ -333,14 +333,6 @@ test_budget_data/
 pricing.json
 *.cost.json
 
-# Federated Learning artifacts
-federated_models/
-federated_checkpoints/
-federated_metrics.json
-federated_config.yaml
-client_data/
-*.federated.db
-
 # Development scripts (consolidated to scripts/)
 /test_*.py
 /sample_*.py

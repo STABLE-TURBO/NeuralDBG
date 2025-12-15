@@ -45,6 +45,57 @@ BACKEND_DEPS = [
     "onnxruntime>=1.10",
 ]
 
+UTILS_DEPS = [
+    "psutil>=5.9.0",
+    "pysnooper",
+    "radon>=5.0",
+    "pandas>=1.3",
+    "scipy>=1.7",
+    "statsmodels>=0.13",
+    "sympy>=1.9",
+    "multiprocess>=0.70",
+]
+
+ML_EXTRAS_DEPS = [
+    "huggingface_hub>=0.16",
+    "transformers>=4.30",
+    "langdetect>=1.0.9",
+]
+
+API_DEPS = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "celery>=5.3.0",
+    "redis>=5.0.0",
+    "flower>=2.0.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.6",
+    "pydantic-settings>=2.0.0",
+    "requests>=2.31.0",
+    "sqlalchemy>=2.0.0",
+    "websockets>=10.0",
+]
+
+COLLABORATION_DEPS = [
+    "websockets>=10.0",
+]
+
+MONITORING_DEPS = [
+    "prometheus-client>=0.16.0",
+    "requests>=2.28.0",
+]
+
+DATA_DEPS = [
+    "dvc>=2.0",
+    "pandas>=1.3",
+]
+
+TEAMS_DEPS = [
+    "click>=8.1.3",
+    "pyyaml>=6.0.1",
+]
+
 AI_DEPS = [
     "langdetect>=1.0.9",
 ]
@@ -63,6 +114,11 @@ setup(
         "visualization": VISUALIZATION_DEPS,
         "dashboard": DASHBOARD_DEPS,
         "backends": BACKEND_DEPS,
+        "utils": UTILS_DEPS,
+        "ml-extras": ML_EXTRAS_DEPS,
+        "api": API_DEPS,
+        "data": DATA_DEPS,
+        "teams": TEAMS_DEPS,
         "ai": AI_DEPS,
         # Convenience bundles
         "dev": [
@@ -79,6 +135,11 @@ setup(
             + VISUALIZATION_DEPS
             + DASHBOARD_DEPS
             + BACKEND_DEPS
+            + UTILS_DEPS
+            + ML_EXTRAS_DEPS
+            + API_DEPS
+            + DATA_DEPS
+            + TEAMS_DEPS
             + AI_DEPS
         ),
     },

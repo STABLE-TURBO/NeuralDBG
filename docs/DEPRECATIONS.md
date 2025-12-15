@@ -90,20 +90,11 @@ from neural.marketplace.huggingface_integration import HFIntegration
 ```
 
 ### 6. Federated Learning (`neural/federated/`)
-**Status**: Extraction planned  
+**Status**: ✅ REMOVED in v0.3.0+  
 **Reason**: Too specialized for core DSL, deserves dedicated project  
-**Timeline**: Extract to separate repository by v0.4.0  
-**Migration**: Will be available as `neural-federated` package  
-**Warning**: `DeprecationWarning` when importing `neural.federated`
+**Migration**: Module has been removed. Will be available as separate `neural-federated` package in future if needed  
 
-```python
-# Deprecated (in core)
-from neural.federated import FederatedTrainer
-
-# Future (separate package)
-# pip install neural-federated
-# from neural_federated import FederatedTrainer
-```
+The federated learning module was not essential to core DSL functionality and had no integration with primary workflows or examples.
 
 ### 7. Advanced MLOps (`neural/mlops/`)
 **Status**: Simplified (partial deprecation)  
