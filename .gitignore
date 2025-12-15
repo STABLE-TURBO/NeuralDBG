@@ -360,6 +360,9 @@ _temp_requirements.txt
 install_dev_deps.py
 temp_dev_requirements.txt
 temp_pkgs/
+setup_venv.py
+install.bat
+_run_install.py
 
 # Marketing and social content (marketing automation)
 social_media/
