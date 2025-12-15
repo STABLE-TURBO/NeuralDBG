@@ -99,4 +99,17 @@ The repository has been cleaned to remove 200+ redundant files:
 - Development scripts removed or consolidated
 - `.gitignore` comprehensively updated
 
-Run `python run_cleanup.py` to execute cleanup if needed.
+### Cache and Artifacts Cleanup
+Remove cache directories, virtual environments, and test artifacts:
+- **Windows PowerShell**: `.\cleanup_cache_and_artifacts.ps1`
+- **Windows Command Prompt**: `cleanup_cache_and_artifacts.bat`
+- **Unix/Linux/macOS**: `./cleanup_cache_and_artifacts.sh`
+- **Python (cross-platform)**: `python cleanup_cache_and_artifacts.py`
+
+See [CLEANUP_README.md](CLEANUP_README.md) for detailed instructions and manual cleanup commands.
+
+All cache patterns are already in `.gitignore`:
+- `__pycache__/`, `.pytest_cache/`, `.hypothesis/`, `.mypy_cache/`, `.ruff_cache/`
+- `.venv*/`, `venv*/`
+- Test artifacts: `test_*.html`, `test_*.png`
+- Temporary scripts: `sample_*.py`, `test_*.py` (root only)
