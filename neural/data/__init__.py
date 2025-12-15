@@ -3,7 +3,7 @@ from .dvc_integration import DVCIntegration
 from .feature_store import FeatureStore, Feature
 from .lineage_tracker import LineageTracker, LineageNode, LineageGraph
 from .preprocessing_tracker import PreprocessingTracker, PreprocessingPipeline
-from .quality_validator import DataQualityValidator, QualityRule, ValidationResult
+from .quality_validator import DataQualityValidator, QualityRule, QualityValidator, ValidationResult
 
 __all__ = [
     "DatasetVersion",
@@ -18,5 +18,6 @@ __all__ = [
     "PreprocessingPipeline",
     "DataQualityValidator",
     "QualityRule",
+    "QualityValidator",
     "ValidationResult",
 ]

@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from .ab_testing import ABTest, ABTestManager, TrafficSplitter
     from .audit import AuditEvent, AuditLogger, ComplianceReport
     from .ci_templates import CITemplateGenerator
-    from .deployment import DeploymentManager, RollbackManager, ShadowDeployment
+    from .deployment import DeploymentManager, ModelDeployment, RollbackManager, ShadowDeployment
     from .registry import ApprovalWorkflow, ModelMetadata, ModelRegistry
 
 __all__ = [
@@ -48,6 +48,7 @@ __all__ = [
     "ABTest",
     "TrafficSplitter",
     "DeploymentManager",
+    "ModelDeployment",
     "ShadowDeployment",
     "RollbackManager",
     "AuditLogger",
