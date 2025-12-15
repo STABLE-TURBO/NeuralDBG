@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 
+from neural.exceptions import DependencyError
+
 
 class FrameworkImplementation(ABC):
     def __init__(self, name: str):
@@ -114,8 +116,15 @@ class NeuralDSLImplementation(FrameworkImplementation):
         self.code_content = self.dsl_code
 
     def build_model(self):
-        from neural.parser.parser import create_parser, ModelTransformer
-        from neural.code_generation.code_generator import generate_code
+        try:
+            from neural.parser.parser import create_parser, ModelTransformer
+            from neural.code_generation.code_generator import generate_code
+        except ImportError as e:
+            raise DependencyError(
+                dependency="neural.parser",
+                feature="Neural DSL model building",
+                install_hint="pip install -e ."
+            ) from e
         
         parser = create_parser(start_rule="network")
         tree = parser.parse(self.dsl_code)
@@ -136,7 +145,14 @@ class NeuralDSLImplementation(FrameworkImplementation):
         self.model = module.model
 
     def train(self, dataset: str, epochs: int, batch_size: int) -> Dict[str, Any]:
-        import tensorflow as tf
+        try:
+            import tensorflow as tf
+        except ImportError as e:
+            raise DependencyError(
+                dependency="tensorflow",
+                feature="Neural DSL training with TensorFlow backend",
+                install_hint="pip install tensorflow"
+            ) from e
         
         (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
         x_train = x_train.reshape(-1, 28, 28, 1).astype("float32") / 255.0
@@ -205,9 +221,16 @@ model.compile(
 )"""
 
     def build_model(self):
-        import tensorflow as tf
-        from tensorflow import keras
-        from tensorflow.keras import layers
+        try:
+            import tensorflow as tf
+            from tensorflow import keras
+            from tensorflow.keras import layers
+        except ImportError as e:
+            raise DependencyError(
+                dependency="tensorflow",
+                feature="Keras model building",
+                install_hint="pip install tensorflow"
+            ) from e
         
         self.model = keras.Sequential([
             layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)),
@@ -225,7 +248,14 @@ model.compile(
         )
 
     def train(self, dataset: str, epochs: int, batch_size: int) -> Dict[str, Any]:
-        import tensorflow as tf
+        try:
+            import tensorflow as tf
+        except ImportError as e:
+            raise DependencyError(
+                dependency="tensorflow",
+                feature="Keras training",
+                install_hint="pip install tensorflow"
+            ) from e
         
         (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
         x_train = x_train.reshape(-1, 28, 28, 1).astype("float32") / 255.0
@@ -315,51 +345,70 @@ trainer = pl.Trainer(max_epochs=5)"""
             import torch.nn as nn
             import torch.nn.functional as F
             import pytorch_lightning as pl
+        except ImportError as e:
+            raise DependencyError(
+                dependency="torch and pytorch_lightning",
+                feature="PyTorch Lightning model building",
+                install_hint="pip install torch pytorch-lightning"
+            ) from e
+        
+        class MNISTClassifier(pl.LightningModule):
+            def __init__(self):
+                super().__init__()
+                self.conv1 = nn.Conv2d(1, 32, 3)
+                self.pool = nn.MaxPool2d(2, 2)
+                self.fc1 = nn.Linear(32 * 13 * 13, 128)
+                self.dropout = nn.Dropout(0.5)
+                self.fc2 = nn.Linear(128, 10)
             
-            class MNISTClassifier(pl.LightningModule):
-                def __init__(self):
-                    super().__init__()
-                    self.conv1 = nn.Conv2d(1, 32, 3)
-                    self.pool = nn.MaxPool2d(2, 2)
-                    self.fc1 = nn.Linear(32 * 13 * 13, 128)
-                    self.dropout = nn.Dropout(0.5)
-                    self.fc2 = nn.Linear(128, 10)
-                
-                def forward(self, x):
-                    x = self.pool(F.relu(self.conv1(x)))
-                    x = x.view(-1, 32 * 13 * 13)
-                    x = F.relu(self.fc1(x))
-                    x = self.dropout(x)
-                    x = self.fc2(x)
-                    return x
-                
-                def training_step(self, batch, batch_idx):
-                    x, y = batch
-                    logits = self(x)
-                    loss = F.cross_entropy(logits, y)
-                    self.log('train_loss', loss)
-                    return loss
-                
-                def validation_step(self, batch, batch_idx):
-                    x, y = batch
-                    logits = self(x)
-                    loss = F.cross_entropy(logits, y)
-                    acc = (logits.argmax(dim=1) == y).float().mean()
-                    self.log('val_loss', loss)
-                    self.log('val_acc', acc)
-                
-                def configure_optimizers(self):
-                    return torch.optim.Adam(self.parameters(), lr=0.001)
+            def forward(self, x):
+                x = self.pool(F.relu(self.conv1(x)))
+                x = x.view(-1, 32 * 13 * 13)
+                x = F.relu(self.fc1(x))
+                x = self.dropout(x)
+                x = self.fc2(x)
+                return x
             
-            self.model = MNISTClassifier()
-        except ImportError:
-            raise ImportError("PyTorch Lightning not installed")
+            def training_step(self, batch, batch_idx):
+                x, y = batch
+                logits = self(x)
+                loss = F.cross_entropy(logits, y)
+                self.log('train_loss', loss)
+                return loss
+            
+            def validation_step(self, batch, batch_idx):
+                x, y = batch
+                logits = self(x)
+                loss = F.cross_entropy(logits, y)
+                acc = (logits.argmax(dim=1) == y).float().mean()
+                self.log('val_loss', loss)
+                self.log('val_acc', acc)
+            
+            def configure_optimizers(self):
+                return torch.optim.Adam(self.parameters(), lr=0.001)
+        
+        self.model = MNISTClassifier()
 
     def train(self, dataset: str, epochs: int, batch_size: int) -> Dict[str, Any]:
-        import torch
-        import pytorch_lightning as pl
-        from torch.utils.data import DataLoader, TensorDataset
-        from tensorflow.keras.datasets import mnist
+        try:
+            import torch
+            import pytorch_lightning as pl
+            from torch.utils.data import DataLoader, TensorDataset
+        except ImportError as e:
+            raise DependencyError(
+                dependency="torch and pytorch_lightning",
+                feature="PyTorch Lightning training",
+                install_hint="pip install torch pytorch-lightning"
+            ) from e
+        
+        try:
+            from tensorflow.keras.datasets import mnist
+        except ImportError as e:
+            raise DependencyError(
+                dependency="tensorflow",
+                feature="MNIST dataset loading",
+                install_hint="pip install tensorflow"
+            ) from e
         
         (x_train, y_train), (x_test, y_test) = mnist.load_data()
         x_train = torch.FloatTensor(x_train[:5000]).reshape(-1, 1, 28, 28) / 255.0
@@ -401,14 +450,30 @@ trainer = pl.Trainer(max_epochs=5)"""
         }
 
     def predict_single(self):
-        import torch
+        try:
+            import torch
+        except ImportError as e:
+            raise DependencyError(
+                dependency="torch",
+                feature="PyTorch prediction",
+                install_hint="pip install torch"
+            ) from e
+        
         self.model.eval()
         sample = torch.randn(1, 1, 28, 28)
         with torch.no_grad():
             return self.model(sample)
 
     def _save_model(self, path: str):
-        import torch
+        try:
+            import torch
+        except ImportError as e:
+            raise DependencyError(
+                dependency="torch",
+                feature="PyTorch model saving",
+                install_hint="pip install torch"
+            ) from e
+        
         torch.save(self.model.state_dict(), path)
 
     def get_parameter_count(self) -> int:
@@ -420,8 +485,8 @@ class FastAIImplementation(FrameworkImplementation):
         super().__init__("Fast.ai")
 
     def setup(self):
-        self.code_content = """from fastai.vision.all import *
-from fastai.data.all import *
+        self.code_content = """from fastai.vision.all import Learner, CrossEntropyLossFlat, accuracy
+from fastai.data.all import DataLoaders
 import torch.nn as nn
 
 def create_cnn_model():
@@ -444,29 +509,48 @@ learn = Learner(dls, create_cnn_model(), loss_func=CrossEntropyLossFlat(), metri
             from fastai.vision.all import Learner
             from fastai.data.all import DataLoaders
             import torch.nn as nn
-            
-            def create_cnn_model():
-                return nn.Sequential(
-                    nn.Conv2d(1, 32, 3),
-                    nn.ReLU(),
-                    nn.MaxPool2d(2, 2),
-                    nn.Flatten(),
-                    nn.Linear(32 * 13 * 13, 128),
-                    nn.ReLU(),
-                    nn.Dropout(0.5),
-                    nn.Linear(128, 10)
-                )
-            
-            self.model_fn = create_cnn_model
-        except ImportError:
-            raise ImportError("Fast.ai not installed")
+        except ImportError as e:
+            raise DependencyError(
+                dependency="fastai and torch",
+                feature="Fast.ai model building",
+                install_hint="pip install fastai torch"
+            ) from e
+        
+        def create_cnn_model():
+            return nn.Sequential(
+                nn.Conv2d(1, 32, 3),
+                nn.ReLU(),
+                nn.MaxPool2d(2, 2),
+                nn.Flatten(),
+                nn.Linear(32 * 13 * 13, 128),
+                nn.ReLU(),
+                nn.Dropout(0.5),
+                nn.Linear(128, 10)
+            )
+        
+        self.model_fn = create_cnn_model
 
     def train(self, dataset: str, epochs: int, batch_size: int) -> Dict[str, Any]:
-        from fastai.vision.all import Learner, CrossEntropyLossFlat, accuracy
-        from fastai.data.all import DataLoaders
-        import torch
-        from torch.utils.data import DataLoader, TensorDataset
-        from tensorflow.keras.datasets import mnist
+        try:
+            from fastai.vision.all import Learner, CrossEntropyLossFlat, accuracy
+            from fastai.data.all import DataLoaders
+            import torch
+            from torch.utils.data import DataLoader, TensorDataset
+        except ImportError as e:
+            raise DependencyError(
+                dependency="fastai and torch",
+                feature="Fast.ai training",
+                install_hint="pip install fastai torch"
+            ) from e
+        
+        try:
+            from tensorflow.keras.datasets import mnist
+        except ImportError as e:
+            raise DependencyError(
+                dependency="tensorflow",
+                feature="MNIST dataset loading",
+                install_hint="pip install tensorflow"
+            ) from e
         
         (x_train, y_train), (x_test, y_test) = mnist.load_data()
         x_train = torch.FloatTensor(x_train[:5000]).reshape(-1, 1, 28, 28) / 255.0
@@ -501,7 +585,15 @@ learn = Learner(dls, create_cnn_model(), loss_func=CrossEntropyLossFlat(), metri
         }
 
     def predict_single(self):
-        import torch
+        try:
+            import torch
+        except ImportError as e:
+            raise DependencyError(
+                dependency="torch",
+                feature="Fast.ai prediction",
+                install_hint="pip install torch"
+            ) from e
+        
         sample = torch.randn(1, 1, 28, 28)
         return self.model.model(sample)
 
@@ -540,31 +632,49 @@ model.train(dataset=train_df)"""
     def build_model(self):
         try:
             from ludwig.api import LudwigModel
-            
-            config = {
-                'input_features': [
-                    {'name': 'image', 'type': 'image', 'encoder': 'stacked_cnn',
-                     'preprocessing': {'height': 28, 'width': 28, 'num_channels': 1}}
-                ],
-                'output_features': [
-                    {'name': 'label', 'type': 'category'}
-                ],
-                'trainer': {
-                    'epochs': 5,
-                    'batch_size': 32,
-                    'learning_rate': 0.001
-                }
+        except ImportError as e:
+            raise DependencyError(
+                dependency="ludwig",
+                feature="Ludwig model building",
+                install_hint="pip install ludwig"
+            ) from e
+        
+        config = {
+            'input_features': [
+                {'name': 'image', 'type': 'image', 'encoder': 'stacked_cnn',
+                 'preprocessing': {'height': 28, 'width': 28, 'num_channels': 1}}
+            ],
+            'output_features': [
+                {'name': 'label', 'type': 'category'}
+            ],
+            'trainer': {
+                'epochs': 5,
+                'batch_size': 32,
+                'learning_rate': 0.001
             }
-            
-            self.model = LudwigModel(config)
-            self.config = config
-        except ImportError:
-            raise ImportError("Ludwig not installed")
+        }
+        
+        self.model = LudwigModel(config)
+        self.config = config
 
     def train(self, dataset: str, epochs: int, batch_size: int) -> Dict[str, Any]:
-        import pandas as pd
-        from tensorflow.keras.datasets import mnist
-        import numpy as np
+        try:
+            import pandas as pd
+        except ImportError as e:
+            raise DependencyError(
+                dependency="pandas",
+                feature="Ludwig training",
+                install_hint="pip install pandas"
+            ) from e
+        
+        try:
+            from tensorflow.keras.datasets import mnist
+        except ImportError as e:
+            raise DependencyError(
+                dependency="tensorflow",
+                feature="MNIST dataset loading",
+                install_hint="pip install tensorflow"
+            ) from e
         
         (x_train, y_train), (x_test, y_test) = mnist.load_data()
         x_train = x_train[:1000]
@@ -615,8 +725,15 @@ model.train(dataset=train_df)"""
             }
 
     def predict_single(self):
-        import pandas as pd
-        import numpy as np
+        try:
+            import pandas as pd
+            import numpy as np
+        except ImportError as e:
+            raise DependencyError(
+                dependency="pandas and numpy",
+                feature="Ludwig prediction",
+                install_hint="pip install pandas numpy"
+            ) from e
         
         sample = np.random.randn(28, 28, 1)
         test_df = pd.DataFrame({'image': [sample]})

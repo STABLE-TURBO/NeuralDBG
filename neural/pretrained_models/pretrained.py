@@ -2,10 +2,16 @@ from __future__ import annotations
 
 import os
 import json
-import torch
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from neural.exceptions import DependencyError
+
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
 
 # Optional dependencies: triton and huggingface_hub
 try:
@@ -27,8 +33,14 @@ except Exception:
             install_hint='pip install huggingface_hub'
         )
 
-def fuse_conv_bn_weights(conv_w: torch.Tensor, conv_b: Optional[torch.Tensor], bn_rm: torch.Tensor, 
-                         bn_rv: torch.Tensor, bn_w: torch.Tensor, bn_b: torch.Tensor, eps: float) -> Tuple[torch.Tensor, torch.Tensor]:
+def fuse_conv_bn_weights(conv_w: 'torch.Tensor', conv_b: Optional['torch.Tensor'], bn_rm: 'torch.Tensor', 
+                         bn_rv: 'torch.Tensor', bn_w: 'torch.Tensor', bn_b: 'torch.Tensor', eps: float) -> Tuple['torch.Tensor', 'torch.Tensor']:
+    if not HAS_TORCH:
+        raise DependencyError(
+            dependency="torch",
+            feature="weight fusion",
+            install_hint="pip install torch"
+        )
     # Fuse Conv and BN weights mathematically
     if conv_b is None:
         conv_b = torch.zeros_like(bn_rm)

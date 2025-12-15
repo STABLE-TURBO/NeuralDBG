@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional, Callable
 import numpy as np
 import logging
 
+from neural.exceptions import DependencyError
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,10 +94,25 @@ class FeatureImportanceRanker:
     def _get_prediction_function(self) -> Callable:
         """Create a prediction function for the model."""
         if self.backend == 'tensorflow':
+            try:
+                import tensorflow as tf
+            except ImportError as e:
+                raise DependencyError(
+                    dependency="tensorflow",
+                    feature="TensorFlow feature importance",
+                    install_hint="pip install tensorflow"
+                ) from e
             def predict_fn(x):
                 return self.model(x).numpy()
         elif self.backend == 'pytorch':
-            import torch
+            try:
+                import torch
+            except ImportError as e:
+                raise DependencyError(
+                    dependency="torch",
+                    feature="PyTorch feature importance",
+                    install_hint="pip install torch"
+                ) from e
             def predict_fn(x):
                 if not isinstance(x, torch.Tensor):
                     x = torch.FloatTensor(x)
@@ -294,32 +311,34 @@ class FeatureImportanceRanker:
         """
         try:
             import matplotlib.pyplot as plt
-            
-            if feature_names is None:
-                feature_names = self.feature_names or [f"Feature_{i}" for i in range(len(importance_scores))]
-            
-            sorted_indices = np.argsort(importance_scores)[::-1][:top_k]
-            sorted_scores = importance_scores[sorted_indices]
-            sorted_names = [feature_names[i] for i in sorted_indices]
-            
-            fig, ax = plt.subplots(figsize=(10, max(6, top_k * 0.3)))
-            
-            y_pos = np.arange(len(sorted_names))
-            ax.barh(y_pos, sorted_scores)
-            ax.set_yticks(y_pos)
-            ax.set_yticklabels(sorted_names)
-            ax.invert_yaxis()
-            ax.set_xlabel('Importance Score')
-            ax.set_title(f'Top {top_k} Feature Importance')
-            
-            plt.tight_layout()
-            
-            if output_path:
-                plt.savefig(output_path, bbox_inches='tight', dpi=150)
-                logger.info(f"Saved feature importance plot to {output_path}")
-            
-            return fig
-            
-        except ImportError:
-            logger.warning("matplotlib not available for visualization")
-            return None
+        except ImportError as e:
+            raise DependencyError(
+                dependency="matplotlib",
+                feature="feature importance visualization",
+                install_hint="pip install matplotlib"
+            ) from e
+        
+        if feature_names is None:
+            feature_names = self.feature_names or [f"Feature_{i}" for i in range(len(importance_scores))]
+        
+        sorted_indices = np.argsort(importance_scores)[::-1][:top_k]
+        sorted_scores = importance_scores[sorted_indices]
+        sorted_names = [feature_names[i] for i in sorted_indices]
+        
+        fig, ax = plt.subplots(figsize=(10, max(6, top_k * 0.3)))
+        
+        y_pos = np.arange(len(sorted_names))
+        ax.barh(y_pos, sorted_scores)
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(sorted_names)
+        ax.invert_yaxis()
+        ax.set_xlabel('Importance Score')
+        ax.set_title(f'Top {top_k} Feature Importance')
+        
+        plt.tight_layout()
+        
+        if output_path:
+            plt.savefig(output_path, bbox_inches='tight', dpi=150)
+            logger.info(f"Saved feature importance plot to {output_path}")
+        
+        return fig

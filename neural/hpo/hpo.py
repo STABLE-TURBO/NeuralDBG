@@ -4,184 +4,62 @@ import copy
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import optuna
-from optuna.trial import Trial
-from sklearn.metrics import precision_score, recall_score
-import tensorflow as tf
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torchvision.datasets import CIFAR10, MNIST
-from torchvision.transforms import ToTensor
 
 from neural.exceptions import (
-    HPOException,
-    InvalidHPOConfigError,
-    InvalidParameterError,
-    UnsupportedBackendError,
+    DependencyError, HPOException, InvalidHPOConfigError, InvalidParameterError,
+    UnsupportedBackendError
 )
+
+try:
+    import tensorflow as tf
+    from tensorflow import keras
+    HAS_TENSORFLOW = True
+except ImportError:
+    HAS_TENSORFLOW = False
+    tf = None
+    keras = None
+
+try:
+    import torch
+    import torch.nn as nn
+    import torch.optim as optim
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
+    nn = None
+    optim = None
+
+try:
+    import optuna
+    from optuna.trial import Trial
+    HAS_OPTUNA = True
+except ImportError:
+    HAS_OPTUNA = False
+    optuna = None
+    Trial = None
+
+try:
+    from sklearn.metrics import precision_score, recall_score
+    HAS_SKLEARN = True
+except ImportError:
+    HAS_SKLEARN = False
+    precision_score = None
+    recall_score = None
+
+try:
+    from torchvision.datasets import CIFAR10, MNIST
+    from torchvision.transforms import ToTensor
+    HAS_TORCHVISION = True
+except ImportError:
+    HAS_TORCHVISION = False
+    CIFAR10 = None
+    MNIST = None
+    ToTensor = None
+
 from neural.execution_optimization.execution import get_device
 from neural.parser.parser import ModelTransformer
 from neural.shape_propagation.shape_propagator import ShapePropagator
-
-
-def validate_hpo_categorical(param_name: str, values: List[Any]) -> List[Any]:
-    """
-    Validate categorical HPO parameter values.
-    
-    Args:
-        param_name: Name of the parameter being validated
-        values: List of categorical values to validate
-        
-    Returns:
-        Validated list of values
-        
-    Raises:
-        InvalidHPOConfigError: If values are invalid
-    """
-    if not isinstance(values, list):
-        raise InvalidHPOConfigError(
-            f"Categorical values for {param_name} must be a list, "
-            f"got {type(values).__name__}"
-        )
-    
-    if len(values) == 0:
-        raise InvalidHPOConfigError(
-            f"Categorical values for {param_name} cannot be empty"
-        )
-    
-    if len(values) > 100:
-        raise InvalidHPOConfigError(
-            f"Too many categorical values for {param_name} (max 100): "
-            f"{len(values)}"
-        )
-    
-    # Check for type consistency
-    first_type = type(values[0])
-    if not all(isinstance(v, first_type) for v in values):
-        raise InvalidHPOConfigError(
-            f"Categorical values for {param_name} must all be the same type, got mixed types: "
-            f"{set(type(v).__name__ for v in values)}"
-        )
-    
-    return values
-
-
-def validate_hpo_bounds(
-    param_name: str, low: float, high: float, hpo_type: str
-) -> Tuple[float, float]:
-    """
-    Validate bounds for range or log_range HPO parameters.
-    
-    Args:
-        param_name: Name of the parameter being validated
-        low: Lower bound
-        high: Upper bound
-        hpo_type: Type of HPO ('range' or 'log_range')
-        
-    Returns:
-        Tuple of validated (low, high) bounds
-        
-    Raises:
-        InvalidHPOConfigError: If bounds are invalid
-    """
-    if low is None or high is None:
-        raise InvalidHPOConfigError(
-            f"Both low and high bounds must be specified for "
-            f"{param_name} {hpo_type}"
-        )
-    
-    try:
-        low = float(low)
-        high = float(high)
-    except (TypeError, ValueError):
-        raise InvalidHPOConfigError(
-            f"Bounds for {param_name} must be numeric, "
-            f"got low={low}, high={high}"
-        )
-    
-    if low >= high:
-        raise InvalidHPOConfigError(
-            f"Lower bound must be less than upper bound for {param_name}, "
-            f"got low={low}, high={high}"
-        )
-    
-    if hpo_type == 'log_range':
-        if low <= 0:
-            raise InvalidHPOConfigError(
-                f"log_range for {param_name} requires positive bounds, got low={low}"
-            )
-        if high <= 0:
-            raise InvalidHPOConfigError(
-                f"log_range for {param_name} requires positive bounds, got high={high}"
-            )
-    
-    return low, high
-
-
-
-def validate_hpo_categorical(param_name: str, values: List[Any]) -> List[Any]:
-    """Validate categorical HPO parameter values.
-    
-    Args:
-        param_name: Name of the parameter
-        values: List of categorical values
-        
-    Returns:
-        Validated list of values
-        
-    Raises:
-        InvalidHPOConfigError: If values are invalid
-    """
-    if not values or not isinstance(values, list):
-        raise InvalidHPOConfigError(
-            f"Parameter '{param_name}' must have a non-empty list of values"
-        )
-    return values
-
-
-def validate_hpo_bounds(
-    param_name: str, 
-    low: Union[int, float], 
-    high: Union[int, float], 
-    hpo_type: str
-) -> Tuple[Union[int, float], Union[int, float]]:
-    """Validate HPO parameter bounds.
-    
-    Args:
-        param_name: Name of the parameter
-        low: Lower bound
-        high: Upper bound
-        hpo_type: Type of HPO (range or log_range)
-        
-    Returns:
-        Tuple of (validated_low, validated_high)
-        
-    Raises:
-        InvalidHPOConfigError: If bounds are invalid
-    """
-    if low is None or high is None:
-        raise InvalidHPOConfigError(
-            f"Parameter '{param_name}' must have both low and high bounds defined"
-        )
-    
-    if not isinstance(low, (int, float)) or not isinstance(high, (int, float)):
-        raise InvalidHPOConfigError(
-            f"Parameter '{param_name}' bounds must be numeric, got low={type(low)}, high={type(high)}"
-        )
-    
-    if low >= high:
-        raise InvalidHPOConfigError(
-            f"Parameter '{param_name}' lower bound ({low}) must be less than upper bound ({high})"
-        )
-    
-    if hpo_type == 'log_range' and low <= 0:
-        raise InvalidHPOConfigError(
-            f"Parameter '{param_name}' lower bound for log_range must be positive, got {low}"
-        )
-    
-    return low, high
-
 
 # Data Loader
 def get_data(
@@ -190,78 +68,73 @@ def get_data(
     batch_size: int, 
     train: bool = True, 
     backend: str = 'pytorch'
-) -> Union[torch.utils.data.DataLoader, tf.data.Dataset]:
-    """
-    Get a data loader for the specified dataset.
-    
-    Args:
-        dataset_name: Name of dataset ('MNIST' or 'CIFAR10')
-        input_shape: Shape of input tensors
-        batch_size: Batch size for data loading
-        train: Whether to load training or validation data
-        backend: Backend to use ('pytorch' or 'tensorflow')
-        
-    Returns:
-        Data loader for the specified backend
-        
-    Raises:
-        ValueError: If dataset or backend is unsupported
-    """
-    datasets = {'MNIST': MNIST, 'CIFAR10': CIFAR10}
-    if dataset_name not in datasets:
-        raise ValueError(
-            f"Unsupported dataset: {dataset_name}. "
-            f"Available: {list(datasets.keys())}"
+) -> Union['torch.utils.data.DataLoader', 'tf.data.Dataset']:
+    if not HAS_TORCHVISION:
+        raise DependencyError(
+            dependency="torchvision",
+            feature="HPO dataset loading",
+            install_hint="pip install torchvision"
         )
     
-    dataset = datasets[dataset_name](
-        root='./data', train=train, transform=ToTensor(), download=True
-    )
-    
+    datasets = {'MNIST': MNIST, 'CIFAR10': CIFAR10}
+    dataset = datasets.get(dataset_name, MNIST)(root='./data', train=train, transform=ToTensor(), download=True)
     if backend == 'pytorch':
+        if not HAS_TORCH:
+            raise DependencyError(
+                dependency="torch",
+                feature="PyTorch HPO backend",
+                install_hint="pip install torch"
+            )
         return torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=train)
     elif backend == 'tensorflow':
-        data = dataset.data.numpy() / 255.0
+        if not HAS_TENSORFLOW:
+            raise DependencyError(
+                dependency="tensorflow",
+                feature="TensorFlow HPO backend",
+                install_hint="pip install tensorflow"
+            )
+        data = dataset.data.numpy() / 255.0  # Normalize
         targets = dataset.targets.numpy()
-        if len(data.shape) == 3:
-            data = data[..., None]
+        if len(data.shape) == 3:  # Add channel dimension
+            data = data[..., None]  # [N, H, W] → [N, H, W, 1]
         return tf.data.Dataset.from_tensor_slices((data, targets)).batch(batch_size)
-    else:
-        raise UnsupportedBackendError(backend=backend, available_backends=['pytorch', 'tensorflow'])
-
 
 def prod(iterable: Tuple[int, ...]) -> int:
-    """Calculate the product of all elements in a tuple."""
     result = 1
     for x in iterable:
         result *= x
     return result
 
-
 # Factory Function
 def create_dynamic_model(
     model_dict: Dict[str, Any], 
-    trial: Trial, 
+    trial: 'Trial', 
     hpo_params: List[Dict[str, Any]], 
     backend: str = 'pytorch'
 ) -> Union['DynamicPTModel', 'DynamicTFModel']:
-    """
-    Create a dynamic model with HPO parameters resolved by the trial.
+    if not HAS_OPTUNA:
+        raise DependencyError(
+            dependency="optuna",
+            feature="HPO model creation",
+            install_hint="pip install optuna"
+        )
     
-    Args:
-        model_dict: Model configuration dictionary
-        trial: Optuna trial for suggesting hyperparameters
-        hpo_params: List of HPO parameter specifications
-        backend: Backend to use ('pytorch' or 'tensorflow')
-        
-    Returns:
-        Dynamic model instance for the specified backend
-        
-    Raises:
-        UnsupportedBackendError: If backend is not supported
-        InvalidHPOConfigError: If HPO configuration is invalid
-    """
+    if backend == 'pytorch' and not HAS_TORCH:
+        raise DependencyError(
+            dependency="torch",
+            feature="PyTorch HPO backend",
+            install_hint="pip install torch"
+        )
+    
+    if backend == 'tensorflow' and not HAS_TENSORFLOW:
+        raise DependencyError(
+            dependency="tensorflow",
+            feature="TensorFlow HPO backend",
+            install_hint="pip install tensorflow"
+        )
+    
     resolved_model_dict = copy.deepcopy(model_dict)
+    # Removed print statement for cleaner output
 
     # Resolve HPO parameters in layers
     for layer in resolved_model_dict['layers']:
@@ -271,28 +144,19 @@ def create_dynamic_model(
                     hpo = param_value['hpo']
                     if hpo['type'] == 'categorical':
                         values = validate_hpo_categorical(param_name, hpo['values'])
-                        layer['params'][param_name] = trial.suggest_categorical(
-                            f"{layer['type']}_{param_name}", values
-                        )
+                        layer['params'][param_name] = trial.suggest_categorical(f"{layer['type']}_{param_name}", values)
                     elif hpo['type'] == 'range':
-                        low = hpo.get('start', hpo.get('low', hpo.get('min')))
-                        high = hpo.get('end', hpo.get('high', hpo.get('max')))
+                        low = hpo['start']
+                        high = hpo['end']
                         low, high = validate_hpo_bounds(param_name, low, high, 'range')
-                        step = hpo.get('step')
-                        if step and step is not False:
-                            layer['params'][param_name] = trial.suggest_float(
-                                f"{layer['type']}_{param_name}",
-                                low,
-                                high,
-                                step=step
-                            )
-                        else:
-                            layer['params'][param_name] = trial.suggest_float(
-                                f"{layer['type']}_{param_name}",
-                                low,
-                                high
-                            )
+                        layer['params'][param_name] = trial.suggest_float(
+                            f"{layer['type']}_{param_name}",
+                            low,
+                            high,
+                            step=hpo.get('step', None)
+                        )
                     elif hpo['type'] == 'log_range':
+                        # Handle all naming conventions (start/end, low/high, min/max)
                         low = hpo.get('start', hpo.get('low', hpo.get('min')))
                         high = hpo.get('end', hpo.get('high', hpo.get('max')))
                         low, high = validate_hpo_bounds(param_name, low, high, 'log_range')
@@ -305,175 +169,124 @@ def create_dynamic_model(
 
     # Resolve HPO parameters in optimizer
     if 'optimizer' in resolved_model_dict and resolved_model_dict['optimizer']:
-        optimizer = resolved_model_dict['optimizer']
-        if 'params' in optimizer and optimizer['params']:
-            for param_name, param_value in resolved_model_dict['optimizer']['params'].items():
-                if isinstance(param_value, dict) and 'hpo' in param_value:
-                    hpo = param_value['hpo']
-                    opt_params = resolved_model_dict['optimizer']['params']
-                    if hpo['type'] == 'categorical':
-                        values = validate_hpo_categorical(param_name, hpo['values'])
-                        opt_params[param_name] = trial.suggest_categorical(
-                            f"opt_{param_name}", values
-                        )
-                    elif hpo['type'] == 'range':
-                        low = hpo.get('start', hpo.get('low', hpo.get('min')))
-                        high = hpo.get('end', hpo.get('high', hpo.get('max')))
-                        low, high = validate_hpo_bounds(param_name, low, high, 'range')
-                        step = hpo.get('step')
-                        if step and step is not False:
-                            opt_params[param_name] = trial.suggest_float(
-                                f"opt_{param_name}", low, high, step=step
-                            )
-                        else:
-                            opt_params[param_name] = trial.suggest_float(
-                                f"opt_{param_name}", low, high
-                            )
-                    elif hpo['type'] == 'log_range':
-                        low = hpo.get('start', hpo.get('low', hpo.get('min')))
-                        high = hpo.get('end', hpo.get('high', hpo.get('max')))
-                        low, high = validate_hpo_bounds(param_name, low, high, 'log_range')
-                        opt_params[param_name] = trial.suggest_float(
-                            f"opt_{param_name}", low, high, log=True
-                        )
+        for param_name, param_value in resolved_model_dict['optimizer']['params'].items():
+            if isinstance(param_value, dict) and 'hpo' in param_value:
+                hpo = param_value['hpo']
+                if hpo['type'] == 'log_range':
+                    # Handle all naming conventions (start/end, low/high, min/max)
+                    low = hpo.get('start', hpo.get('low', hpo.get('min')))
+                    high = hpo.get('end', hpo.get('high', hpo.get('max')))
+                    resolved_model_dict['optimizer']['params'][param_name] = trial.suggest_float(
+                        f"opt_{param_name}",
+                        low,
+                        high,
+                        log=True
+                    )
 
+    # Removed print statement for cleaner output
     if backend == 'pytorch':
         return DynamicPTModel(resolved_model_dict, trial, hpo_params)
-    elif backend == 'tensorflow':
-        return DynamicTFModel(resolved_model_dict, trial, hpo_params)
     else:
         raise UnsupportedBackendError(
             backend=backend,
-            available_backends=['pytorch', 'tensorflow']
+            available_backends=['pytorch']
         )
 
 
 def resolve_hpo_params(
     model_dict: Dict[str, Any], 
-    trial: Trial, 
+    trial: 'Trial', 
     hpo_params: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
-    """
-    Resolve HPO parameters in model dictionary using Optuna trial.
+    if not HAS_OPTUNA:
+        raise DependencyError(
+            dependency="optuna",
+            feature="HPO parameter resolution",
+            install_hint="pip install optuna"
+        )
     
-    Args:
-        model_dict: Model configuration dictionary
-        trial: Optuna trial for suggesting hyperparameters
-        hpo_params: List of HPO parameter specifications
-        
-    Returns:
-        Model dictionary with HPO parameters resolved to concrete values
-    """
     import copy
     import logging
     logger = logging.getLogger(__name__)
+    # Set the logger level to WARNING to reduce debug output
     logger.setLevel(logging.WARNING)
-    
     resolved_dict = copy.deepcopy(model_dict)
 
-    # Resolve HPO parameters in layers
+    # logger.debug(f"Original layers: {resolved_dict['layers']}")
     for i, layer in enumerate(resolved_dict['layers']):
-        if 'params' in layer and layer['params'] is not None:
-            for param_name, param_value in layer['params'].items():
-                if isinstance(param_value, dict) and 'hpo' in param_value:
-                    hpo = param_value['hpo']
-                    key = f"{layer['type']}_{param_name}_{i}"
-                    
-                    if hpo['type'] == 'categorical':
-                        values = validate_hpo_categorical(param_name, hpo['values'])
-                        layer['params'][param_name] = trial.suggest_categorical(key, values)
-                    elif hpo['type'] == 'range':
-                        low = hpo.get('start', hpo.get('low', hpo.get('min')))
-                        high = hpo.get('end', hpo.get('high', hpo.get('max')))
-                        low, high = validate_hpo_bounds(param_name, low, high, 'range')
-                        step = hpo.get('step')
-                        if step and step is not False:
-                            layer['params'][param_name] = trial.suggest_float(
-                                key, low, high, step=step
-                            )
-                        else:
-                            layer['params'][param_name] = trial.suggest_float(key, low, high)
-                    elif hpo['type'] == 'log_range':
-                        low = hpo.get('start', hpo.get('low', hpo.get('min')))
-                        high = hpo.get('end', hpo.get('high', hpo.get('max')))
-                        low, high = validate_hpo_bounds(param_name, low, high, 'log_range')
-                        layer['params'][param_name] = trial.suggest_float(key, low, high, log=True)
+        if 'params' in layer and layer['params'] is not None and 'units' in layer['params'] and isinstance(layer['params']['units'], dict) and 'hpo' in layer['params']['units']:
+            hpo = layer['params']['units']['hpo']
+            key = f"{layer['type']}_units_{i}"
+            if hpo['type'] == 'categorical':
+                layer['params']['units'] = trial.suggest_categorical(key, hpo['values'])
+            elif hpo['type'] == 'log_range':
+                # Handle all naming conventions (start/end, low/high, min/max)
+                low = hpo.get('start', hpo.get('low', hpo.get('min')))
+                high = hpo.get('end', hpo.get('high', hpo.get('max')))
+                layer['params']['units'] = trial.suggest_float(key, low, high, log=True)
+            # logger.debug(f"Layer {i} resolved units: {layer['params']['units']}")
 
-    # Resolve HPO parameters in optimizer
-    if resolved_dict.get('optimizer') and 'params' in resolved_dict['optimizer']:
+    if resolved_dict['optimizer'] and 'params' in resolved_dict['optimizer']:
         # Clean up optimizer type
         opt_type = resolved_dict['optimizer']['type']
         if '(' in opt_type:
-            resolved_dict['optimizer']['type'] = opt_type[:opt_type.index('(')].capitalize()
+            resolved_dict['optimizer']['type'] = opt_type[:opt_type.index('(')].capitalize()  # 'adam(...)' -> 'Adam'
+        # logger.debug(f"Cleaned optimizer type: {resolved_dict['optimizer']['type']}")
 
         for param, val in resolved_dict['optimizer']['params'].items():
             if isinstance(val, dict) and 'hpo' in val:
                 hpo = val['hpo']
-                if hpo['type'] == 'categorical':
-                    values = validate_hpo_categorical(param, hpo['values'])
-                    resolved_dict['optimizer']['params'][param] = trial.suggest_categorical(
-                        f"opt_{param}", values
-                    )
-                elif hpo['type'] == 'range':
+                if hpo['type'] == 'log_range':
+                    # Handle all naming conventions (start/end, low/high, min/max)
                     low = hpo.get('start', hpo.get('low', hpo.get('min')))
                     high = hpo.get('end', hpo.get('high', hpo.get('max')))
-                    low, high = validate_hpo_bounds(param, low, high, 'range')
-                    step = hpo.get('step')
-                    if step and step is not False:
-                        resolved_dict['optimizer']['params'][param] = trial.suggest_float(
-                            f"opt_{param}", low, high, step=step
-                        )
-                    else:
-                        resolved_dict['optimizer']['params'][param] = trial.suggest_float(
-                            f"opt_{param}", low, high
-                        )
-                elif hpo['type'] == 'log_range':
-                    low = hpo.get('start', hpo.get('low', hpo.get('min')))
-                    high = hpo.get('end', hpo.get('high', hpo.get('max')))
-                    low, high = validate_hpo_bounds(param, low, high, 'log_range')
                     resolved_dict['optimizer']['params'][param] = trial.suggest_float(
                         f"opt_{param}", low, high, log=True
                     )
+                # logger.debug(f"Optimizer resolved {param}: {resolved_dict['optimizer']['params'][param]}")
 
+    # logger.debug(f"Resolved dict: {resolved_dict}")
     return resolved_dict
 
 
 # Dynamic Models
 class DynamicPTModel(nn.Module):
-    """
-    Dynamic PyTorch model that builds layers based on configuration.
-    
-    Supports HPO by allowing trial-based parameter suggestion during construction.
-    """
     def __init__(
         self, 
         model_dict: Dict[str, Any], 
-        trial: Trial, 
+        trial: 'Trial', 
         hpo_params: List[Dict[str, Any]]
     ) -> None:
+        if not HAS_TORCH:
+            raise DependencyError(
+                dependency="torch",
+                feature="PyTorch dynamic model",
+                install_hint="pip install torch"
+            )
         super().__init__()
         self.model_dict: Dict[str, Any] = model_dict
         self.layers: nn.ModuleList = nn.ModuleList()
         self.shape_propagator: ShapePropagator = ShapePropagator(debug=False)
-        input_shape_raw = model_dict['input']['shape']
-        input_shape = (None, input_shape_raw[-1], *input_shape_raw[:-1])
+        input_shape_raw = model_dict['input']['shape']  # (28, 28, 1)
+        input_shape = (None, input_shape_raw[-1], *input_shape_raw[:-1])  # (None, 1, 28, 28)
         current_shape = input_shape
-        in_channels = input_shape[1]
+        in_channels = input_shape[1]  # 1
         in_features = None
 
+        # Removed print statements for cleaner output
         for layer in model_dict['layers']:
             params = layer['params'] if layer['params'] is not None else {}
             params = params.copy()
 
-            # Compute in_features from current shape before propagation
+            # Compute in_features from current (input) shape before propagation
             if layer['type'] in ['Dense', 'Output'] and in_features is None:
-                in_features = prod(current_shape[1:])
+                in_features = prod(current_shape[1:])  # Use input shape
                 self.layers.append(nn.Flatten())
+                # Removed print statement for cleaner output
 
             # Propagate shape after setting in_features
-            current_shape = self.shape_propagator.propagate(
-                current_shape, layer, framework='pytorch'
-            )
+            current_shape = self.shape_propagator.propagate(current_shape, layer, framework='pytorch')
+            # Removed print statement for cleaner output
 
             if layer['type'] == 'Conv2D':
                 filters = params.get('filters', trial.suggest_int('conv_filters', 16, 64))
@@ -483,70 +296,60 @@ class DynamicPTModel(nn.Module):
             elif layer['type'] == 'MaxPooling2D':
                 pool_size = params.get('pool_size', trial.suggest_int('maxpool2d_pool_size', 2, 3))
                 stride = params.get('stride', pool_size)
+                # Removed print statement for cleaner output
                 self.layers.append(nn.MaxPool2d(kernel_size=pool_size, stride=stride))
             elif layer['type'] == 'Flatten':
                 self.layers.append(nn.Flatten())
                 in_features = prod(current_shape[1:])
+                # Removed print statement for cleaner output
             elif layer['type'] == 'Dense':
-                units = params.get('units')
-                if units is None:
-                    units = trial.suggest_int('dense_units', 64, 256)
-                if in_features is None or in_features <= 0:
+                units = params['units'] if 'units' in params else trial.suggest_int('dense_units', 64, 256)
+                if in_features <= 0:
                     raise InvalidParameterError(
                         parameter='in_features',
                         value=in_features,
                         layer_type='Dense',
                         expected='positive integer'
                     )
+                # Removed print statement for cleaner output
                 self.layers.append(nn.Linear(in_features, units))
                 in_features = units
             elif layer['type'] == 'Dropout':
-                rate = params.get('rate')
-                if rate is None:
-                    rate = trial.suggest_float('dropout_rate', 0.3, 0.7, step=0.1)
+                rate = params['rate'] if 'rate' in params else trial.suggest_float('dropout_rate', 0.3, 0.7, step=0.1)
+                # Removed print statement for cleaner output
                 self.layers.append(nn.Dropout(p=rate))
             elif layer['type'] == 'Output':
-                units = params.get('units', 10)
-                if in_features is None or in_features <= 0:
+                units = params['units'] if 'units' in params else 10
+                if in_features <= 0:
                     raise InvalidParameterError(
                         parameter='in_features',
                         value=in_features,
                         layer_type='Output',
                         expected='positive integer'
                     )
+                # Removed print statement for cleaner output
                 self.layers.append(nn.Linear(in_features, units))
                 in_features = units
             elif layer['type'] == 'LSTM':
-                input_size = current_shape[-1] if len(current_shape) > 1 else in_features
+                input_size = current_shape[-1]
                 units = params.get('units', trial.suggest_int('lstm_units', 32, 256))
                 num_layers = params.get('num_layers', 1)
-                num_layers_param = params.get('num_layers')
-                if isinstance(num_layers_param, dict) and 'hpo' in num_layers_param:
+                if isinstance(params.get('num_layers'), dict) and 'hpo' in params.get('num_layers'):
                     num_layers = trial.suggest_int('lstm_num_layers', 1, 3)
-                self.layers.append(
-                    nn.LSTM(input_size, units, num_layers=num_layers, batch_first=True)
-                )
+                # Removed print statement for cleaner output
+                self.layers.append(nn.LSTM(input_size, units, num_layers=num_layers, batch_first=True))
                 in_features = units
             elif layer['type'] == 'BatchNormalization':
-                # momentum parameter can be suggested but BatchNorm2d uses default
+                momentum = params.get('momentum', trial.suggest_float('bn_momentum', 0.8, 0.99))
+                # Removed print statement for cleaner output
                 self.layers.append(nn.BatchNorm2d(in_channels))
             elif layer['type'] == 'Transformer':
-                d_model = params.get(
-                    'd_model', trial.suggest_int('transformer_d_model', 64, 512)
-                )
+                d_model = params.get('d_model', trial.suggest_int('transformer_d_model', 64, 512))
                 nhead = params.get('nhead', trial.suggest_int('transformer_nhead', 4, 8))
-                num_encoder_layers = params.get(
-                    'num_encoder_layers',
-                    trial.suggest_int('transformer_encoder_layers', 1, 4)
-                )
-                num_decoder_layers = params.get(
-                    'num_decoder_layers',
-                    trial.suggest_int('transformer_decoder_layers', 1, 4)
-                )
-                dim_feedforward = params.get(
-                    'dim_feedforward',
-                    trial.suggest_int('transformer_ff_dim', 128, 1024)
-                )
+                num_encoder_layers = params.get('num_encoder_layers', trial.suggest_int('transformer_encoder_layers', 1, 4))
+                num_decoder_layers = params.get('num_decoder_layers', trial.suggest_int('transformer_decoder_layers', 1, 4))
+                dim_feedforward = params.get('dim_feedforward', trial.suggest_int('transformer_ff_dim', 128, 1024))
+                # Removed print statement for cleaner output
                 self.layers.append(nn.Transformer(d_model=d_model,
                                                   nhead=nhead,
                                                   num_encoder_layers=num_encoder_layers,
@@ -555,164 +358,85 @@ class DynamicPTModel(nn.Module):
                 in_features = d_model
             else:
                 raise ValueError(f"Unsupported layer type: {layer['type']}")
+        # Removed print statement for cleaner output
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass through the model."""
         for layer in self.layers:
-            if isinstance(layer, nn.LSTM):
-                x, _ = layer(x)
-            elif isinstance(layer, nn.Transformer):
-                x = layer(x, x)
-            else:
-                x = layer(x)
+            x = layer(x)
         return x
 
-
 class DynamicTFModel(tf.keras.Model):
-    """
-    Dynamic TensorFlow model that builds layers based on configuration.
-    
-    Supports HPO by allowing trial-based parameter suggestion during construction.
-    """
     def __init__(
         self, 
         model_dict: Dict[str, Any], 
-        trial: Trial, 
+        trial: 'Trial', 
         hpo_params: List[Dict[str, Any]]
     ) -> None:
-        super().__init__()
-        self.model_dict = model_dict
-        self.layers_list: List[Any] = []
-        self.shape_propagator = ShapePropagator(debug=False)
-        
-        input_shape = model_dict['input']['shape']
-        current_shape = (None, *input_shape)
-        
-        for i, layer in enumerate(model_dict['layers']):
-            params = layer.get('params', {})
-            if params is None:
-                params = {}
-            params = params.copy()
-            
-            # Propagate shape
-            current_shape = self.shape_propagator.propagate(
-                current_shape, layer, framework='tensorflow'
+        if not HAS_TENSORFLOW:
+            raise DependencyError(
+                dependency="tensorflow",
+                feature="TensorFlow dynamic model",
+                install_hint="pip install tensorflow"
             )
-            
-            if layer['type'] == 'Flatten':
-                self.layers_list.append(tf.keras.layers.Flatten())
-            elif layer['type'] == 'Dense':
-                units = params.get('units')
-                if units is None:
-                    units = trial.suggest_int(f'dense_units_{i}', 64, 256)
-                if not isinstance(units, (int, float)):
-                    raise InvalidParameterError(
-                        parameter='units',
-                        value=units,
-                        layer_type='Dense',
-                        expected='numeric value'
-                    )
-                units = int(units)
-                activation = params.get('activation', 'relu')
-                if activation and activation.lower() != 'linear':
-                    self.layers_list.append(tf.keras.layers.Dense(units, activation=activation))
-                else:
-                    self.layers_list.append(tf.keras.layers.Dense(units))
+        super().__init__()
+        self.layers_list: List[Any] = []
+        input_shape = model_dict['input']['shape']
+        in_features = prod(input_shape)
+        for layer in model_dict['layers']:
+            params = layer['params'].copy()
+            if layer['type'] == 'Dense':
+                if 'hpo' in params['units']:
+                    hpo = next(h for h in hpo_params if h['layer_type'] == 'Dense' and h['param_name'] == 'units')
+                    units = trial.suggest_categorical('dense_units', hpo['hpo']['values'])
+                    params['units'] = units
+                self.layers_list.append(tf.keras.layers.Dense(params['units'], activation='relu' if params.get('activation') == 'relu' else None))
+                in_features = params['units']
             elif layer['type'] == 'Dropout':
-                rate = params.get('rate')
-                if rate is None:
-                    rate = trial.suggest_float(f'dropout_rate_{i}', 0.3, 0.7, step=0.1)
-                if not isinstance(rate, (int, float)):
-                    raise InvalidParameterError(
-                        parameter='rate',
-                        value=rate,
-                        layer_type='Dropout',
-                        expected='numeric value between 0 and 1'
-                    )
-                self.layers_list.append(tf.keras.layers.Dropout(float(rate)))
+                if 'hpo' in params['rate']:
+                    hpo = next(h for h in hpo_params if h['layer_type'] == 'Dropout' and h['param_name'] == 'rate')
+                    rate = trial.suggest_float('dropout_rate', hpo['hpo']['start'], hpo['hpo']['end'], step=hpo['hpo']['step'])
+                    params['rate'] = rate
+                self.layers_list.append(tf.keras.layers.Dropout(params['rate']))
             elif layer['type'] == 'Output':
-                units = params.get('units', 10)
-                if not isinstance(units, (int, float)):
-                    raise InvalidParameterError(
-                        parameter='units',
-                        value=units,
-                        layer_type='Output',
-                        expected='numeric value'
-                    )
-                units = int(units)
-                activation = params.get('activation', 'softmax')
-                if activation and activation.lower() != 'linear':
-                    self.layers_list.append(tf.keras.layers.Dense(units, activation=activation))
-                else:
-                    self.layers_list.append(tf.keras.layers.Dense(units))
-            elif layer['type'] == 'Conv2D':
-                filters = params.get('filters', trial.suggest_int(f'conv2d_filters_{i}', 16, 64))
-                kernel_size = params.get('kernel_size', 3)
-                activation = params.get('activation', 'relu')
-                self.layers_list.append(tf.keras.layers.Conv2D(
-                    filters, kernel_size, activation=activation if activation else None
-                ))
-            elif layer['type'] == 'MaxPooling2D':
-                pool_size = params.get('pool_size', 2)
-                self.layers_list.append(tf.keras.layers.MaxPooling2D(pool_size=pool_size))
-            elif layer['type'] == 'BatchNormalization':
-                self.layers_list.append(tf.keras.layers.BatchNormalization())
-            elif layer['type'] == 'LSTM':
-                units = params.get('units', trial.suggest_int(f'lstm_units_{i}', 32, 256))
-                return_sequences = params.get('return_sequences', False)
-                self.layers_list.append(
-                    tf.keras.layers.LSTM(units, return_sequences=return_sequences)
-                )
-            else:
-                raise ValueError(f"Unsupported layer type for TensorFlow: {layer['type']}")
+                if isinstance(params.get('units'), dict) and 'hpo' in params['units']:
+                    hpo = next(h for h in hpo_params if h['layer_type'] == 'Output' and h['param_name'] == 'units')
+                    units = trial.suggest_categorical('output_units', hpo['hpo']['values'])
+                    params['units'] = units
+                self.layers_list.append(tf.keras.layers.Dense(params['units'], activation='softmax' if params.get('activation') == 'softmax' else None))
 
-    def call(self, inputs: tf.Tensor, training: Optional[bool] = None) -> tf.Tensor:
-        """Forward pass through the model."""
-        x = inputs
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        x = tf.reshape(inputs, [inputs.shape[0], -1])  # Flatten input
         for layer in self.layers_list:
-            if isinstance(layer, (tf.keras.layers.Dropout, tf.keras.layers.BatchNormalization)):
-                x = layer(x, training=training)
-            else:
-                x = layer(x)
+            x = layer(x)
         return x
 
 
 # Training Method
 def train_model(
     model: Union[DynamicPTModel, DynamicTFModel], 
-    optimizer: Union[optim.Optimizer, Any], 
-    train_loader: Union[torch.utils.data.DataLoader, tf.data.Dataset], 
-    val_loader: Union[torch.utils.data.DataLoader, tf.data.Dataset], 
+    optimizer: Union['optim.Optimizer', Any], 
+    train_loader: Union['torch.utils.data.DataLoader', 'tf.data.Dataset'], 
+    val_loader: Union['torch.utils.data.DataLoader', 'tf.data.Dataset'], 
     backend: str = 'pytorch', 
     epochs: int = 1, 
     execution_config: Optional[Dict[str, Any]] = None
 ) -> Tuple[float, float, float, float]:
-    """
-    Train a model and return validation metrics.
-    
-    Args:
-        model: Model to train
-        optimizer: Optimizer for training
-        train_loader: Training data loader
-        val_loader: Validation data loader
-        backend: Backend being used ('pytorch' or 'tensorflow')
-        epochs: Number of training epochs
-        execution_config: Execution configuration (device, etc.)
-        
-    Returns:
-        Tuple of (validation_loss, accuracy, precision, recall)
-        
-    Raises:
-        UnsupportedBackendError: If backend is not supported
-    """
-    if execution_config is None:
-        execution_config = {}
-    
     if backend == 'pytorch':
-        device = get_device(execution_config.get("device", "auto"))
+        if not HAS_TORCH:
+            raise DependencyError(
+                dependency="torch",
+                feature="PyTorch model training",
+                install_hint="pip install torch"
+            )
+        if not HAS_SKLEARN:
+            raise DependencyError(
+                dependency="scikit-learn",
+                feature="HPO metrics calculation",
+                install_hint="pip install scikit-learn"
+            )
+        device = get_device(execution_config.get("device", "auto") if execution_config else "auto")
         model.to(device)
         criterion = nn.CrossEntropyLoss()
-        
         for _ in range(epochs):
             model.train()
             for data, target in train_loader:
@@ -722,7 +446,6 @@ def train_model(
                 loss = criterion(output, target)
                 loss.backward()
                 optimizer.step()
-        
         model.eval()
         val_loss, correct, total = 0.0, 0, 0
         preds, targets = [], []
@@ -737,139 +460,82 @@ def train_model(
                 preds.extend(pred.cpu().numpy())
                 targets.extend(target.cpu().numpy())
 
+        # Compute precision and recall
         preds_np = np.array(preds)
         targets_np = np.array(targets)
-        precision = precision_score(targets_np, preds_np, average='macro', zero_division=0)
-        recall = recall_score(targets_np, preds_np, average='macro', zero_division=0)
+        precision = precision_score(targets_np, preds_np, average='macro')
+        recall = recall_score(targets_np, preds_np, average='macro')
 
         return val_loss / len(val_loader), correct / total, precision, recall
-    
-    elif backend == 'tensorflow':
-        # TensorFlow training
-        model.compile(
-            optimizer=optimizer,
-            loss='sparse_categorical_crossentropy',
-            metrics=['accuracy']
-        )
-        
-        # Train
-        model.fit(train_loader, epochs=epochs, verbose=0)
-        
-        # Evaluate
-        results = model.evaluate(val_loader, verbose=0)
-        val_loss = results[0]
-        accuracy = results[1]
-        
-        # Calculate precision and recall
-        preds = []
-        targets = []
-        for data, target in val_loader:
-            output = model(data, training=False)
-            pred = tf.argmax(output, axis=1).numpy()
-            preds.extend(pred)
-            targets.extend(target.numpy())
-        
-        preds_np = np.array(preds)
-        targets_np = np.array(targets)
-        precision = precision_score(targets_np, preds_np, average='macro', zero_division=0)
-        recall = recall_score(targets_np, preds_np, average='macro', zero_division=0)
-        
-        return val_loss, accuracy, precision, recall
-    else:
-        raise UnsupportedBackendError(backend=backend, available_backends=['pytorch', 'tensorflow'])
 
 
 # HPO Objective
 def objective(
-    trial: Trial, 
+    trial: 'Trial', 
     config: str, 
     dataset_name: str = 'MNIST', 
     backend: str = 'pytorch', 
     device: str = 'auto'
 ) -> Tuple[float, float, float, float]:
-    """
-    Objective function for HPO optimization.
+    if not HAS_OPTUNA:
+        raise DependencyError(
+            dependency="optuna",
+            feature="HPO objective function",
+            install_hint="pip install optuna"
+        )
     
-    Args:
-        trial: Optuna trial for suggesting hyperparameters
-        config: Neural DSL configuration string
-        dataset_name: Name of dataset to use
-        backend: Backend to use ('pytorch' or 'tensorflow')
-        device: Device to use ('auto', 'cpu', 'cuda', etc.)
-        
-    Returns:
-        Tuple of (loss, accuracy, precision, recall) metrics
-        
-    Raises:
-        HPOException: If optimization fails
-    """
-    try:
-        # Parse the network configuration
-        model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)
+    if backend == 'pytorch' and not HAS_TORCH:
+        raise DependencyError(
+            dependency="torch",
+            feature="PyTorch HPO backend",
+            install_hint="pip install torch"
+        )
 
-        # Resolve batch size from training_config or HPO
-        training_config = model_dict.get('training_config', {})
-        batch_size = training_config.get('batch_size', 32)
+    # Parse the network configuration
+    model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)
 
-        if isinstance(batch_size, dict) and 'hpo' in batch_size:
-            hpo = batch_size['hpo']
-            if hpo['type'] == 'categorical':
-                batch_size = trial.suggest_categorical("batch_size", hpo['values'])
-            elif hpo['type'] == 'range':
-                low = hpo.get('start', hpo.get('low', hpo.get('min')))
-                high = hpo.get('end', hpo.get('high', hpo.get('max')))
-                batch_size = trial.suggest_int("batch_size", low, high, step=hpo.get('step', 1))
-            elif hpo['type'] == 'log_range':
-                low = hpo.get('start', hpo.get('low', hpo.get('min')))
-                high = hpo.get('end', hpo.get('high', hpo.get('max')))
-                batch_size = trial.suggest_int("batch_size", low, high, log=True)
-        elif isinstance(batch_size, list):
-            batch_size = trial.suggest_categorical("batch_size", batch_size)
+    # Suggest batch size
+    batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
 
-        batch_size = int(batch_size)
+    # Get data loaders
+    train_loader = get_data(dataset_name, model_dict['input']['shape'], batch_size, True)
+    val_loader = get_data(dataset_name, model_dict['input']['shape'], batch_size, False)
 
-        # Get data loaders
-        input_shape = model_dict['input']['shape']
-        train_loader = get_data(dataset_name, input_shape, batch_size, True, backend)
-        val_loader = get_data(dataset_name, input_shape, batch_size, False, backend)
+    # Create the model
+    model = create_dynamic_model(model_dict, trial, hpo_params, backend)
+    optimizer_config = model.model_dict['optimizer']
 
-        # Create the model
-        model = create_dynamic_model(model_dict, trial, hpo_params, backend)
-        
-        # Get optimizer configuration
-        optimizer_config = model.model_dict.get('optimizer')
-        if optimizer_config is None:
-            optimizer_config = {'type': 'Adam', 'params': {'learning_rate': 0.001}}
-        elif 'params' not in optimizer_config or not optimizer_config['params']:
-            optimizer_config['params'] = {'learning_rate': 0.001}
-
-        lr = optimizer_config['params'].get('learning_rate', 0.001)
-        if not isinstance(lr, (int, float)):
+    # Extract learning rate from optimizer config
+    learning_rate_param = optimizer_config['params'].get('learning_rate', 0.001)
+    if isinstance(learning_rate_param, dict) and 'hpo' in learning_rate_param:
+        hpo = learning_rate_param['hpo']
+        if hpo['type'] == 'log_range':
+            # Handle all naming conventions (start/end, low/high, min/max)
+            low = hpo.get('start', hpo.get('low', hpo.get('min')))
+            high = hpo.get('end', hpo.get('high', hpo.get('max')))
+            lr = trial.suggest_float("learning_rate", low, high, log=True)
+        else:
+            # If it's a dict but not a log_range HPO, use a default value
+            lr = 0.001
+    else:
+        # If it's not a dict, try to convert to float, or use default
+        try:
+            lr = float(learning_rate_param)
+        except (ValueError, TypeError):
             lr = 0.001
 
-        # Create optimizer
-        if backend == 'pytorch':
-            optimizer = getattr(optim, optimizer_config['type'])(model.parameters(), lr=lr)
-        elif backend == 'tensorflow':
-            optimizer_cls = getattr(tf.keras.optimizers, optimizer_config['type'])
-            optimizer = optimizer_cls(learning_rate=lr)
-        else:
-            raise UnsupportedBackendError(
-                backend=backend, available_backends=['pytorch', 'tensorflow']
-            )
+    # Create optimizer
+    if backend == 'pytorch':
+        optimizer = getattr(optim, optimizer_config['type'])(model.parameters(), lr=lr)
 
-        # Get device and create execution config
-        execution_config = {'device': device}
+    # Get device and create execution config
+    device_to_use = get_device(device)
+    execution_config = {'device': device_to_use}
 
-        # Train the model and get metrics
-        loss, acc, precision, recall = train_model(
-            model, optimizer, train_loader, val_loader, 
-            backend=backend, execution_config=execution_config
-        )
-        return loss, acc, precision, recall
-    
-    except Exception as e:
-        raise HPOException(f"Objective function failed: {str(e)}") from e
+    # Train the model and get metrics
+    loss, acc, precision, recall = train_model(model, optimizer, train_loader, val_loader, backend=backend, execution_config=execution_config)
+    return loss, acc, precision, recall
+
 
 
 # Optimize and Return
@@ -880,121 +546,90 @@ def optimize_and_return(
     backend: str = 'pytorch', 
     device: str = 'auto'
 ) -> Dict[str, Union[int, float]]:
-    """
-    Run HPO optimization and return the best hyperparameters.
-    
-    Args:
-        config: Neural DSL configuration string
-        n_trials: Number of optimization trials to run
-        dataset_name: Name of dataset to use
-        backend: Backend to use ('pytorch' or 'tensorflow')
-        device: Device to use ('auto', 'cpu', 'cuda', etc.)
-        
-    Returns:
-        Dictionary of best hyperparameters
-        
-    Raises:
-        HPOException: If optimization fails
-    """
-    import os
+    if not HAS_OPTUNA:
+        raise DependencyError(
+            dependency="optuna",
+            feature="HPO optimization",
+            install_hint="pip install optuna"
+        )
     
     # Set device mode
+    import os
     if device.lower() == 'cpu':
+        # Force CPU mode
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
         os.environ['NEURAL_FORCE_CPU'] = '1'
+        # Disable TensorRT
         os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
         os.environ['TF_ENABLE_TENSOR_FLOAT_32_EXECUTION'] = '0'
+        # Disable CUDA in PyTorch
         os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:32'
-    
-    try:
-        study = optuna.create_study(directions=["minimize", "maximize", "maximize", "maximize"])
+    study = optuna.create_study(directions=["minimize", "minimize", "maximize", "maximize"])
 
-        def objective_wrapper(trial: Trial) -> Tuple[float, float, float, float]:
-            # Parse the config once per trial
-            model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)
+    def objective_wrapper(trial: 'Trial') -> Tuple[float, float, float, float]:
+        # Get device from outer scope
+        nonlocal device
+        # Parse the config once per trial
+        model_dict, hpo_params = ModelTransformer().parse_network_with_hpo(config)
 
-            # Resolve batch_size from training_config or HPO
-            training_config = model_dict.get('training_config', {})
-            batch_size = training_config.get('batch_size', 32)
+        # Resolve batch_size from training_config or HPO
+        training_config = model_dict.get('training_config', {})
+        batch_size = training_config.get('batch_size', 32)  # Default if not specified
 
-            if isinstance(batch_size, dict) and 'hpo' in batch_size:
-                hpo = batch_size['hpo']
-                if hpo['type'] == 'categorical':
-                    batch_size = trial.suggest_categorical("batch_size", hpo['values'])
-                elif hpo['type'] == 'range':
-                    low = hpo.get('start', hpo.get('low', hpo.get('min')))
-                    high = hpo.get('end', hpo.get('high', hpo.get('max')))
-                    batch_size = trial.suggest_int("batch_size", low, high, step=hpo.get('step', 1))
-                elif hpo['type'] == 'log_range':
-                    low = hpo.get('start', hpo.get('low', hpo.get('min')))
-                    high = hpo.get('end', hpo.get('high', hpo.get('max')))
-                    batch_size = trial.suggest_int("batch_size", low, high, log=True)
-            elif isinstance(batch_size, list):
-                batch_size = trial.suggest_categorical("batch_size", batch_size)
+        if isinstance(batch_size, dict) and 'hpo' in batch_size:
+            hpo = batch_size['hpo']
+            if hpo['type'] == 'categorical':
+                batch_size = trial.suggest_categorical("batch_size", hpo['values'])
+            elif hpo['type'] == 'range':
+                batch_size = trial.suggest_int("batch_size", hpo['start'], hpo['end'], step=hpo.get('step', 1))
+            elif hpo['type'] == 'log_range':
+                # Handle all naming conventions (start/end, low/high, min/max)
+                low = hpo.get('start', hpo.get('low', hpo.get('min')))
+                high = hpo.get('end', hpo.get('high', hpo.get('max')))
+                batch_size = trial.suggest_int("batch_size", low, high, log=True)
+        elif isinstance(batch_size, list):
+            batch_size = trial.suggest_categorical("batch_size", batch_size)
 
-            batch_size = int(batch_size)
+        # Ensure batch_size is an integer
+        batch_size = int(batch_size)
 
-            input_shape = model_dict['input']['shape']
-            train_loader = get_data(dataset_name, input_shape, batch_size, True, backend)
-            val_loader = get_data(dataset_name, input_shape, batch_size, False, backend)
+        train_loader = get_data(dataset_name, model_dict['input']['shape'], batch_size, True, backend)
+        val_loader = get_data(dataset_name, model_dict['input']['shape'], batch_size, False, backend)
 
-            # Create model and resolve all HPO parameters
-            model = create_dynamic_model(model_dict, trial, hpo_params, backend)
+        # Create model and resolve all HPO parameters in one place
+        model = create_dynamic_model(model_dict, trial, hpo_params, backend)
 
-            # Get optimizer configuration
-            optimizer_config = model.model_dict.get('optimizer')
-            if optimizer_config is None:
-                optimizer_config = {'type': 'Adam', 'params': {'learning_rate': 0.001}}
-            elif 'params' not in optimizer_config or not optimizer_config['params']:
-                optimizer_config['params'] = {'learning_rate': 0.001}
+        # Get optimizer configuration from resolved model_dict, default if None
+        optimizer_config = model.model_dict['optimizer']
+        if optimizer_config is None:
+            optimizer_config = {'type': 'Adam', 'params': {'learning_rate': 0.001}}
+        elif 'params' not in optimizer_config or not optimizer_config['params']:
+            optimizer_config['params'] = {'learning_rate': 0.001}
 
-            lr = optimizer_config['params'].get('learning_rate', 0.001)
-            if not isinstance(lr, (int, float)):
-                lr = 0.001
+        lr = optimizer_config['params']['learning_rate']  # Already resolved by create_dynamic_model or default
 
-            if backend == 'pytorch':
-                optimizer = getattr(optim, optimizer_config['type'])(model.parameters(), lr=lr)
-            elif backend == 'tensorflow':
-                optimizer = getattr(tf.keras.optimizers, optimizer_config['type'])(learning_rate=lr)
+        if backend == 'pytorch':
+            optimizer = getattr(optim, optimizer_config['type'])(model.parameters(), lr=lr)
 
-            # Train and evaluate
-            execution_config = {'device': device}
-            loss, acc, precision, recall = train_model(
-                model, optimizer, train_loader, val_loader, 
-                backend=backend, execution_config=execution_config
-            )
-            return loss, acc, precision, recall
+        # Train and evaluate
+        execution_config = {'device': device}
+        loss, acc, precision, recall = train_model(model, optimizer, train_loader, val_loader, backend=backend, execution_config=execution_config)
+        return loss, acc, precision, recall
 
-        study.optimize(objective_wrapper, n_trials=n_trials)
+    study.optimize(objective_wrapper, n_trials=n_trials)
 
-        # Get best trial - we use the first trial in best_trials
-        if not study.best_trials:
-            raise HPOException("No successful trials completed")
-        
-        best_trial = study.best_trials[0]
-        best_params = best_trial.params
+    # Normalize the best parameters
+    best_params = study.best_trials[0].params
+    normalized_params = {
+        'batch_size': best_params.get('batch_size', 32),  # Use consistent naming
+    }
+    if 'Dense_units' in best_params:
+        normalized_params['dense_units'] = best_params['Dense_units']
+    if 'Dropout_rate' in best_params:
+        normalized_params['dropout_rate'] = best_params['Dropout_rate']
+    if 'opt_learning_rate' in best_params:
+        normalized_params['learning_rate'] = best_params['opt_learning_rate']
+    else:
+        normalized_params['learning_rate'] = 0.001  # Default from optimizer_config
 
-        # Normalize the best parameters
-        normalized_params = {
-            'batch_size': best_params.get('batch_size', 32),
-        }
-        
-        # Extract layer parameters
-        for key, value in best_params.items():
-            if key.startswith('Dense_units'):
-                normalized_params['dense_units'] = value
-            elif key.startswith('Dropout_rate'):
-                normalized_params['dropout_rate'] = value
-            elif key.startswith('Conv2D_filters'):
-                normalized_params['conv2d_filters'] = value
-            elif key.startswith('opt_learning_rate'):
-                normalized_params['learning_rate'] = value
-
-        # Fallback for learning rate
-        if 'learning_rate' not in normalized_params:
-            normalized_params['learning_rate'] = 0.001
-
-        return normalized_params
-    
-    except Exception as e:
-        raise HPOException(f"Optimization failed: {str(e)}") from e
+    return normalized_params

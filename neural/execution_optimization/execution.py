@@ -9,16 +9,21 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Optional, Union
 
-import torch
-
+from neural.exceptions import DependencyError
 from neural.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+    torch = None
 
 # Only import TensorRT if not in CPU mode
 TENSORRT_AVAILABLE = False
-if not (os.environ.get('NEURAL_FORCE_CPU', '').lower() in ['1', 'true', 'yes'] or os.environ.get('CUDA_VISIBLE_DEVICES', '') == ''):
+if HAS_TORCH and not (os.environ.get('NEURAL_FORCE_CPU', '').lower() in ['1', 'true', 'yes'] or os.environ.get('CUDA_VISIBLE_DEVICES', '') == ''):
     try:
         import tensorrt as trt
 
@@ -27,7 +32,7 @@ if not (os.environ.get('NEURAL_FORCE_CPU', '').lower() in ['1', 'true', 'yes'] o
         pass
 
 
-def get_device(preferred_device: Union[str, torch.device] = "auto") -> torch.device:
+def get_device(preferred_device: Union[str, 'torch.device'] = "auto") -> 'torch.device':
     """
     Select the best available device: GPU, CPU, or future accelerators.
 
@@ -42,6 +47,13 @@ def get_device(preferred_device: Union[str, torch.device] = "auto") -> torch.dev
         >>> device = get_device("cpu")   # Force CPU execution
         >>> device = get_device(torch.device("cuda:0"))  # Specific GPU
     """
+    if not HAS_TORCH:
+        raise DependencyError(
+            dependency="torch",
+            feature="device selection",
+            install_hint="pip install torch"
+        )
+    
     if isinstance(preferred_device, torch.device):
         return preferred_device
 
@@ -73,10 +85,10 @@ def get_device(preferred_device: Union[str, torch.device] = "auto") -> torch.dev
 
 
 def run_inference(
-    model: torch.nn.Module,
-    data: torch.Tensor,
+    model: 'torch.nn.Module',
+    data: 'torch.Tensor',
     execution_config: Optional[Dict[str, Any]] = None
-) -> torch.Tensor:
+) -> 'torch.Tensor':
     """
     Run inference on the specified device.
 
@@ -93,6 +105,13 @@ def run_inference(
         >>> data = torch.randn(1, 3, 224, 224)
         >>> output = run_inference(model, data, {"device": "cuda"})
     """
+    if not HAS_TORCH:
+        raise DependencyError(
+            dependency="torch",
+            feature="inference execution",
+            install_hint="pip install torch"
+        )
+    
     if execution_config is None:
         execution_config = {}
     
@@ -108,7 +127,7 @@ def run_inference(
     return output.cpu()
 
 
-def optimize_model_with_tensorrt(model: torch.nn.Module) -> torch.nn.Module:
+def optimize_model_with_tensorrt(model: 'torch.nn.Module') -> 'torch.nn.Module':
     """
     Convert model to TensorRT for optimized inference.
 
@@ -121,6 +140,13 @@ def optimize_model_with_tensorrt(model: torch.nn.Module) -> torch.nn.Module:
     Note:
         Requires TensorRT to be installed. Falls back to standard model if unavailable.
     """
+    if not HAS_TORCH:
+        raise DependencyError(
+            dependency="torch",
+            feature="TensorRT optimization",
+            install_hint="pip install torch"
+        )
+    
     if not TENSORRT_AVAILABLE:
         logger.warning("TensorRT not available, skipping optimization")
         return model
@@ -147,10 +173,10 @@ def optimize_model_with_tensorrt(model: torch.nn.Module) -> torch.nn.Module:
 
 
 def run_optimized_inference(
-    model: torch.nn.Module,
-    data: torch.Tensor,
+    model: 'torch.nn.Module',
+    data: 'torch.Tensor',
     execution_config: Optional[Dict[str, Any]] = None
-) -> torch.Tensor:
+) -> 'torch.Tensor':
     """
     Run optimized inference using TensorRT or PyTorch.
 
@@ -169,6 +195,13 @@ def run_optimized_inference(
         >>> data = torch.randn(1, 3, 224, 224)
         >>> output = run_optimized_inference(model, data, {"device": "cuda"})
     """
+    if not HAS_TORCH:
+        raise DependencyError(
+            dependency="torch",
+            feature="optimized inference execution",
+            install_hint="pip install torch"
+        )
+    
     if execution_config is None:
         execution_config = {}
     
