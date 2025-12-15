@@ -390,3 +390,6 @@ VISION.md
 !.github/workflows/.env.example
 lemniscate/
 .qodo/
+
+# Temporary cleanup scripts
+delete_redundant_docs.py
