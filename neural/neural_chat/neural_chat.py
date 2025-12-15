@@ -22,7 +22,7 @@ class NeuralChat:
         self.ai_assistant = None
         if use_ai and AI_AVAILABLE:
             try:
-                self.ai_assistant = NeuralAIAssistant(use_llm=False)  # Start with rule-based
+                self.ai_assistant = NeuralAIAssistant()
             except Exception as e:
                 click.echo(f"Warning: AI assistant not available: {e}")
 

@@ -41,8 +41,6 @@ def main():
     print("🤖 AI Integration Files:")
     print("-" * 70)
     all_checks.append(check_file_exists("neural/ai/natural_language_processor.py", "Natural Language Processor"))
-    all_checks.append(check_file_exists("neural/ai/llm_integration.py", "LLM Integration"))
-    all_checks.append(check_file_exists("neural/ai/multi_language.py", "Multi-Language Support"))
     all_checks.append(check_file_exists("neural/ai/ai_assistant.py", "AI Assistant"))
     all_checks.append(check_file_exists("neural/ai/README.md", "AI README"))
     print()
