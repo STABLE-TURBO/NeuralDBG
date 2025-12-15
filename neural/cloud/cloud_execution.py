@@ -58,16 +58,6 @@ except ImportError:
 ngrok = None
 
 
-class CloudExecutionError(Exception):
-    """Base exception for cloud execution errors."""
-    pass
-
-
-class CloudConnectionError(CloudExecutionError):
-    """Exception for cloud connection errors."""
-    pass
-
-
 class CloudCompilationError(CloudExecutionError):
     """Exception for cloud compilation errors."""
     pass
@@ -477,6 +467,12 @@ class CloudExecutor:
         Returns:
             Dictionary with dashboard information
         """
+        if not dsl_code or not dsl_code.strip():
+            return {
+                "status": "failed",
+                "error": "DSL code cannot be empty"
+            }
+        
         try:
             temp_file = self.temp_dir / f"debug_model_{int(time.time())}.neural"
             temp_file.write_text(dsl_code)
@@ -498,7 +494,7 @@ class CloudExecutor:
                 )
 
             tunnel_url = None
-            if setup_tunnel:
+            if setup_tunnel and self.environment in ['colab', 'kaggle']:
                 tunnel_url = self.setup_ngrok_tunnel(port)
 
             return {
@@ -506,7 +502,8 @@ class CloudExecutor:
                 "dashboard_url": tunnel_url or f"http://localhost:{port}",
                 "process_id": process.pid,
                 "tunnel_url": tunnel_url,
-                "status": "running"
+                "status": "running",
+                "backend": backend
             }
 
         except Exception as e:

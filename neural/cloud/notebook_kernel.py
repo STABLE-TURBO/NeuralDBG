@@ -310,9 +310,14 @@ print("Neural DSL is ready to use!")
                     logger.info(f"Deleted SageMaker notebook: {self.notebook_name}")
                 else:
                     logger.warning(f"Failed to delete SageMaker notebook: {self.notebook_name}")
+            
+            elif self.platform.lower() == 'colab':
+                # Colab doesn't require explicit kernel deletion
+                logger.info("Colab environment cleanup completed")
 
             # Clean up the remote connection
-            self.remote.cleanup()
+            if hasattr(self.remote, 'cleanup'):
+                self.remote.cleanup()
 
         return {'status': 'ok', 'restart': restart}
 

@@ -58,6 +58,36 @@ app = Dash(
     suppress_callback_exceptions=True
 )
 
+# Add custom CSS for drag and drop
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        {%css%}
+        <style>
+            .layer-card.dragging {
+                opacity: 0.5;
+            }
+            .layer-card:hover {
+                border-color: #00BFFF !important;
+                box-shadow: 0 0 10px rgba(0, 191, 255, 0.3);
+            }
+        </style>
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>
+'''
+
 # Get Flask server and apply security middleware
 server = app.server
 
@@ -720,7 +750,8 @@ def update_input_shape(preset, custom):
 @app.callback(
     [Output("model-layers", "data"),
      Output("input-shape-preset", "value")],
-    Input("model-template", "value")
+    Input("model-template", "value"),
+    prevent_initial_call=True
 )
 def load_template(template_name):
     if not template_name or template_name == "empty":
@@ -742,24 +773,32 @@ def load_template(template_name):
 
 # Callback for updating layer parameters when a layer type is selected
 @app.callback(
-    Output("layer-params", "data"),
-    [Input(f"layer-type-{category.lower()}", "value") for category in LAYER_TYPES.keys()]
+    Output("layer-params", "data", allow_duplicate=True),
+    [Input(f"layer-type-{category.lower()}", "value") for category in LAYER_TYPES.keys()],
+    prevent_initial_call=True
 )
 def update_layer_params(*layer_types: Optional[str]) -> List[Dict[str, str]]:
     ctx = callback_context
     if not ctx.triggered:
-        return []
+        return dash.no_update
 
-    layer_type = get_selected_layer_type()
+    # Find which dropdown triggered the callback
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    # Get the value of the triggered dropdown
+    layer_type = None
+    if trigger_id.startswith('layer-type-'):
+        layer_type = ctx.triggered[0]['value']
+    
     if not layer_type:
-        return []
+        return dash.no_update
 
     # Get default parameters for the selected layer type
     if layer_type in DEFAULT_PARAMS:
         params = DEFAULT_PARAMS[layer_type]
         return [{"param": k, "value": str(v)} for k, v in params.items()]
 
-    return []
+    return dash.no_update
 
 # Callback for adding a layer to the model
 @app.callback(
@@ -1365,102 +1404,131 @@ def export_dsl(n_clicks, layers, input_shape, optimizer_type, optimizer_params, 
 @app.callback(
     Output("architecture-visualization", "children"),
     [Input("model-layers", "data"),
-     Input("input-shape", "data")]
+     Input("input-shape", "data")],
+    prevent_initial_call=True
 )
 def visualize_architecture(layers, input_shape_str):
     if not layers:
-        return html.Div("No model defined yet. Add layers to visualize the architecture.")
+        return html.Div(
+            "No model defined yet. Add layers to visualize the architecture.",
+            style={'padding': '20px', 'color': '#888', 'textAlign': 'center'}
+        )
 
     try:
+        # Parse input shape
+        try:
+            input_shape = eval(input_shape_str)
+        except Exception:
+            input_shape = (None, 28, 28, 1)
+        
         # Create a model data structure for the visualizer
         model_data = {
             "type": "model",
             "name": "MyModel",
-            "input": {"type": "Input", "shape": eval(input_shape_str)},
+            "input": {"type": "Input", "shape": input_shape},
             "layers": layers
         }
 
-        # Create a visualizer instance
-        visualizer = NeuralVisualizer(model_data)
-
-        # Generate a visualization
+        # Try to create a visualizer and get d3_data
+        d3_data = None
         try:
-            # Try to use the built-in visualization methods
-            fig = visualizer.create_architecture_diagram()
-            return dcc.Graph(figure=fig)
-        except:
-            # Fallback to a simpler visualization
-            d3_data = visualizer.model_to_d3_json()
+            visualizer = NeuralVisualizer(model_data)
+            
+            # Generate a visualization
+            try:
+                # Try to use the built-in visualization methods
+                fig = visualizer.create_architecture_diagram()
+                return dcc.Graph(figure=fig)
+            except Exception:
+                # Fallback to a simpler visualization
+                d3_data = visualizer.model_to_d3_json()
+        except Exception:
+            # If visualizer is not available, create a simple fallback
+            d3_data = {
+                "nodes": [{"type": "Input", "params": {"shape": input_shape}}] + layers,
+                "links": [{"source": i, "target": i+1} for i in range(len(layers))]
+            }
 
-            # Create a simple network diagram
-            nodes = d3_data.get("nodes", [])
-            links = d3_data.get("links", [])
+        # Create a simple network diagram
+        nodes = d3_data.get("nodes", [])
+        links = d3_data.get("links", [])
 
-            # Create a Plotly figure
-            fig = go.Figure()
+        # Create a Plotly figure
+        fig = go.Figure()
 
-            # Add nodes as scatter points
-            node_x = []
-            node_y = []
-            node_text = []
+        # Add nodes as scatter points
+        node_x = []
+        node_y = []
+        node_text = []
 
-            for i, node in enumerate(nodes):
-                node_x.append(i)
-                node_y.append(0)
+        for i, node in enumerate(nodes):
+            node_x.append(i)
+            node_y.append(0)
 
-                # Create node text with parameters
-                if "params" in node and node["params"]:
-                    params_str = ", ".join([f"{k}={v}" for k, v in node["params"].items()])
-                    node_text.append(f"{node['type']}<br>{params_str}")
-                else:
-                    node_text.append(node['type'])
+            # Create node text with parameters
+            node_type = node.get('type', 'Unknown')
+            if "params" in node and node["params"]:
+                # Limit parameters display to avoid clutter
+                params = node["params"]
+                params_items = list(params.items())[:3]  # Show only first 3 params
+                params_str = ", ".join([f"{k}={v}" for k, v in params_items])
+                if len(params) > 3:
+                    params_str += "..."
+                node_text.append(f"{node_type}<br>{params_str}")
+            else:
+                node_text.append(node_type)
 
-            fig.add_trace(go.Scatter(
-                x=node_x,
-                y=node_y,
-                mode="markers+text",
-                marker=dict(
-                    size=30,
-                    color='rgba(0, 191, 255, 0.8)',
-                    line=dict(width=2, color='rgb(0, 0, 0)')
-                ),
-                text=node_text,
-                textposition="top center",
-                hoverinfo="text"
-            ))
+        fig.add_trace(go.Scatter(
+            x=node_x,
+            y=node_y,
+            mode="markers+text",
+            marker=dict(
+                size=30,
+                color='rgba(0, 191, 255, 0.8)',
+                line=dict(width=2, color='rgb(0, 0, 0)')
+            ),
+            text=node_text,
+            textposition="top center",
+            hoverinfo="text"
+        ))
 
-            # Add links as lines
-            for link in links:
-                source_idx = link.get("source")
-                target_idx = link.get("target")
+        # Add links as lines
+        for link in links:
+            source_idx = link.get("source")
+            target_idx = link.get("target")
 
-                if source_idx is not None and target_idx is not None:
-                    fig.add_trace(go.Scatter(
-                        x=[node_x[source_idx], node_x[target_idx]],
-                        y=[node_y[source_idx], node_y[target_idx]],
-                        mode="lines",
-                        line=dict(width=2, color='rgb(210, 210, 210)'),
-                        hoverinfo="none"
-                    ))
+            if source_idx is not None and target_idx is not None and \
+               source_idx < len(node_x) and target_idx < len(node_x):
+                fig.add_trace(go.Scatter(
+                    x=[node_x[source_idx], node_x[target_idx]],
+                    y=[node_y[source_idx], node_y[target_idx]],
+                    mode="lines",
+                    line=dict(width=2, color='rgb(210, 210, 210)'),
+                    hoverinfo="none"
+                ))
 
-            # Update layout
-            fig.update_layout(
-                title="Model Architecture",
-                showlegend=False,
-                hovermode="closest",
-                margin=dict(b=20, l=5, r=5, t=40),
-                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                template="plotly_dark",
-                plot_bgcolor='rgba(50, 50, 50, 0.8)',
-                paper_bgcolor='rgba(50, 50, 50, 0.8)',
-                font=dict(color='white')
-            )
+        # Update layout
+        fig.update_layout(
+            title="Model Architecture",
+            showlegend=False,
+            hovermode="closest",
+            margin=dict(b=20, l=5, r=5, t=40),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            template="plotly_dark",
+            plot_bgcolor='rgba(50, 50, 50, 0.8)',
+            paper_bgcolor='rgba(50, 50, 50, 0.8)',
+            font=dict(color='white'),
+            height=400
+        )
 
-            return dcc.Graph(figure=fig)
+        return dcc.Graph(figure=fig)
 
     except Exception as e:
-        return html.Div(f"Error visualizing architecture: {str(e)}")
+        return html.Div(
+            f"Error visualizing architecture: {str(e)}",
+            style={'padding': '20px', 'color': '#ff6666', 'textAlign': 'center'}
+        )
 
 # Callback for launching NeuralDbg
 @app.callback(
@@ -1507,6 +1575,43 @@ def launch_neuraldbg(n_clicks: Optional[int], layers: List[Dict[str, Any]], inpu
         return html.Div([
             html.P("NeuralDbg launched successfully! Open your browser to http://localhost:8050 to access the dashboard."),
             html.A("Open NeuralDbg Dashboard", href="http://localhost:8050", target="_blank",
+                  className="btn btn-primary mt-2")
+        ])
+    except Exception as e:
+        return html.Div(f"Error launching NeuralDbg: {str(e)}")
+
+if __name__ == "__main__":
+    import warnings
+    warnings.warn(
+        "\n" + "="*70 + "\n"
+        "⚠️  DEPRECATION WARNING\n"
+        "="*70 + "\n"
+        "Running neural/no_code/no_code.py directly is deprecated.\n"
+        "Use the unified server instead:\n\n"
+        "  neural server start\n\n"
+        "The unified server provides the no-code builder in the Build tab,\n"
+        "along with Debug and Monitor features in a single interface.\n\n"
+        "This entry point will be removed in v0.4.0.\n"
+        "See neural/dashboard/DEPRECATED.md for migration guide.\n"
+        + "="*70,
+        DeprecationWarning,
+        stacklevel=2
+    )
+    print("\n" + "⚠️  DEPRECATION WARNING: Use 'neural server start' instead\n")
+    app.run_server(debug=True, port=8051)
+
+he Build tab,\n"
+        "along with Debug and Monitor features in a single interface.\n\n"
+        "This entry point will be removed in v0.4.0.\n"
+        "See neural/dashboard/DEPRECATED.md for migration guide.\n"
+        + "="*70,
+        DeprecationWarning,
+        stacklevel=2
+    )
+    print("\n" + "⚠️  DEPRECATION WARNING: Use 'neural server start' instead\n")
+    app.run_server(debug=True, port=8051)
+
+nk",
                   className="btn btn-primary mt-2")
         ])
     except Exception as e:

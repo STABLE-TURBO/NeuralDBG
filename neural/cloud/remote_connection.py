@@ -781,7 +781,50 @@ print(f"GPU available: {executor.is_gpu_available}")
             logger.error(f"Failed to delete SageMaker notebook: {e}")
             return False
 
+    def execute_on_colab(self, code: str) -> Dict[str, Any]:
+        """
+        Execute code on Google Colab.
+
+        Args:
+            code: Code to execute
+
+        Returns:
+            Dictionary with execution results
+        """
+        try:
+            # Check if connected to Colab
+            if 'colab' not in self.connections or not self.connections['colab']['connected']:
+                result = self.connect_to_colab()
+                if not result['success']:
+                    return {
+                        'success': False,
+                        'error': f"Failed to connect to Colab: {result.get('error', 'Unknown error')}"
+                    }
+
+            # In Colab, we can't execute code remotely - the environment is already local
+            # This method is primarily for compatibility with the interface
+            # In practice, code would be executed directly in the Colab notebook
+            logger.info("Colab execution is local - code should be run in the notebook")
+            
+            return {
+                'success': True,
+                'output': 'Code ready for execution in Colab notebook',
+                'note': 'Colab execution is local - run the code directly in your notebook'
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to execute on Colab: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
     def cleanup(self) -> None:
         """Clean up resources."""
-        import shutil
-        shutil.rmtree(self.temp_dir)
+        try:
+            import shutil
+            if self.temp_dir.exists():
+                shutil.rmtree(self.temp_dir)
+                logger.info(f"Cleaned up temporary directory: {self.temp_dir}")
+        except Exception as e:
+            logger.warning(f"Failed to clean up temporary directory: {e}")
