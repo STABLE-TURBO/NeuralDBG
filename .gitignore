@@ -101,6 +101,7 @@ examples/attention_examples/data/
 *.pt
 *.html
 !docs/**/*.html
+!neural/no_code/templates/*.html
 architecture
 classes.*
 packages.*
