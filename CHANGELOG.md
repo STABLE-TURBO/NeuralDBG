@@ -49,7 +49,7 @@ A comprehensive cleanup was performed to improve repository hygiene and maintain
 
 ### Breaking Changes
 - **Removed Enterprise Features**: teams, marketplace, billing, cost tracking
-- **Removed Alternative Tool Features**: mlops, cloud integrations, API server, monitoring, data versioning, collaboration, experiment tracking
+- **Removed Alternative Tool Features**: mlops, cloud integrations, API server (see [docs/API_REMOVAL.md](docs/API_REMOVAL.md)), monitoring, data versioning, collaboration, experiment tracking
 - **Removed Experimental Features**: no-code GUI, neural chat, LLM integration, research generation, aquarium, AI features, plugins
 - **Removed Redundant Features**: profiling, benchmarks, execution optimization, explainability, docgen, config management, federated learning
 - **Simplified CLI**: Removed cloud, track, marketplace, cost, aquarium, no-code, docs, and explain commands
@@ -75,7 +75,7 @@ A comprehensive cleanup was performed to improve repository hygiene and maintain
   - Teams/Billing → Build as separate service on top of Neural
   - MLOps → Use MLflow, Kubeflow, or other specialized platforms
   - Cloud → Use boto3, google-cloud-sdk, azure-sdk directly
-  - API Server → Wrap Neural's compilation functions in FastAPI/Flask
+  - API Server → See [docs/API_REMOVAL.md](docs/API_REMOVAL.md) for migration guide and alternatives
   - Monitoring → Use Prometheus, Grafana, or cloud-native monitoring
   - Experiment Tracking → Use MLflow, Weights & Biases, or TensorBoard
   - Data Versioning → Use DVC, Git LFS, or cloud storage versioning

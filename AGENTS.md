@@ -14,7 +14,12 @@ pip install -r requirements-dev.txt     # Install development dependencies (reco
 - **HPO**: optuna, scikit-learn (hyperparameter optimization)
 - **Visualization**: matplotlib, graphviz, plotly, networkx (charts and diagrams)
 - **Dashboard**: dash, flask (NeuralDbg interface)
+- **AI**: langdetect (natural language processing and language detection)
 - **Dev**: pytest, ruff, pylint, mypy, pre-commit (development tools)
+
+Install specific feature groups: `pip install -e ".[hpo]"`, `pip install -e ".[automl]"`, `pip install -e ".[distributed]"`, or `pip install -e ".[ai]"`
+
+**Note**: The API server module has been removed as per v0.4.0. For REST API functionality, wrap Neural in FastAPI/Flask.
 
 ## Commands
 - **Build**: N/A (pure Python, no build step)

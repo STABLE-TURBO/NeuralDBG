@@ -40,6 +40,9 @@ BACKEND_DEPS = [
     "onnx>=1.10",
 ]
 
+# API_DEPS removed - API server module has been removed as per v0.4.0
+# For REST API functionality, users should wrap Neural in FastAPI/Flask themselves
+
 AI_DEPS = [
     "langdetect>=1.0.9",
 ]

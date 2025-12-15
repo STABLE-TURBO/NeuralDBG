@@ -1,5 +1,9 @@
 """
 API server configuration settings.
+
+DEPRECATED: The API server module has been removed as per v0.4.0.
+This configuration file is retained for backward compatibility but is no longer used.
+For REST API functionality, wrap Neural in FastAPI/Flask yourself.
 """
 
 from __future__ import annotations
