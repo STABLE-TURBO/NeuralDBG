@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 import sys
 
+
 logger = logging.getLogger(__name__)
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -81,7 +82,7 @@ def main():
         logger.info("=" * 70)
         logger.info("Neural DSL Comprehensive Benchmarking Suite")
         logger.info("=" * 70)
-        logger.info(f"\nConfiguration:")
+        logger.info("\nConfiguration:")
         logger.info(f"  Frameworks: {', '.join(args.frameworks)}")
         logger.info(f"  Epochs: {args.epochs}")
         logger.info(f"  Batch Size: {args.batch_size}")

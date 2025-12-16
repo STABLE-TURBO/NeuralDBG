@@ -4,9 +4,10 @@ This module contains specialized processing functions for complex layer types
 like Conv2D, Dense, LSTM, etc.
 """
 
-from typing import Dict, Any
-from . import layer_processors as lp
+from typing import Any, Dict
+
 from . import hpo_utils
+from . import layer_processors as lp
 
 
 def process_dense_params(param_values: Any, raise_error_fn, track_hpo_fn, node) -> Dict[str, Any]:

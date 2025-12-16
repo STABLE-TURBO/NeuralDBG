@@ -1,15 +1,16 @@
-import dash
+import json
+import os
+import threading
 import time
+
+import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
-import json
-import plotly.graph_objects as go
 from flask import Flask, jsonify, request
-from flask_socketio import SocketIO, emit, join_room
 from flask_httpauth import HTTPBasicAuth
-from werkzeug.security import generate_password_hash, check_password_hash
-import threading
-import os
+from flask_socketio import SocketIO, emit, join_room
+import plotly.graph_objects as go
+from werkzeug.security import check_password_hash, generate_password_hash
 import yaml
 
 from neural.shape_propagation.shape_propagator import ShapePropagator

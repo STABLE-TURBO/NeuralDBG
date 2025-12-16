@@ -495,6 +495,7 @@ def load_and_validate_config(file_path: str, max_size: int = 10 * 1024 * 1024) -
         raise ValidationError("File path must be a non-empty string")
 
     # Check file existence
+    import os
     if not os.path.exists(file_path):
         raise ValidationError(f"Configuration file not found: {file_path}")
 
@@ -519,6 +520,8 @@ def load_and_validate_config(file_path: str, max_size: int = 10 * 1024 * 1024) -
         raise ValidationError("Configuration file must be UTF-8 encoded")
 
     # Parse based on file extension
+    import json
+    import yaml
     try:
         if ext == '.json':
             config = json.loads(content)

@@ -6,6 +6,7 @@ import numpy as np
 
 from neural.exceptions import DependencyError
 
+
 logger = logging.getLogger(__name__)
 
 # Lazy load heavy dependencies

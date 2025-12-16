@@ -31,6 +31,7 @@ from lark import UnexpectedCharacters, UnexpectedToken
 
 from neural.exceptions import ParserException
 
+
 @dataclass
 class ParserError:
     """Structured representation of a parsing error with full context."""

@@ -10,6 +10,7 @@ import sys
 
 from .cli_aesthetics import Colors, animate_neural_network, print_error, print_neural_logo
 
+
 logger = logging.getLogger(__name__)
 
 WELCOME_MESSAGE = f"""

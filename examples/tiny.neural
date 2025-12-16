@@ -1,5 +1,0 @@
-network Tiny {
-  input: (28, 28, 1)
-  layers:
-    Output(10)
-}

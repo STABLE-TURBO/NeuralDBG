@@ -1,8 +1,13 @@
 import logging
-import warnings
 from typing import Any, Dict
+import warnings
+
 from neural.code_generation.base_generator import BaseCodeGenerator
-from neural.code_generation.shape_policy_helpers import ensure_2d_before_dense_tf, get_rank_non_batch
+from neural.code_generation.shape_policy_helpers import (
+    ensure_2d_before_dense_tf,
+    get_rank_non_batch,
+)
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)

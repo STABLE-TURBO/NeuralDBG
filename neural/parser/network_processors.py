@@ -4,7 +4,7 @@ This module contains functions for processing network-level configurations
 like execution settings, framework detection, and device specifications.
 """
 
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 
 def detect_framework(model: Dict[str, Any]) -> str:

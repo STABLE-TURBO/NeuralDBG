@@ -2,8 +2,10 @@
 Learning rate schedule handlers for Neural DSL.
 """
 
-from typing import Dict, Any
-from .validation import validate_numeric, ValidationError
+from typing import Any, Dict
+
+from .validation import ValidationError, validate_numeric
+
 
 class LearningRateSchedule:
     """Base class for learning rate schedules."""

@@ -2,20 +2,20 @@ from neural.visualization.static_visualizer.visualizer import NeuralVisualizer
 
 
 try:
-    from neural.visualization.gallery import (
-        VisualizationGallery,
-        ArchitectureVisualizer,
-        ShapePropagationVisualizer,
-        FlopsMemoryVisualizer,
-        TimelineVisualizer,
-        ExportHandler,
-    )
     from neural.visualization.component_interface import (
         ComponentInterface,
         GalleryMetadata,
         VisualizationMetadata,
         create_component_interface,
         get_visualization_preview_html,
+    )
+    from neural.visualization.gallery import (
+        ArchitectureVisualizer,
+        ExportHandler,
+        FlopsMemoryVisualizer,
+        ShapePropagationVisualizer,
+        TimelineVisualizer,
+        VisualizationGallery,
     )
     
     GALLERY_AVAILABLE = True

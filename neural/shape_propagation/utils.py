@@ -22,6 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+
 def extract_param(params: Dict[str, Any],
                  key: str,
                  default: Any = None,
@@ -392,7 +393,7 @@ def diagnose_shape_flow(shape_history: List[Tuple[str, Tuple[int, ...]]]) -> Dic
     Returns:
         Dictionary with diagnostic information and suggestions
     """
-    diagnostics = {
+    diagnostics: Dict[str, Any] = {
         'warnings': [],
         'errors': [],
         'suggestions': [],

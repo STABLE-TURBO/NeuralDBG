@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 
+
 logger = logging.getLogger(__name__)
 
 # Neural ASCII Logo

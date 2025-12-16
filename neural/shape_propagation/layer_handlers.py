@@ -7,8 +7,8 @@ output shapes based on input shapes and layer parameters.
 
 from typing import Any, Dict, List, Tuple
 
-
 from .utils import calculate_output_dims, extract_param
+
 
 def handle_conv1d(input_shape: Tuple[int, ...],
                  params: Dict[str, Any]) -> Tuple[int, ...]:
@@ -147,12 +147,14 @@ def handle_dropout(input_shape: Tuple[int, ...],
     return input_shape
 
 def handle_batch_normalization(input_shape: Tuple[int, ...],
-                              params: Dict[str, Any]) -> Tuple[int, ...]:
+                              params: Dict[str, Any],
+                              framework: str = "tensorflow") -> Tuple[int, ...]:
     """Handle BatchNormalization layer shape propagation.
 
     Args:
         input_shape: Input tensor shape
         params: Layer parameters
+        framework: Target framework (unused, kept for API consistency)
 
     Returns:
         Output tensor shape (same as input)

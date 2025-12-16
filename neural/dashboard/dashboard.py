@@ -8,6 +8,7 @@ import numpy as np
 
 from neural.exceptions import DependencyError
 
+
 # Lazy load dash dependencies
 try:
     import dash

@@ -90,6 +90,12 @@ class PyTorchGenerator(BaseCodeGenerator):
             layer_name = f"layer{i}_{layer_type.lower()}"
             layer_counts[layer_type] += 1
 
+            # Propagate shape for all layers
+            try:
+                self.current_input_shape = self.propagator.propagate(self.current_input_shape, layer, framework='pytorch')
+            except Exception as e:
+                logger.warning(f"Shape propagation failed for {layer_type}: {e}")
+
             if layer_type == "MultiHeadAttention":
                 layer_code = self.generate_layer(layer_type, params)
                 layers_code.append(f"self.{layer_name} = {layer_code}")
@@ -241,20 +247,49 @@ class PyTorchGenerator(BaseCodeGenerator):
                     layers_code.append(f"self.{layer_name} = {layer_code}")
                     forward_code_body.append(f"x, _ = self.{layer_name}(x)")
             elif layer_type == "Residual":
-                forward_code_body.append("# Residual block")
-                forward_code_body.append("residual_input = x")
-                for sub_layer in layer.get('sub_layers', []):
-                    sub_type = sub_layer['type']
-                    sub_params = sub_layer.get('params', {})
-                    sub_layer_name = f"{layer_name}_{sub_type.lower()}"
-                    sub_layer_code = self.generate_layer(sub_type, sub_params)
-                    if sub_layer_code:
-                        layers_code.append(f"self.{sub_layer_name} = {sub_layer_code}")
-                        if sub_type in ["LSTM", "GRU"]:
-                            forward_code_body.append(f"x, _ = self.{sub_layer_name}(x)")
-                        else:
-                            forward_code_body.append(f"x = self.{sub_layer_name}(x)")
-                forward_code_body.append("x = x + residual_input")
+                sub_layers = layer.get('sub_layers', [])
+                if sub_layers:
+                    # Create a Sequential for sub_layers
+                    sequential_layers = []
+                    saved_input_shape = self.current_input_shape  # Save current shape
+                    current_shape = self.current_input_shape  # Track shape through the sequential
+
+                    for sub_layer in sub_layers:
+                        sub_type = sub_layer['type']
+                        sub_params = sub_layer.get('params', {})
+
+                        # Update shape for layers that change it
+                        if sub_type == "Conv2D":
+                            # Conv2D changes the number of channels
+                            filters = sub_params.get("filters", 32)
+                            data_format = sub_params.get("data_format", "channels_last")
+                            if data_format == "channels_last":
+                                # NHWC -> update channels (last dimension)
+                                if current_shape and len(current_shape) == 4:
+                                    current_shape = (current_shape[0], current_shape[1], current_shape[2], filters)
+                            else:
+                                # NCHW -> update channels (second dimension)
+                                if current_shape and len(current_shape) == 4:
+                                    current_shape = (current_shape[0], filters, current_shape[2], current_shape[3])
+
+                        # Update current input shape for generate_layer
+                        self.current_input_shape = current_shape
+                        sub_layer_code = self.generate_layer(sub_type, sub_params)
+                        if sub_layer_code:
+                            sequential_layers.append(sub_layer_code)
+
+                    # Restore original input shape
+                    self.current_input_shape = saved_input_shape
+
+                    if sequential_layers:
+                        layers_code.append(f"self.{layer_name} = nn.Sequential({', '.join(sequential_layers)})")
+                        forward_code_body.append("residual_input = x")
+                        forward_code_body.append(f"x = self.{layer_name}(x)")
+                        forward_code_body.append("x = x + residual_input")
+                else:
+                    # Empty residual block
+                    forward_code_body.append("# Empty residual block")
+                    forward_code_body.append("pass")
             elif layer_type == "GlobalAveragePooling2D":
                 layer_code = self.generate_layer(layer_type, params)
                 if layer_code:
@@ -434,7 +469,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
 
         return f"nn.MultiheadAttention(embed_dim={embed_dim}, num_heads={num_heads}, dropout={dropout}, batch_first={batch_first})"
     elif layer_type == "Conv1D":
-        data_format = params.get("data_format", "channels_last")
+        data_format = params.get("data_format", "channels_first")
         in_channels = 1
         if input_shape is not None and len(input_shape) >= 3:
             in_channels = input_shape[1] if data_format == "channels_first" else input_shape[2]
@@ -484,7 +519,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             return "nn.Sequential(" + ", ".join(layers) + ")"
         return layers[0]
     elif layer_type == "Conv2D":
-        data_format = params.get("data_format", "channels_last")
+        data_format = params.get("data_format", "channels_first")
         in_channels = 3
         if input_shape is not None and len(input_shape) >= 4:
             in_channels = input_shape[1] if data_format == "channels_first" else input_shape[3]
@@ -534,7 +569,7 @@ def generate_pytorch_layer(layer_type: str, params: Dict[str, Any], input_shape:
             return "nn.Sequential(" + ", ".join(layers) + ")"
         return layers[0]
     elif layer_type == "BatchNormalization":
-        data_format = params.get("data_format", "channels_last")
+        data_format = params.get("data_format", "channels_first")
         if input_shape and len(input_shape) >= 4:
             num_features = input_shape[1] if data_format == "channels_first" else input_shape[3]
             if isinstance(num_features, dict):

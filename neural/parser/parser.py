@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from enum import Enum
+from pathlib import Path
+import json
 import logging
 import re
+import time
 import traceback
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -34,6 +37,34 @@ logging.basicConfig(
     level=logging.DEBUG,  # Capture all levels
     format='%(levelname)s: %(message)s'  # Include severity in output
 )
+
+# region agent log
+# Centralized configuration for debug-mode logging; writes NDJSON lines to the
+# provided debug log path and tags entries with a stable session identifier so
+# multiple runs can be correlated without leaking user data.
+_DEBUG_LOG_PATH = Path(r"c:\Users\Utilisateur\Documents\Neural\.cursor\debug.log")
+_DEBUG_SESSION_ID = "debug-session"
+
+
+def _append_debug_log(*, run_id: str, hypothesis_id: str, location: str, message: str, data: Dict[str, Any]) -> None:
+    """Append a single NDJSON log line for debug-mode instrumentation."""
+    payload = {
+        "sessionId": _DEBUG_SESSION_ID,
+        "runId": run_id,
+        "hypothesisId": hypothesis_id,
+        "location": location,
+        "message": message,
+        "data": data,
+        "timestamp": int(time.time() * 1000),
+    }
+    try:
+        _DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _DEBUG_LOG_PATH.open("a", encoding="utf-8") as log_file:
+            log_file.write(json.dumps(payload) + "\n")
+    except Exception:
+        # Logging must never break parsing; swallow all instrumentation errors.
+        pass
+# endregion
 
 def log_by_severity(severity: 'Severity', message: str) -> None:
     """Log a message based on its severity level."""
@@ -210,12 +241,14 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
 
         // Comments and whitespace
         COMMENT: /#[^\n]*/
+        BLOCK_COMMENT: /\/\*[\s\S]*?\*\//
         WS: /[ \t\f]+/
         _NL: /[\r\n]+/
         _INDENT: /[ \t]+/
         _DEDENT: /\}/
 
         %ignore COMMENT
+        %ignore BLOCK_COMMENT
         %ignore WS
         %ignore _NL
 
@@ -539,7 +572,65 @@ def create_parser(start_rule: str = 'network') -> lark.Lark:
 
 
     """
-    p = lark.Lark(
+    # region agent log
+    _append_debug_log(
+        run_id="pre-fix",
+        hypothesis_id="H2",
+        location="neural/parser/parser.py:create_parser",
+        message="create_parser_invoked",
+        data={"start_rule": start_rule},
+    )
+    # endregion
+
+    class InstrumentedLark(lark.Lark):
+        """Lightweight wrapper that logs parse attempts for hypothesis testing."""
+
+        def parse(self, text: str, start: Optional[str] = None, on_error=None, **kwargs):
+            # region agent log
+            _append_debug_log(
+                run_id=kwargs.pop("run_id", "pre-fix"),
+                hypothesis_id="H1",
+                location="neural/parser/parser.py:InstrumentedLark.parse",
+                message="parse_enter",
+                data={
+                    "start_rule": start or self.options.start,
+                    "text_prefix": (text[:120] if isinstance(text, str) else "<non-str>"),
+                    "length": len(text) if isinstance(text, str) else None,
+                },
+            )
+            # endregion
+            try:
+                result = super().parse(text, start=start, on_error=on_error, **kwargs)
+                # region agent log
+                _append_debug_log(
+                    run_id="pre-fix",
+                    hypothesis_id="H2",
+                    location="neural/parser/parser.py:InstrumentedLark.parse",
+                    message="parse_success",
+                    data={
+                        "start_rule": start or self.options.start,
+                        "tree_type": getattr(result, "data", None),
+                    },
+                )
+                # endregion
+                return result
+            except Exception as exc:
+                # region agent log
+                _append_debug_log(
+                    run_id="pre-fix",
+                    hypothesis_id="H3",
+                    location="neural/parser/parser.py:InstrumentedLark.parse",
+                    message="parse_error",
+                    data={
+                        "start_rule": start or self.options.start,
+                        "exc_type": type(exc).__name__,
+                        "exc_message": str(exc)[:300],
+                    },
+                )
+                # endregion
+                raise
+
+    p = InstrumentedLark(
         grammar,
         start=start_rule,
         parser='lalr',
@@ -3763,7 +3854,7 @@ class ModelTransformer(lark.Transformer):
         return {'type': 'ResidualConnection', 'params': final_params, 'sublayers': sub_layers}
 
     def inception(self, items):
-        params = self._extract_value(items[0]) if items else {}
+        params = items[0] if items and items[0] is not None else {}
         return {'type': 'Inception', 'params': params, 'sublayers': []}
 
     def graph(self, items):

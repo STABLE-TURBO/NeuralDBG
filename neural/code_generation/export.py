@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from neural.exceptions import DependencyError
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -85,6 +86,7 @@ class ModelExporter:
 
             temp_model_path = 'temp_tf_model'
             exec_globals = {}
+            # nosec B102 - Dynamic code execution for model loading is controlled and necessary
             exec(code, exec_globals)
             model = exec_globals.get('model')
 
