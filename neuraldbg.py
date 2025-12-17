@@ -6,6 +6,8 @@ The Event class captures and stores information about individual computation ste
 allowing for detailed inspection of forward passes, backward passes, and gradient flow.
 """
 
+import torch
+
 class Event:
     """
     Represents a single computation event in a neural network's forward or backward pass.
